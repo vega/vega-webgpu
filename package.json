@@ -1,0 +1,25 @@
+{
+  "name": "vega-webgpu",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "",
+  "source": "src/index.ts",
+  "exports": "./dist/vega-webgpu.modern.js",
+  "main": "./dist/vega-webgpu.cjs",
+  "module": "./dist/vega-webgpu.module.js",
+  "unpkg": "./dist/vega-webgpu.umd.js",
+  "scripts": {
+    "build": "microbundle",
+    "dev": "microbundle watch",
+    "serve": "live-server --open='/test'"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "eslint": "^7.27.0",
+    "live-server": "^1.2.1",
+    "microbundle": "^0.13.1",
+    "prettier": "^2.3.0"
+  }
+}
