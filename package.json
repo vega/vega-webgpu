@@ -3,23 +3,30 @@
   "type": "module",
   "version": "1.0.0",
   "description": "",
-  "source": "src/index.ts",
-  "exports": "./dist/vega-webgpu.modern.js",
-  "main": "./dist/vega-webgpu.cjs",
-  "module": "./dist/vega-webgpu.module.js",
-  "unpkg": "./dist/vega-webgpu.umd.js",
+  "main": "src/index.ts",
   "scripts": {
-    "build": "microbundle",
-    "dev": "microbundle watch",
+    "build": "rollup -c",
+    "dev": "rollup -c --watch",
     "serve": "live-server --open='/test'"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^19.0.0",
+    "@rollup/plugin-node-resolve": "^13.0.0",
+    "@rollup/plugin-typescript": "^8.2.1",
+    "@webgpu/types": "^0.1.3",
+    "d3-color": "^3.0.0",
     "eslint": "^7.27.0",
     "live-server": "^1.2.1",
-    "microbundle": "^0.13.1",
-    "prettier": "^2.3.0"
+    "prettier": "^2.3.0",
+    "rollup": "^2.51.0",
+    "rollup-plugin-string": "^3.0.0",
+    "tslib": "^2.2.0",
+    "typescript": "^4.3.2",
+    "vega-canvas": "^1.2.6",
+    "vega-scenegraph": "^4.9.4",
+    "vega-util": "^1.16.1"
   }
 }
