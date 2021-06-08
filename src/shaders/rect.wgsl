@@ -1,5 +1,6 @@
 [[block]] struct Uniforms {
     resolution: vec2<f32>;
+    origin: vec2<f32>;
     center: vec2<f32>;
     scale: vec2<f32>;
 };
@@ -17,9 +18,9 @@ struct VertexOutput {
 };
 
 [[stage(vertex)]]
-fn main_vertex([[location(0)]] position: vec2<f32>, [[location(1)]] scale: vec2<f32>, [[location(2)]] color : vec4<f32>) -> VertexOutput {
+fn main_vertex([[location(0)]] position: vec2<f32>) -> VertexOutput {
     var output : VertexOutput;
-    var pos: vec2<f32> = vec2<f32>(position * uniforms.scale) + uniforms.center;
+    var pos: vec2<f32> = vec2<f32>(position * uniforms.scale) + uniforms.center + uniforms.origin;
     pos = pos / uniforms.resolution;
     pos.y = 1.0-pos.y;
     pos = pos * 2.0 - 1.0;

@@ -10,6 +10,7 @@ function draw(ctx, item, tfx) {
     const device = await adapter.requestDevice();
     const swapChain = ctx.configureSwapChain({
       device,
+      compositingAlphaMode: 'premultiplied',
       format: this._swapChainFormat
     });
     const shader = device.createShaderModule({code: shaderSource});
@@ -18,6 +19,7 @@ function draw(ctx, item, tfx) {
       vertex: {
         module: shader,
         entryPoint: 'main_vertex',
+        //@ts-ignore
         buffers: [
           {
             arrayStride: Float32Array.BYTES_PER_ELEMENT * 2,
@@ -34,7 +36,24 @@ function draw(ctx, item, tfx) {
       fragment: {
         module: shader,
         entryPoint: 'main_fragment',
-        targets: [{format: this._swapChainFormat}]
+        //@ts-ignore
+        targets: [
+          {
+            format: this._swapChainFormat,
+            blend: {
+              alpha: {
+                srcFactor: 'one',
+                dstFactor: 'one-minus-src-alpha',
+                operation: 'add'
+              },
+              color: {
+                srcFactor: 'src-alpha',
+                dstFactor: 'one-minus-src-alpha',
+                operation: 'add'
+              }
+            }
+          }
+        ]
       },
       primitives: {
         topology: 'triangle-list'
@@ -53,7 +72,6 @@ function draw(ctx, item, tfx) {
     };
 
     const positions = new Float32Array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
-    //@ts-ignore
     const positionBuffer = createBuffer(device, positions, GPUBufferUsage.VERTEX);
 
     const bundleEncoder = device.createRenderBundleEncoder({
@@ -66,11 +84,17 @@ function draw(ctx, item, tfx) {
     for (let i = 0; i < itemCount; i++) {
       const {x, y, width, height, fill, fillOpacity} = item.items[i];
       const col = color(fill);
-      const uniforms = new Float32Array([...this._uniforms.resolution, x || 0, y || 0, width || 0, height || 0]);
+      const uniforms = new Float32Array([
+        ...this._uniforms.resolution,
+        ...tfx,
+        x || 0,
+        y || 0,
+        width || 0,
+        height || 0
+      ]);
+      //@ts-ignore
       const fillColor = new Float32Array([col.r / 255, col.g / 255, col.b / 255, fillOpacity || 1.0]);
-      //@ts-ignore
       const uniformBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
-      //@ts-ignore
       const fillBuffer = createBuffer(device, fillColor, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
       const uniformBindGroup = device.createBindGroup({
         layout: pipeline.getBindGroupLayout(0),

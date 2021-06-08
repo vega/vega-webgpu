@@ -100,7 +100,8 @@ inherits(WebGPURenderer, Renderer, {
       this._swapChainFormat = 'bgra8unorm';
       this._uniforms = {
         resolution: [w, h],
-        origin: [o],
+        origin: o,
+        //@ts-ignore
         dpi: window.devicePixelRatio || 1
       };
       this.draw(ctx, scene, vb);

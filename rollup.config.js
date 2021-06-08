@@ -9,7 +9,10 @@ export default {
   plugins: [
     commonjs(),
     resolve(),
-    typescript({allowSyntheticDefaultImports: true}),
+    typescript({
+      allowSyntheticDefaultImports: true,
+      lib: ['esnext', 'dom']
+    }),
     string({
       include: '**/*.wgsl',
       exclude: ['node_modules/*']

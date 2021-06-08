@@ -1,0 +1,7 @@
+{
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "lib": ["esnext", "dom"],
+    "typeRoots": ["./node_modules/@webgpu/types", "./node_modules/@types"]
+  }
+}
