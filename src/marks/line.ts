@@ -4,7 +4,6 @@ import {createBuffer} from '../util/arrays';
 import shaderSource from '../shaders/line.wgsl';
 
 function draw(ctx, item, tfx) {
-  //@ts-ignore;
   const device = this._device;
   const shader = device.createShaderModule({code: shaderSource});
 
@@ -141,7 +140,6 @@ function draw(ctx, item, tfx) {
   }
 
   const renderBundle = bundleEncoder.finish();
-  //@ts-ignore
   const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
   passEncoder.executeBundles([renderBundle]);
   passEncoder.endPass();

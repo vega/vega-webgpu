@@ -4,7 +4,6 @@ import {createBuffer} from '../util/arrays';
 import shaderSource from '../shaders/rect.wgsl';
 
 function draw(ctx, item, tfx) {
-  //@ts-ignore;
   const device = this._device;
   const shader = device.createShaderModule({code: shaderSource});
 
@@ -78,11 +77,10 @@ function draw(ctx, item, tfx) {
     const x1 = x || 0;
     const y1 = y || 0;
     const dx = x2 != null ? x2 : x1;
-    const dy = y2 != null ? x2 : x1;
+    const dy = y2 != null ? y2 : y1;
     const ax = Math.abs(dx - x1);
     const ay = Math.abs(dy - y1);
     const sw = strokeWidth ? strokeWidth : 1;
-    console.log({x: Math.min(x1, dx), y: Math.min(y1, dy)}, ax, ay);
 
     const uniforms = new Float32Array([
       ...this._uniforms.resolution,
@@ -118,7 +116,6 @@ function draw(ctx, item, tfx) {
   }
 
   const renderBundle = bundleEncoder.finish();
-  //@ts-ignore
   const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
   passEncoder.executeBundles([renderBundle]);
   passEncoder.endPass();

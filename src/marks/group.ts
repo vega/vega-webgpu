@@ -121,7 +121,6 @@ function draw(ctx, scene, tfx) {
       ]
     });
 
-    //@ts-ignore
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
     passEncoder.setPipeline(pipeline);
     passEncoder.setBindGroup(0, vertexBindGroup);

@@ -7,6 +7,7 @@ function draw(ctx, item, tfx) {
     lh,
     tl,
     str;
+  return;
 }
 
 export default {
