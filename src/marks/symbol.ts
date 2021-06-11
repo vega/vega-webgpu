@@ -13,7 +13,6 @@ function draw(ctx, item, tfx) {
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
-      //@ts-ignore
       buffers: [
         {
           arrayStride: Float32Array.BYTES_PER_ELEMENT * 2,
@@ -30,7 +29,6 @@ function draw(ctx, item, tfx) {
     fragment: {
       module: shader,
       entryPoint: 'main_fragment',
-      //@ts-ignore
       targets: [
         {
           format: this._swapChainFormat,

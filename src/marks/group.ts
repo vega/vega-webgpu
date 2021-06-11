@@ -32,7 +32,6 @@ function draw(ctx, scene, tfx) {
     const w = width || 0,
       h = height || 0;
 
-    //@ts-ignore
     const device = this._device;
 
     const shader = device.createShaderModule({

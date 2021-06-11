@@ -12,7 +12,6 @@ function draw(ctx, item, tfx) {
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
-      //@ts-ignore
       buffers: [
         {
           arrayStride: Float32Array.BYTES_PER_ELEMENT * 2,
@@ -29,7 +28,6 @@ function draw(ctx, item, tfx) {
     fragment: {
       module: shader,
       entryPoint: 'main_fragment',
-      //@ts-ignore
       targets: [
         {
           format: this._swapChainFormat,
@@ -84,6 +82,7 @@ function draw(ctx, item, tfx) {
     const ax = Math.abs(dx - x1);
     const ay = Math.abs(dy - y1);
     const sw = strokeWidth ? strokeWidth : 1;
+    console.log({x: Math.min(x1, dx), y: Math.min(y1, dy)}, ax, ay);
 
     const uniforms = new Float32Array([
       ...this._uniforms.resolution,
@@ -120,10 +119,10 @@ function draw(ctx, item, tfx) {
 
   const renderBundle = bundleEncoder.finish();
   //@ts-ignore
-  // const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-  // passEncoder.executeBundles([renderBundle]);
-  // passEncoder.endPass();
-  // device.queue.submit([commandEncoder.finish()]);
+  const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+  passEncoder.executeBundles([renderBundle]);
+  passEncoder.endPass();
+  device.queue.submit([commandEncoder.finish()]);
 }
 
 export default {
