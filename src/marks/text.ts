@@ -1,4 +1,6 @@
-function draw() {}
+function draw() {
+  return;
+}
 
 export default {
   type: 'text',

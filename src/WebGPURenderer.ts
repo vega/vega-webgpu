@@ -97,14 +97,24 @@ inherits(WebGPURenderer, Renderer, {
 
     const ctx = this.context();
     if (ctx) {
-      this._swapChainFormat = 'bgra8unorm';
-      this._uniforms = {
-        resolution: [w, h],
-        origin: o,
-        //@ts-ignore
-        dpi: window.devicePixelRatio || 1
-      };
-      this.draw(ctx, scene, vb);
+      (async () => {
+        const adapter = await navigator.gpu.requestAdapter();
+        const device = await adapter.requestDevice();
+        this._device = device;
+        this._swapChainFormat = 'bgra8unorm';
+        ctx.configure({
+          device,
+          format: this._swapChainFormat,
+          compositingAlphaMode: 'premultiplied'
+        });
+        this._uniforms = {
+          resolution: [w, h],
+          origin: o,
+          //@ts-ignore
+          dpi: window.devicePixelRatio || 1
+        };
+        this.draw(ctx, scene, vb);
+      })();
     }
 
     return this;
