@@ -3,7 +3,19 @@ import {createBuffer} from '../util/arrays';
 //@ts-ignore
 import shaderSource from '../shaders/rect.wgsl';
 
-function draw(ctx, item, tfx) {
+interface Rule {
+  x: number;
+  y: number;
+  x2: number;
+  y2: number;
+  width: number;
+  height: number;
+  stroke: string;
+  strokeWidth: string;
+  strokeOpacity: number;
+}
+
+function draw(ctx: GPUCanvasContext, item: {items: Array<Rule>}, tfx: [number, number]) {
   const device = this._device;
   const shader = device.createShaderModule({code: shaderSource});
 
@@ -50,6 +62,7 @@ function draw(ctx, item, tfx) {
     }
   });
   const commandEncoder = device.createCommandEncoder();
+  //@ts-ignore
   const textureView = ctx.getCurrentTexture().createView();
   const renderPassDescriptor = {
     colorAttachments: [

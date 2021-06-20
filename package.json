@@ -1,32 +1,33 @@
 {
-  "name": "vega-webgpu",
-  "type": "module",
-  "version": "1.0.0",
-  "description": "",
-  "main": "src/index.ts",
-  "scripts": {
-    "build": "rollup -c",
-    "dev": "rollup -c --watch",
-    "serve": "live-server --open='/test'"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "@rollup/plugin-commonjs": "^19.0.0",
-    "@rollup/plugin-node-resolve": "^13.0.0",
-    "@rollup/plugin-typescript": "^8.2.1",
-    "@webgpu/types": "^0.1.3",
-    "d3-color": "^3.0.0",
-    "eslint": "^7.27.0",
-    "live-server": "^1.2.1",
-    "prettier": "^2.3.0",
-    "rollup": "^2.51.0",
-    "rollup-plugin-string": "^3.0.0",
-    "tslib": "^2.2.0",
-    "typescript": "^4.3.2",
-    "vega-canvas": "^1.2.6",
-    "vega-scenegraph": "^4.9.4",
-    "vega-util": "^1.16.1"
-  }
+    "name": "vega-webgpu",
+    "type": "module",
+    "version": "1.0.0",
+    "description": "",
+    "main": "src/index.ts",
+    "scripts": {
+        "build": "rollup -c",
+        "dev": "rollup -c --watch",
+        "serve": "live-server --open='/test'"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "@rollup/plugin-commonjs": "^19.0.0",
+        "@rollup/plugin-node-resolve": "^13.0.0",
+        "@rollup/plugin-typescript": "^8.2.1",
+        "@types/d3": "^6.7.1",
+        "@webgpu/types": "^0.1.3",
+        "d3-color": "^3.0.0",
+        "eslint": "^7.27.0",
+        "live-server": "^1.2.1",
+        "prettier": "^2.3.0",
+        "rollup": "^2.51.0",
+        "rollup-plugin-string": "^3.0.0",
+        "tslib": "^2.2.0",
+        "typescript": "^4.3.2",
+        "vega-canvas": "^1.2.6",
+        "vega-scenegraph": "^4.9.4",
+        "vega-util": "^1.16.1"
+    }
 }

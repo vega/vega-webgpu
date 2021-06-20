@@ -4,8 +4,19 @@ import {createBuffer} from '../util/arrays';
 //@ts-ignore
 import shaderSource from '../shaders/group.wgsl';
 
-function draw(ctx, scene, tfx) {
-  visit(scene, group => {
+interface Group {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fill: string;
+  stroke: string;
+  strokeForeground: string;
+  opacity: number;
+}
+
+function draw(ctx: GPUCanvasContext, scene: {items: Array<Group>}, tfx: [number, number]) {
+  visit(scene, (group: Group) => {
     const {fill, stroke, width, height} = group;
     const gx = group.x || 0,
       gy = group.y || 0,
@@ -82,6 +93,7 @@ function draw(ctx, scene, tfx) {
     });
 
     const commandEncoder = device.createCommandEncoder();
+    //@ts-ignore
     const textureView = ctx.getCurrentTexture().createView();
     const renderPassDescriptor = {
       colorAttachments: [
@@ -129,7 +141,7 @@ function draw(ctx, scene, tfx) {
     passEncoder.endPass();
     device.queue.submit([commandEncoder.finish()]);
 
-    visit(group, item => {
+    visit(group, (item: unknown) => {
       this.draw(ctx, item, [tx, ty]);
     });
   });

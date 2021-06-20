@@ -3,7 +3,15 @@ import {color} from 'd3-color';
 //@ts-ignore
 import shaderSource from '../shaders/symbol.wgsl';
 
-function draw(ctx, item, tfx) {
+interface Symbol {
+  x: number;
+  y: number;
+  size: number;
+  fill: string;
+  opacity: number;
+}
+
+function draw(ctx: GPUCanvasContext, item: {items: Array<Symbol>}, tfx: [number, number]) {
   const device = this._device;
   const shader = device.createShaderModule({
     code: shaderSource
@@ -51,6 +59,7 @@ function draw(ctx, item, tfx) {
     }
   });
   const commandEncoder = device.createCommandEncoder();
+  //@ts-ignore
   const textureView = ctx.getCurrentTexture().createView();
   const renderPassDescriptor = {
     colorAttachments: [
