@@ -90,7 +90,6 @@ export function fontFamily(item, quote) {
 }
 
 export function font(item, quote: unknown) {
-  console.log(item);
   return (
     '' +
     (item.fontStyle ? item.fontStyle + ' ' : '') +
