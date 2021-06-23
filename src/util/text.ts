@@ -1,6 +1,7 @@
 // taken directly from vega-scenegraph
 //@ts-ignore
 import {isArray, lruCache} from 'vega-util';
+const dpi = window.devicePixelRatio;
 
 // memoize text width measurement
 const widthCache = lruCache();
@@ -21,7 +22,7 @@ function _estimateWidth(text, currentFontHeight) {
 }
 
 export function fontSize(item) {
-  return item.fontSize != null ? +item.fontSize || 0 : 11;
+  return (item.fontSize != null ? +item.fontSize || 0 : 11) * dpi;
 }
 
 export function lineHeight(item) {
@@ -88,7 +89,8 @@ export function fontFamily(item, quote) {
   return (quote && font ? String(font).replace(/"/g, "'") : font) || 'sans-serif';
 }
 
-export function font(item, quote) {
+export function font(item, quote: unknown) {
+  console.log(item);
   return (
     '' +
     (item.fontStyle ? item.fontStyle + ' ' : '') +

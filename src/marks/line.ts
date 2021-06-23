@@ -11,7 +11,7 @@ interface Line {
   strokeOpacity: number;
 }
 
-function draw(ctx: GPUCanvasContext, item: {items: Array<Line>}, tfx: [number, number]) {
+function draw(ctx: GPUCanvasContext, scene: {items: Array<Line>}, tfx: [number, number]) {
   const device = this._device;
   const shader = device.createShaderModule({code: shaderSource});
 
@@ -80,10 +80,10 @@ function draw(ctx: GPUCanvasContext, item: {items: Array<Line>}, tfx: [number, n
   });
   bundleEncoder.setPipeline(pipeline);
 
-  const itemCount = item.items.length;
+  const itemCount = scene.items.length;
   for (let i = 0; i < itemCount - 1; i++) {
-    const {x, y, stroke, strokeWidth, strokeOpacity} = item.items[i];
-    const {x: x2, y: y2} = item.items[i + 1];
+    const {x, y, stroke, strokeWidth, strokeOpacity} = scene.items[i];
+    const {x: x2, y: y2} = scene.items[i + 1];
     const [dx, dy] = [x2 - x, y2 - y];
     let [nx, ny] = [-dy, dx];
     const vlen = Math.sqrt(nx ** 2 + ny ** 2);

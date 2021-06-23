@@ -15,7 +15,7 @@ interface Rule {
   strokeOpacity: number;
 }
 
-function draw(ctx: GPUCanvasContext, item: {items: Array<Rule>}, tfx: [number, number]) {
+function draw(ctx: GPUCanvasContext, scene: {items: Array<Rule>}, tfx: [number, number]) {
   const device = this._device;
   const shader = device.createShaderModule({code: shaderSource});
 
@@ -83,9 +83,9 @@ function draw(ctx: GPUCanvasContext, item: {items: Array<Rule>}, tfx: [number, n
   bundleEncoder.setPipeline(pipeline);
   bundleEncoder.setVertexBuffer(0, positionBuffer);
 
-  const itemCount = item.items.length;
+  const itemCount = scene.items.length;
   for (let i = 0; i < itemCount; i++) {
-    const {x, y, x2, y2, stroke, strokeWidth, strokeOpacity} = item.items[i];
+    const {x, y, x2, y2, stroke, strokeWidth, strokeOpacity} = scene.items[i];
     const col = color(stroke);
     const x1 = x || 0;
     const y1 = y || 0;

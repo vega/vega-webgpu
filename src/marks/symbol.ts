@@ -11,7 +11,7 @@ interface Symbol {
   opacity: number;
 }
 
-function draw(ctx: GPUCanvasContext, item: {items: Array<Symbol>}, tfx: [number, number]) {
+function draw(ctx: GPUCanvasContext, scene: {items: Array<Symbol>}, tfx: [number, number]) {
   const device = this._device;
   const shader = device.createShaderModule({
     code: shaderSource
@@ -93,9 +93,9 @@ function draw(ctx: GPUCanvasContext, item: {items: Array<Symbol>}, tfx: [number,
   bundleEncoder.setPipeline(pipeline);
   bundleEncoder.setVertexBuffer(0, positionBuffer);
 
-  const itemCount = item.items.length;
+  const itemCount = scene.items.length;
   for (let i = 0; i < itemCount; i++) {
-    const {x, y, size, fill, opacity} = item.items[i];
+    const {x, y, size, fill, opacity} = scene.items[i];
     const col = color(fill);
     const r = Math.sqrt(size) / 2;
     const uniforms = new Float32Array([...this._uniforms.resolution, ...tfx, x, y, r, r]);

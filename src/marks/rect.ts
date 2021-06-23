@@ -14,7 +14,7 @@ interface Rect {
   strokeOpacity: number;
 }
 
-function draw(ctx: GPUCanvasContext, item: {items: Array<Rect>}, tfx: [number, number]) {
+function draw(ctx: GPUCanvasContext, scene: {items: Array<Rect>}, tfx: [number, number]) {
   const device = this._device;
   const shader = device.createShaderModule({code: shaderSource});
 
@@ -82,9 +82,9 @@ function draw(ctx: GPUCanvasContext, item: {items: Array<Rect>}, tfx: [number, n
   bundleEncoder.setPipeline(pipeline);
   bundleEncoder.setVertexBuffer(0, positionBuffer);
 
-  const itemCount = item.items.length;
+  const itemCount = scene.items.length;
   for (let i = 0; i < itemCount; i++) {
-    const {x, y, width, height, fill, fillOpacity} = item.items[i];
+    const {x, y, width, height, fill, fillOpacity} = scene.items[i];
     const col = color(fill);
     const uniforms = new Float32Array([...this._uniforms.resolution, ...tfx, x || 0, y || 0, width || 0, height || 0]);
     //@ts-ignore
