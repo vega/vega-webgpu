@@ -21,7 +21,7 @@ fn main_vertex([[location(0)]] position: vec2<f32>, [[location(1)]] normal: vec2
     var output : VertexOutput;
     var pos: vec2<f32> = (position + uniforms.origin) / uniforms.resolution;
     pos = pos + (normal * uniforms.strokewidth / uniforms.resolution * 0.5);
-    pos.y = 1.0-pos.y;
+    pos.y = 1.0 - pos.y;
     pos = pos * 2.0 - 1.0;
     output.pos = vec4<f32>(pos, 0.0, 1.0);
     output.uv = pos;
@@ -30,5 +30,5 @@ fn main_vertex([[location(0)]] position: vec2<f32>, [[location(1)]] normal: vec2
 
 [[stage(fragment)]]
 fn main_fragment() -> [[location(0)]] vec4<f32> {
-    return colors.stroke;
+    return vec4<f32>(1.0, 0.0, 0.0, 1.0);//colors.stroke;
 }

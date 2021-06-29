@@ -61,6 +61,11 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Group>}, tfx: [number,
                 shaderLocation: 0,
                 offset: 0,
                 format: 'float32x2'
+              },
+              {
+                shaderLocation: 1,
+                offset: 0,
+                format: 'float32x2'
               }
             ]
           }
@@ -106,6 +111,8 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Group>}, tfx: [number,
     };
     const positions = new Float32Array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
     const positionsBuffer = createBuffer(device, positions, GPUBufferUsage.VERTEX);
+    const uvs = new Float32Array([1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
+    const uvBuffer = createBuffer(device, uvs, GPUBufferUsage.VERTEX);
     const uniforms = new Float32Array([...this._uniforms.resolution, tx, ty, w, h]);
     const uniformBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
 
@@ -137,6 +144,7 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Group>}, tfx: [number,
     passEncoder.setPipeline(pipeline);
     passEncoder.setBindGroup(0, vertexBindGroup);
     passEncoder.setVertexBuffer(0, positionsBuffer);
+    passEncoder.setVertexBuffer(1, uvBuffer);
     passEncoder.draw(6, 1, 0, 0);
     passEncoder.endPass();
     device.queue.submit([commandEncoder.finish()]);

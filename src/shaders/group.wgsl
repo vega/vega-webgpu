@@ -13,14 +13,6 @@
 [[group(0), binding(0)]] var<uniform> uniforms : Uniforms; 
 [[group(0), binding(1)]] var<uniform> colors : ColorUniforms; 
 
-let uvs : array<vec2<f32>, 6> = array<vec2<f32>, 6>(
-    vec2<f32>(1.0, 0.0),
-    vec2<f32>(1.0, 1.0),
-    vec2<f32>(0.0, 1.0),
-    vec2<f32>(1.0, 0.0),
-    vec2<f32>(0.0, 1.0),
-    vec2<f32>(0.0, 0.0));
-
 
 struct VertexOutput {
     [[builtin(position)]] pos : vec4<f32>;
@@ -28,14 +20,14 @@ struct VertexOutput {
 };
 
 [[stage(vertex)]]
-fn main_vertex([[location(0)]] position : vec2<f32>, [[builtin(vertex_index)]] idx : u32) -> VertexOutput {
+fn main_vertex([[location(0)]] position : vec2<f32>, [[location(1)]] uv : vec2<f32>) -> VertexOutput {
     var output: VertexOutput;
     var pos : vec2<f32> = position * uniforms.scale + uniforms.origin;
     pos = pos / uniforms.resolution;
     pos.y = 1.0 - pos.y;
     pos = vec2<f32>(pos * 2.0) - 1.0;
     output.pos = vec4<f32>(pos, 0.0, 1.0);
-    output.uv = uvs[idx];
+    output.uv = uv;
     return output;
 }
 

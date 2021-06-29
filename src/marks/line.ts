@@ -81,9 +81,9 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Line>}, tfx: [number, 
   bundleEncoder.setPipeline(pipeline);
 
   const itemCount = scene.items.length;
-  for (let i = 0; i < itemCount - 1; i++) {
+  for (let i = 0; i < itemCount; i++) {
     const {x, y, stroke, strokeWidth, strokeOpacity} = scene.items[i];
-    const {x: x2, y: y2} = scene.items[i + 1];
+    const {x: x2, y: y2} = scene.items[Math.min(scene.items.length - 1, i + 1)];
     const [dx, dy] = [x2 - x, y2 - y];
     let [nx, ny] = [-dy, dx];
     const vlen = Math.sqrt(nx ** 2 + ny ** 2);
@@ -91,35 +91,14 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Line>}, tfx: [number, 
     ny /= vlen;
     const col = color(stroke);
 
-    const positions = new Float32Array([
-      x,
-      y,
-      x,
-      y,
-      x2,
-      y2,
-      x2,
-      y2,
-      x2,
-      y2,
-      x,
-      y,
-      nx,
-      ny,
-      -nx,
-      -ny,
-      -nx,
-      -ny,
-      nx,
-      ny,
-      nx,
-      ny
-    ]);
-    const positionBuffer = createBuffer(device, positions, GPUBufferUsage.VERTEX);
-    bundleEncoder.setVertexBuffer(0, positionBuffer, 0, 12);
-    bundleEncoder.setVertexBuffer(1, positionBuffer, 12, 12);
+    const positions = new Float32Array([x, y, x, y, x2, y2, x2, y2, x2, y2, x, y]);
+    const normals = new Float32Array([nx, ny, -nx, -ny, -nx, -ny, -nx, -ny, nx, ny, nx, ny]);
 
-    bundleEncoder.setVertexBuffer(1, positionBuffer);
+    const positionBuffer = createBuffer(device, positions, GPUBufferUsage.VERTEX);
+    const normalBuffer = createBuffer(device, normals, GPUBufferUsage.VERTEX);
+    bundleEncoder.setVertexBuffer(0, positionBuffer);
+    bundleEncoder.setVertexBuffer(1, normalBuffer);
+
     const sw = strokeWidth || 1;
 
     const uniforms = new Float32Array([...this._uniforms.resolution, ...tfx, sw, sw]);

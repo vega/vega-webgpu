@@ -97,7 +97,24 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>}, tfx: [number, 
   const pipeline = device.createRenderPipeline({
     vertex: {
       module: shader,
-      entryPoint: 'main_vertex'
+      entryPoint: 'main_vertex',
+      buffers: [
+        {
+          arrayStride: Float32Array.BYTES_PER_ELEMENT * 2,
+          attributes: [
+            {
+              shaderLocation: 0,
+              offset: 0,
+              format: 'float32x2'
+            },
+            {
+              shaderLocation: 1,
+              offset: 0,
+              format: 'float32x2'
+            }
+          ]
+        }
+      ]
     },
     fragment: {
       module: shader,
@@ -124,6 +141,11 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>}, tfx: [number, 
       topology: 'triangle-list'
     }
   });
+  const positions = new Float32Array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
+  const positionBuffer = createBuffer(device, positions, GPUBufferUsage.VERTEX);
+  const uvs = new Float32Array([1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
+  const uvBuffer = createBuffer(device, uvs, GPUBufferUsage.VERTEX);
+
   const uniforms = new Float32Array([w, h, ...tfx, dpi]);
   const uniformBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
   const sampler = device.createSampler({
@@ -175,6 +197,8 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>}, tfx: [number, 
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
     passEncoder.setPipeline(pipeline);
     passEncoder.setBindGroup(0, bindGroup);
+    passEncoder.setVertexBuffer(0, positionBuffer);
+    passEncoder.setVertexBuffer(1, uvBuffer);
     passEncoder.draw(6, 1, 0, 0);
     passEncoder.endPass();
     device.queue.submit([commandEncoder.finish()]);

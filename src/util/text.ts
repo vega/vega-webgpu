@@ -89,7 +89,7 @@ export function fontFamily(item, quote) {
   return (quote && font ? String(font).replace(/"/g, "'") : font) || 'sans-serif';
 }
 
-export function font(item, quote: unknown) {
+export function font(item, quote: unknown = null) {
   return (
     '' +
     (item.fontStyle ? item.fontStyle + ' ' : '') +

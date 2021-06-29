@@ -13,27 +13,14 @@ struct VertexOutput {
 [[group(0), binding(1)]] var s: sampler;
 [[group(0), binding(2)]] var maintex: texture_2d<f32>;
 
-let positions : array<vec2<f32>, 6> = array<vec2<f32>, 6>(
-      vec2<f32>( 1.0,  1.0),
-      vec2<f32>( 1.0, -1.0),
-      vec2<f32>(-1.0, -1.0),
-      vec2<f32>( 1.0,  1.0),
-      vec2<f32>(-1.0, -1.0),
-      vec2<f32>(-1.0,  1.0));
-
-let uvs : array<vec2<f32>, 6> = array<vec2<f32>, 6>(
-      vec2<f32>(1.0, 0.0),
-      vec2<f32>(1.0, 1.0),
-      vec2<f32>(0.0, 1.0),
-      vec2<f32>(1.0, 0.0),
-      vec2<f32>(0.0, 1.0),
-      vec2<f32>(0.0, 0.0));
-
 [[stage(vertex)]]
-fn main_vertex([[builtin(vertex_index)]] idx: u32) -> VertexOutput {
+fn main_vertex([[location(0)]] pos: vec2<f32>, [[location(1)]] uv: vec2<f32>) -> VertexOutput {
     var output: VertexOutput;
-    output.pos = vec4<f32>(positions[idx], 0.0, 1.0);
-    output.uv = uvs[idx];
+    output.pos = vec4<f32>(pos, 0.0, 1.0);
+    output.pos.y = 1.0 - output.pos.y;
+    output.pos.x = output.pos.x* 2.0 - 1.0;
+    output.pos.y = output.pos.y * 2.0 - 1.0;
+    output.uv = uv;
     return output;
 }
 
