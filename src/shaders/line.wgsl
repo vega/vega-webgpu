@@ -30,5 +30,5 @@ fn main_vertex([[location(0)]] position: vec2<f32>, [[location(1)]] normal: vec2
 
 [[stage(fragment)]]
 fn main_fragment() -> [[location(0)]] vec4<f32> {
-    return vec4<f32>(1.0, 0.0, 0.0, 1.0);//colors.stroke;
+    return colors.stroke;
 }

@@ -1,5 +1,5 @@
-import {color} from 'd3-color';
-import {createBuffer} from '../util/arrays';
+import { color } from 'd3-color';
+import { createBuffer } from '../util/arrays';
 //@ts-ignore
 import shaderSource from '../shaders/line.wgsl';
 
@@ -11,9 +11,9 @@ interface Line {
   strokeOpacity: number;
 }
 
-function draw(ctx: GPUCanvasContext, scene: {items: Array<Line>}, tfx: [number, number]) {
+function draw(ctx: GPUCanvasContext, scene: { items: Array<Line> }, tfx: [number, number]) {
   const device = this._device;
-  const shader = device.createShaderModule({code: shaderSource});
+  const shader = device.createShaderModule({ code: shaderSource });
 
   const pipeline = device.createRenderPipeline({
     vertex: {
@@ -21,7 +21,7 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Line>}, tfx: [number, 
       entryPoint: 'main_vertex',
       buffers: [
         {
-          arrayStride: Float32Array.BYTES_PER_ELEMENT * 2,
+          arrayStride: Float32Array.BYTES_PER_ELEMENT * 4,
           attributes: [
             {
               shaderLocation: 0,
@@ -30,7 +30,7 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Line>}, tfx: [number, 
             },
             {
               shaderLocation: 1,
-              offset: 0,
+              offset: Float32Array.BYTES_PER_ELEMENT * 2,
               format: 'float32x2'
             }
           ]
@@ -82,22 +82,46 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Line>}, tfx: [number, 
 
   const itemCount = scene.items.length;
   for (let i = 0; i < itemCount; i++) {
-    const {x, y, stroke, strokeWidth, strokeOpacity} = scene.items[i];
-    const {x: x2, y: y2} = scene.items[Math.min(scene.items.length - 1, i + 1)];
+    const { x, y, stroke, strokeWidth, strokeOpacity } = scene.items[i];
+    const { x: x2, y: y2 } = scene.items[Math.min(itemCount - 1, i + 1)];
     const [dx, dy] = [x2 - x, y2 - y];
     let [nx, ny] = [-dy, dx];
     const vlen = Math.sqrt(nx ** 2 + ny ** 2);
-    nx /= vlen;
-    ny /= vlen;
+    nx /= vlen || 1;
+    ny /= vlen || 1;
     const col = color(stroke);
 
-    const positions = new Float32Array([x, y, x, y, x2, y2, x2, y2, x2, y2, x, y]);
-    const normals = new Float32Array([nx, ny, -nx, -ny, -nx, -ny, -nx, -ny, nx, ny, nx, ny]);
+    // buffer layout:
+    // posx, posy, normalx, normaly
+    const positions = new Float32Array([
+      x,
+      y,
+      nx,
+      ny,
+      x,
+      y,
+      -nx,
+      -ny,
+      x2,
+      y2,
+      -nx,
+      -ny,
+      x2,
+      y2,
+      -nx,
+      -ny,
+      x2,
+      y2,
+      nx,
+      ny,
+      x,
+      y,
+      nx,
+      ny
+    ]);
 
     const positionBuffer = createBuffer(device, positions, GPUBufferUsage.VERTEX);
-    const normalBuffer = createBuffer(device, normals, GPUBufferUsage.VERTEX);
     bundleEncoder.setVertexBuffer(0, positionBuffer);
-    bundleEncoder.setVertexBuffer(1, normalBuffer);
 
     const sw = strokeWidth || 1;
 
