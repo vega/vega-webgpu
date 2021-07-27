@@ -101,7 +101,7 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>}, tfx: [number, 
       entryPoint: 'main_vertex',
       buffers: [
         {
-          arrayStride: Float32Array.BYTES_PER_ELEMENT * 2,
+          arrayStride: Float32Array.BYTES_PER_ELEMENT * 4,
           attributes: [
             {
               shaderLocation: 0,
@@ -110,7 +110,7 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>}, tfx: [number, 
             },
             {
               shaderLocation: 1,
-              offset: 0,
+              offset: Float32Array.BYTES_PER_ELEMENT * 2,
               format: 'float32x2'
             }
           ]
@@ -142,10 +142,20 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>}, tfx: [number, 
       topology: 'triangle-list'
     }
   });
-  const positions = new Float32Array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
+  const positions = new Float32Array([
+    1.0, 1.0, 1.0, 0.0,
+
+    1.0, 0.0, 1.0, 1.0,
+
+    0.0, 0.0, 0.0, 1.0,
+
+    1.0, 1.0, 1.0, 0.0,
+
+    0.0, 0.0, 0.0, 1.0,
+
+    0.0, 1.0, 0.0, 0.0
+  ]);
   const positionBuffer = createBuffer(device, positions, GPUBufferUsage.VERTEX);
-  const uvs = new Float32Array([1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
-  const uvBuffer = createBuffer(device, uvs, GPUBufferUsage.VERTEX);
 
   const uniforms = new Float32Array([w, h, ...tfx, dpi]);
   const uniformBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
@@ -199,7 +209,6 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>}, tfx: [number, 
     passEncoder.setPipeline(pipeline);
     passEncoder.setBindGroup(0, bindGroup);
     passEncoder.setVertexBuffer(0, positionBuffer);
-    passEncoder.setVertexBuffer(1, uvBuffer);
     passEncoder.draw(6, 1, 0, 0);
     passEncoder.endPass();
     device.queue.submit([commandEncoder.finish()]);

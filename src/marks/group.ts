@@ -1,7 +1,7 @@
-import { color } from 'd3-color';
-import { createBuffer } from '../util/arrays';
-import { pickVisit, visit } from '../util/visit';
-import { hitPath } from "../util/pick"
+import {color} from 'd3-color';
+import {createBuffer} from '../util/arrays';
+import {pickVisit, visit} from '../util/visit';
+import {hitPath} from '../util/pick';
 
 //@ts-ignore
 import shaderSource from '../shaders/group.wgsl';
@@ -17,9 +17,9 @@ interface Group {
   opacity: number;
 }
 
-function draw(ctx: GPUCanvasContext, scene: { items: Array<Group> }, tfx: [number, number]) {
+function draw(ctx: GPUCanvasContext, scene: {items: Array<Group>}, tfx: [number, number]) {
   visit(scene, (group: Group) => {
-    const { fill, stroke, width, height } = group;
+    const {fill, stroke, width, height} = group;
     const gx = group.x || 0,
       gy = group.y || 0,
       fore = group.strokeForeground,
@@ -57,7 +57,7 @@ function draw(ctx: GPUCanvasContext, scene: { items: Array<Group> }, tfx: [numbe
         entryPoint: 'main_vertex',
         buffers: [
           {
-            arrayStride: Float32Array.BYTES_PER_ELEMENT * 2,
+            arrayStride: Float32Array.BYTES_PER_ELEMENT * 4,
             attributes: [
               {
                 shaderLocation: 0,
@@ -66,7 +66,7 @@ function draw(ctx: GPUCanvasContext, scene: { items: Array<Group> }, tfx: [numbe
               },
               {
                 shaderLocation: 1,
-                offset: 0,
+                offset: Float32Array.BYTES_PER_ELEMENT * 2,
                 format: 'float32x2'
               }
             ]
@@ -111,10 +111,20 @@ function draw(ctx: GPUCanvasContext, scene: { items: Array<Group> }, tfx: [numbe
         }
       ]
     };
-    const positions = new Float32Array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
+    const positions = new Float32Array([
+      1.0, 1.0, 1.0, 0.0,
+
+      1.0, 0.0, 1.0, 1.0,
+
+      0.0, 0.0, 0.0, 1.0,
+
+      1.0, 1.0, 1.0, 0.0,
+
+      0.0, 0.0, 0.0, 1.0,
+
+      0.0, 1.0, 0.0, 0.0
+    ]);
     const positionsBuffer = createBuffer(device, positions, GPUBufferUsage.VERTEX);
-    const uvs = new Float32Array([1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
-    const uvBuffer = createBuffer(device, uvs, GPUBufferUsage.VERTEX);
     const uniforms = new Float32Array([...this._uniforms.resolution, tx, ty, w, h]);
     const uniformBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
 
@@ -146,7 +156,6 @@ function draw(ctx: GPUCanvasContext, scene: { items: Array<Group> }, tfx: [numbe
     passEncoder.setPipeline(pipeline);
     passEncoder.setBindGroup(0, vertexBindGroup);
     passEncoder.setVertexBuffer(0, positionsBuffer);
-    passEncoder.setVertexBuffer(1, uvBuffer);
     passEncoder.draw(6, 1, 0, 0);
     passEncoder.endPass();
     device.queue.submit([commandEncoder.finish()]);
@@ -158,9 +167,7 @@ function draw(ctx: GPUCanvasContext, scene: { items: Array<Group> }, tfx: [numbe
 }
 
 function pick(context, scene, x, y, gx, gy) {
-
-
-  return null;/*pickVisit(scene, group => {
+  return null; /*pickVisit(scene, group => {
     let hit, dx, dy;
 
     // first hit test bounding box
