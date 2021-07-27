@@ -15,6 +15,7 @@ specifiers:
   tslib: ^2.2.0
   typescript: ^4.3.2
   vega-canvas: ^1.2.6
+  vega-loader: ^4.4.0
   vega-scenegraph: ^4.9.4
   vega-util: ^1.16.1
 
@@ -33,6 +34,7 @@ devDependencies:
   tslib: 2.2.0
   typescript: 4.3.2
   vega-canvas: 1.2.6
+  vega-loader: 4.4.0
   vega-scenegraph: 4.9.4
   vega-util: 1.16.1
 

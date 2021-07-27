@@ -22,7 +22,7 @@ inherits(WebGPURenderer, Renderer, {
     //@ts-ignore
     this._adapter = await navigator.gpu.requestAdapter();
     this._device = await this._adapter.requestDevice();
-    this._context = this._canvas.getContext('gpupresent');
+    this._context = this._canvas.getContext('webgpu');
   },
 
   initialize(el, width, height, origin, scaleFactor, options) {
@@ -68,7 +68,7 @@ inherits(WebGPURenderer, Renderer, {
   },
 
   context() {
-    return this._canvas ? this._canvas.getContext('gpupresent') : null;
+    return this._canvas ? this._canvas.getContext('webgpu') : null;
   },
 
   device() {

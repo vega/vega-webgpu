@@ -2,6 +2,7 @@ import {font, lineHeight, textLines, offset, textValue} from '../util/text';
 import {HalfPi, DegToRad} from '../util/constants';
 import {blend, fill, stroke} from '../util/canvas';
 import {createBuffer} from '../util/arrays';
+import {pick} from '../util/pick';
 import shaderSource from '../shaders/text.wgsl';
 
 interface Text {
@@ -205,7 +206,26 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>}, tfx: [number, 
   });
 }
 
+function hit(context, item, x, y, gx, gy) {
+  if (item.fontSize <= 0) return false;
+  if (!item.angle) return true; // bounds sufficient if no rotation
+
+  // project point into space of unrotated bounds
+  var p = anchorPoint(item),
+    ax = p.x1,
+    ay = p.y1,
+    b = bound(tempBounds, item, 1),
+    a = -item.angle * DegToRad,
+    cos = Math.cos(a),
+    sin = Math.sin(a),
+    px = cos * gx - sin * gy + (ax - cos * ax + sin * ay),
+    py = sin * gx + cos * gy + (ay - sin * ax - cos * ay);
+
+  return false; //b.contains(px, py);
+}
+
 export default {
   type: 'text',
-  draw: draw
+  draw: draw,
+  pick: pick(hit)
 };

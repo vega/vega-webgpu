@@ -1,5 +1,8 @@
 import { color } from 'd3-color';
 import { createBuffer } from '../util/arrays';
+import { pickLine } from '../util/pickPath';
+import { hitPath } from '../util/pick';
+
 //@ts-ignore
 import shaderSource from '../shaders/line.wgsl';
 
@@ -158,7 +161,23 @@ function draw(ctx: GPUCanvasContext, scene: { items: Array<Line> }, tfx: [number
   device.queue.submit([commandEncoder.finish()]);
 }
 
+const hit = hitPath(draw);
+
+function pick(context, scene, x, y, gx, gy) {
+  var items = scene.items,
+    b = scene.bounds;
+
+  if (!items || !items.length || (b && !b.contains(gx, gy))) {
+    return null;
+  }
+
+  x *= context.pixelRatio;
+  y *= context.pixelRatio;
+  return hit(context, items, x, y) ? items[0] : null;
+}
+
 export default {
   type: 'rule',
-  draw: draw
+  draw: draw,
+  pick: pick
 };

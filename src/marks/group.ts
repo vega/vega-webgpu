@@ -1,6 +1,8 @@
-import {visit} from '../util/visit';
-import {color} from 'd3-color';
-import {createBuffer} from '../util/arrays';
+import { color } from 'd3-color';
+import { createBuffer } from '../util/arrays';
+import { pickVisit, visit } from '../util/visit';
+import { hitPath } from "../util/pick"
+
 //@ts-ignore
 import shaderSource from '../shaders/group.wgsl';
 
@@ -15,9 +17,9 @@ interface Group {
   opacity: number;
 }
 
-function draw(ctx: GPUCanvasContext, scene: {items: Array<Group>}, tfx: [number, number]) {
+function draw(ctx: GPUCanvasContext, scene: { items: Array<Group> }, tfx: [number, number]) {
   visit(scene, (group: Group) => {
-    const {fill, stroke, width, height} = group;
+    const { fill, stroke, width, height } = group;
     const gx = group.x || 0,
       gy = group.y || 0,
       fore = group.strokeForeground,
@@ -155,7 +157,29 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Group>}, tfx: [number,
   });
 }
 
+function pick(context, scene, x, y, gx, gy) {
+
+
+  return null;/*pickVisit(scene, group => {
+    let hit, dx, dy;
+
+    // first hit test bounding box
+    const b = group.bounds;
+    if (b && !b.contains(gx, gy)) return;
+
+    // passed bounds check, test rectangular clip
+    dx = group.x || 0;
+    dy = group.y || 0;
+    const dw = dx + (group.width || 0),
+      dh = dy + (group.height || 0),
+      c = group.clip;
+    if (c && (gx < dx || gx > dw || gy < dy || gy > dh)) return;
+  });
+  */
+}
+
 export default {
   type: 'group',
-  draw: draw
+  draw: draw,
+  pick: pick
 };

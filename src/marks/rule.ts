@@ -1,5 +1,6 @@
-import {color} from 'd3-color';
-import {createBuffer} from '../util/arrays';
+import { color } from 'd3-color';
+import { createBuffer } from '../util/arrays';
+//import { pick } from '../util/pick';
 //@ts-ignore
 import shaderSource from '../shaders/rect.wgsl';
 
@@ -15,9 +16,9 @@ interface Rule {
   strokeOpacity: number;
 }
 
-function draw(ctx: GPUCanvasContext, scene: {items: Array<Rule>}, tfx: [number, number]) {
+function draw(ctx: GPUCanvasContext, scene: { items: Array<Rule> }, tfx: [number, number]) {
   const device = this._device;
-  const shader = device.createShaderModule({code: shaderSource});
+  const shader = device.createShaderModule({ code: shaderSource });
 
   const pipeline = device.createRenderPipeline({
     vertex: {
@@ -85,21 +86,19 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Rule>}, tfx: [number, 
 
   const itemCount = scene.items.length;
   for (let i = 0; i < itemCount; i++) {
-    const {x, y, x2, y2, stroke, strokeWidth, strokeOpacity} = scene.items[i];
+    const { x = 0, y = 0, x2, y2, stroke, strokeWidth, strokeOpacity } = scene.items[i];
     const col = color(stroke);
-    const x1 = x || 0;
-    const y1 = y || 0;
-    const dx = x2 != null ? x2 : x1;
-    const dy = y2 != null ? y2 : y1;
-    const ax = Math.abs(dx - x1);
-    const ay = Math.abs(dy - y1);
+    const dx = x2 != null ? x2 : x;
+    const dy = y2 != null ? y2 : y;
+    const ax = Math.abs(dx - x);
+    const ay = Math.abs(dy - y);
     const sw = strokeWidth ? strokeWidth : 1;
 
     const uniforms = new Float32Array([
       ...this._uniforms.resolution,
       ...tfx,
-      Math.min(x1, dx),
-      Math.min(y1, dy),
+      Math.min(x, dx),
+      Math.min(y, dy),
       ax ? ax : sw,
       ay ? ay : sw
     ]);
@@ -135,7 +134,9 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Rule>}, tfx: [number, 
   device.queue.submit([commandEncoder.finish()]);
 }
 
+
 export default {
   type: 'rule',
-  draw: draw
+  draw: draw,
+  pick: () => null
 };
