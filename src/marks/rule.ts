@@ -1,5 +1,5 @@
-import { color } from 'd3-color';
-import { createBuffer } from '../util/arrays';
+import {color} from 'd3-color';
+import {createBuffer} from '../util/arrays';
 //import { pick } from '../util/pick';
 //@ts-ignore
 import shaderSource from '../shaders/rect.wgsl';
@@ -16,9 +16,9 @@ interface Rule {
   strokeOpacity: number;
 }
 
-function draw(ctx: GPUCanvasContext, scene: { items: Array<Rule> }, tfx: [number, number]) {
+function draw(ctx: GPUCanvasContext, scene: {items: Array<Rule>}, tfx: [number, number]) {
   const device = this._device;
-  const shader = device.createShaderModule({ code: shaderSource });
+  const shader = device.createShaderModule({code: shaderSource});
 
   const pipeline = device.createRenderPipeline({
     vertex: {
@@ -84,9 +84,10 @@ function draw(ctx: GPUCanvasContext, scene: { items: Array<Rule> }, tfx: [number
   bundleEncoder.setPipeline(pipeline);
   bundleEncoder.setVertexBuffer(0, positionBuffer);
 
-  const itemCount = scene.items.length;
+  const {items} = scene;
+  const itemCount = items.length;
   for (let i = 0; i < itemCount; i++) {
-    const { x = 0, y = 0, x2, y2, stroke, strokeWidth, strokeOpacity } = scene.items[i];
+    const {x = 0, y = 0, x2, y2, stroke, strokeWidth, strokeOpacity} = items[i];
     const col = color(stroke);
     const dx = x2 != null ? x2 : x;
     const dy = y2 != null ? y2 : y;
@@ -133,7 +134,6 @@ function draw(ctx: GPUCanvasContext, scene: { items: Array<Rule> }, tfx: [number
   passEncoder.endPass();
   device.queue.submit([commandEncoder.finish()]);
 }
-
 
 export default {
   type: 'rule',

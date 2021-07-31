@@ -19,11 +19,7 @@ interface Group {
 
 function draw(ctx: GPUCanvasContext, scene: {items: Array<Group>}, tfx: [number, number]) {
   visit(scene, (group: Group) => {
-    const {fill, stroke, width, height} = group;
-    const gx = group.x || 0,
-      gy = group.y || 0,
-      fore = group.strokeForeground,
-      opacity = group.opacity == null ? 1 : group.opacity;
+    const {fill, stroke, width, height, x: gx = 0, y: gy = 0, strokeForeground: fore, opacity = 1} = group;
 
     const [tx, ty] = [tfx[0] + gx, tfx[1] + gy];
     const strokeWidth = 1;

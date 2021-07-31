@@ -41,8 +41,9 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>}, tfx: [number, 
   const [w, h] = this._uniforms.resolution;
   const canvas = new OffscreenCanvas(w * dpi, h * dpi);
   const octx = canvas.getContext('2d');
-  for (let i = 0; i < scene.items.length; i++) {
-    const item = scene.items[i];
+  const {items} = scene;
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
     let opacity = item.opacity == null ? 1 : item.opacity,
       p: {x1: number; y1: number},
       x: number,

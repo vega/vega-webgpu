@@ -1,7 +1,7 @@
-import { color } from 'd3-color';
-import { createBuffer } from '../util/arrays';
-import { pickLine } from '../util/pickPath';
-import { hitPath } from '../util/pick';
+import {color} from 'd3-color';
+import {createBuffer} from '../util/arrays';
+import {pickLine} from '../util/pickPath';
+import {hitPath} from '../util/pick';
 
 //@ts-ignore
 import shaderSource from '../shaders/line.wgsl';
@@ -14,9 +14,9 @@ interface Line {
   strokeOpacity: number;
 }
 
-function draw(ctx: GPUCanvasContext, scene: { items: Array<Line> }, tfx: [number, number]) {
+function draw(ctx: GPUCanvasContext, scene: {items: Array<Line>}, tfx: [number, number]) {
   const device = this._device;
-  const shader = device.createShaderModule({ code: shaderSource });
+  const shader = device.createShaderModule({code: shaderSource});
 
   const pipeline = device.createRenderPipeline({
     vertex: {
@@ -83,10 +83,11 @@ function draw(ctx: GPUCanvasContext, scene: { items: Array<Line> }, tfx: [number
   });
   bundleEncoder.setPipeline(pipeline);
 
-  const itemCount = scene.items.length;
+  const {items} = scene;
+  const itemCount = items.length;
   for (let i = 0; i < itemCount; i++) {
-    const { x, y, stroke, strokeWidth, strokeOpacity } = scene.items[i];
-    const { x: x2, y: y2 } = scene.items[Math.min(itemCount - 1, i + 1)];
+    const {x, y, stroke, strokeWidth, strokeOpacity} = items[i];
+    const {x: x2, y: y2} = items[Math.min(itemCount - 1, i + 1)];
     const [dx, dy] = [x2 - x, y2 - y];
     let [nx, ny] = [-dy, dx];
     const vlen = Math.sqrt(nx ** 2 + ny ** 2);

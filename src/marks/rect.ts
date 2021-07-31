@@ -1,5 +1,5 @@
-import { color } from 'd3-color';
-import { createBuffer } from '../util/arrays';
+import {color} from 'd3-color';
+import {createBuffer} from '../util/arrays';
 //@ts-ignore
 import shaderSource from '../shaders/rect.wgsl';
 
@@ -14,9 +14,9 @@ interface Rect {
   strokeOpacity: number;
 }
 
-function draw(ctx: GPUCanvasContext, scene: { items: Array<Rect> }, tfx: [number, number]) {
+function draw(ctx: GPUCanvasContext, scene: {items: Array<Rect>}, tfx: [number, number]) {
   const device = this._device;
-  const shader = device.createShaderModule({ code: shaderSource });
+  const shader = device.createShaderModule({code: shaderSource});
 
   const pipeline = device.createRenderPipeline({
     vertex: {
@@ -82,9 +82,10 @@ function draw(ctx: GPUCanvasContext, scene: { items: Array<Rect> }, tfx: [number
   bundleEncoder.setPipeline(pipeline);
   bundleEncoder.setVertexBuffer(0, positionBuffer);
 
-  const itemCount = scene.items.length;
+  const {items} = scene;
+  const itemCount = items.length;
   for (let i = 0; i < itemCount; i++) {
-    const { x = 0, y = 0, width = 0, height = 0, fill, fillOpacity } = scene.items[i];
+    const {x = 0, y = 0, width = 0, height = 0, fill, fillOpacity} = items[i];
     const col = color(fill);
     const uniforms = new Float32Array([...this._uniforms.resolution, ...tfx, x, y, width, height]);
     //@ts-ignore
