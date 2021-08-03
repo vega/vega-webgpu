@@ -39,9 +39,14 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>}, tfx: [number, 
   const [offsetx, offsety] = tfx;
   const dpi = this._uniforms.dpi;
   const [w, h] = this._uniforms.resolution;
-  const canvas = new OffscreenCanvas(w * dpi, h * dpi);
+  const canvas = document.createElement('canvas');
+  canvas.width = w * dpi;
+  canvas.height = h * dpi;
   const octx = canvas.getContext('2d');
   const {items} = scene;
+  if (!items?.length) {
+    return;
+  }
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     let opacity = item.opacity == null ? 1 : item.opacity,
@@ -104,11 +109,13 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>}, tfx: [number, 
         {
           arrayStride: Float32Array.BYTES_PER_ELEMENT * 4,
           attributes: [
+            // pos
             {
               shaderLocation: 0,
               offset: 0,
               format: 'float32x2'
             },
+            // uv
             {
               shaderLocation: 1,
               offset: Float32Array.BYTES_PER_ELEMENT * 2,
@@ -158,37 +165,27 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>}, tfx: [number, 
   ]);
   const positionBuffer = createBuffer(device, positions, GPUBufferUsage.VERTEX);
 
-  const uniforms = new Float32Array([w, h, ...tfx, dpi]);
-  const uniformBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
-  const sampler = device.createSampler({
-    magFilter: 'linear',
-    minFilter: 'linear'
-  });
+  const sampler = device.createSampler({});
 
-  createImageBitmap(canvas).then(bitmap => {
+  (async () => {
+    const bitmap = await createImageBitmap(canvas);
     const texture = device.createTexture({
-      size: [w * dpi, h * dpi, 1],
+      size: {width: w * dpi, height: h * dpi, depthOrArrayLayers: 1},
       format: 'rgba8unorm',
       usage: GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
     });
 
-    device.queue.copyExternalImageToTexture({source: bitmap}, {texture}, [w * dpi, h * dpi, 1]);
+    device.queue.copyExternalImageToTexture({source: bitmap}, {texture}, {width: w * dpi, height: h * dpi});
 
     const bindGroup = device.createBindGroup({
       layout: pipeline.getBindGroupLayout(0),
       entries: [
         {
           binding: 0,
-          resource: {
-            buffer: uniformBuffer
-          }
-        },
-        {
-          binding: 1,
           resource: sampler
         },
         {
-          binding: 2,
+          binding: 1,
           resource: texture.createView()
         }
       ]
@@ -213,7 +210,7 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>}, tfx: [number, 
     passEncoder.draw(6, 1, 0, 0);
     passEncoder.endPass();
     device.queue.submit([commandEncoder.finish()]);
-  });
+  })();
 }
 
 function hit(context, item, x, y, gx, gy) {
