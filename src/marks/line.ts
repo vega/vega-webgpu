@@ -1,6 +1,5 @@
 import {color} from 'd3-color';
 import {createBuffer} from '../util/arrays';
-import {pickLine} from '../util/pickPath';
 import {hitPath} from '../util/pick';
 
 //@ts-ignore
@@ -15,6 +14,12 @@ interface Line {
 }
 
 function draw(ctx: GPUCanvasContext, scene: {items: Array<Line>}, tfx: [number, number]) {
+  const {items} = scene;
+  if (!items?.length) {
+    return;
+  }
+  const itemCount = items.length;
+
   const device = this._device;
   const shader = device.createShaderModule({code: shaderSource});
 
@@ -24,17 +29,31 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Line>}, tfx: [number, 
       entryPoint: 'main_vertex',
       buffers: [
         {
-          arrayStride: Float32Array.BYTES_PER_ELEMENT * 4,
+          arrayStride: Float32Array.BYTES_PER_ELEMENT * 9,
           attributes: [
+            // position
             {
               shaderLocation: 0,
               offset: 0,
               format: 'float32x2'
             },
+            // normal
             {
               shaderLocation: 1,
               offset: Float32Array.BYTES_PER_ELEMENT * 2,
               format: 'float32x2'
+            },
+            // color
+            {
+              shaderLocation: 2,
+              offset: Float32Array.BYTES_PER_ELEMENT * 4,
+              format: 'float32x4'
+            },
+            // strokewidth
+            {
+              shaderLocation: 3,
+              offset: Float32Array.BYTES_PER_ELEMENT * 8,
+              format: 'float32'
             }
           ]
         }
@@ -65,6 +84,102 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Line>}, tfx: [number, 
       topology: 'triangle-list'
     }
   });
+
+  const positions = [];
+
+  for (let i = 0; i < itemCount; i++) {
+    const {x = 0, y = 0, stroke, strokeWidth = 1, strokeOpacity = 1} = items[i];
+    const {x: x2, y: y2} = items[Math.min(itemCount - 1, i + 1)];
+    const [dx, dy] = [x2 - x, y2 - y];
+    let [nx, ny] = [-dy, dx];
+    const vlen = Math.sqrt(nx ** 2 + ny ** 2);
+    nx /= vlen || 1;
+    ny /= vlen || 1;
+
+    const col = color(stroke).rgb();
+    const r = col.r / 255;
+    const g = col.g / 255;
+    const b = col.b / 255;
+
+    positions.push(
+      x,
+      y,
+      nx,
+      ny,
+      r,
+      g,
+      b,
+      strokeOpacity,
+      strokeWidth,
+
+      x,
+      y,
+      -nx,
+      -ny,
+      r,
+      g,
+      b,
+      strokeOpacity,
+      strokeWidth,
+
+      x2,
+      y2,
+      -nx,
+      -ny,
+      r,
+      g,
+      b,
+      strokeOpacity,
+      strokeWidth,
+
+      x2,
+      y2,
+      -nx,
+      -ny,
+      r,
+      g,
+      b,
+      strokeOpacity,
+      strokeWidth,
+
+      x2,
+      y2,
+      nx,
+      ny,
+      r,
+      g,
+      b,
+      strokeOpacity,
+      strokeWidth,
+
+      x,
+      y,
+      nx,
+      ny,
+      r,
+      g,
+      b,
+      strokeOpacity,
+      strokeWidth
+    );
+  }
+
+  const positionBuffer = createBuffer(device, Float32Array.from(positions), GPUBufferUsage.VERTEX);
+
+  const uniforms = Float32Array.from([...this._uniforms.resolution, ...tfx]);
+  const uniformBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
+  const uniformBindGroup = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [
+      {
+        binding: 0,
+        resource: {
+          buffer: uniformBuffer
+        }
+      }
+    ]
+  });
+
   const commandEncoder = device.createCommandEncoder();
   //@ts-ignore
   const textureView = ctx.getCurrentTexture().createView();
@@ -78,86 +193,12 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Line>}, tfx: [number, 
     ]
   };
 
-  const bundleEncoder = device.createRenderBundleEncoder({
-    colorFormats: [this._swapChainFormat]
-  });
-  bundleEncoder.setPipeline(pipeline);
-
-  const {items} = scene;
-  const itemCount = items.length;
-  for (let i = 0; i < itemCount; i++) {
-    const {x, y, stroke, strokeWidth, strokeOpacity} = items[i];
-    const {x: x2, y: y2} = items[Math.min(itemCount - 1, i + 1)];
-    const [dx, dy] = [x2 - x, y2 - y];
-    let [nx, ny] = [-dy, dx];
-    const vlen = Math.sqrt(nx ** 2 + ny ** 2);
-    nx /= vlen || 1;
-    ny /= vlen || 1;
-    const col = color(stroke);
-
-    // buffer layout:
-    // posx, posy, normalx, normaly
-    const positions = new Float32Array([
-      x,
-      y,
-      nx,
-      ny,
-      x,
-      y,
-      -nx,
-      -ny,
-      x2,
-      y2,
-      -nx,
-      -ny,
-      x2,
-      y2,
-      -nx,
-      -ny,
-      x2,
-      y2,
-      nx,
-      ny,
-      x,
-      y,
-      nx,
-      ny
-    ]);
-
-    const positionBuffer = createBuffer(device, positions, GPUBufferUsage.VERTEX);
-    bundleEncoder.setVertexBuffer(0, positionBuffer);
-
-    const sw = strokeWidth || 1;
-
-    const uniforms = new Float32Array([...this._uniforms.resolution, ...tfx, sw, sw]);
-    //@ts-ignore
-    const strokeColor = new Float32Array([col.r / 255, col.g / 255, col.b / 255, strokeOpacity || 1.0]);
-    const uniformBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
-    const strokeBuffer = createBuffer(device, strokeColor, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
-    const uniformBindGroup = device.createBindGroup({
-      layout: pipeline.getBindGroupLayout(0),
-      entries: [
-        {
-          binding: 0,
-          resource: {
-            buffer: uniformBuffer
-          }
-        },
-        {
-          binding: 1,
-          resource: {
-            buffer: strokeBuffer
-          }
-        }
-      ]
-    });
-    bundleEncoder.setBindGroup(0, uniformBindGroup);
-    bundleEncoder.draw(6, 1, 0, 0);
-  }
-
-  const renderBundle = bundleEncoder.finish();
   const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-  passEncoder.executeBundles([renderBundle]);
+  passEncoder.setPipeline(pipeline);
+  passEncoder.setBindGroup(0, uniformBindGroup);
+  passEncoder.setVertexBuffer(0, positionBuffer);
+  // 6 because our lines are made of quads
+  passEncoder.draw(itemCount * 6, 1);
   passEncoder.endPass();
   device.queue.submit([commandEncoder.finish()]);
 }

@@ -1,5 +1,5 @@
 // source: https://alain.xyz/blog/raw-webgpu
-export function createBuffer(device, arr, usage) {
+export function createBuffer(device: GPUDevice, arr: Uint16Array | Float32Array, usage: GPUBufferUsageFlags) {
   let desc = {size: (arr.byteLength + 3) & ~3, usage, mappedAtCreation: true};
   let buffer = device.createBuffer(desc);
 
@@ -9,3 +9,5 @@ export function createBuffer(device, arr, usage) {
   buffer.unmap();
   return buffer;
 }
+
+export const quadVertex = Float32Array.from([0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1]);
