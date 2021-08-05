@@ -1,8 +1,8 @@
 import {color} from 'd3-color';
-import {createBuffer} from '../util/arrays';
+import {createBuffer, quadVertex} from '../util/arrays';
 //import { pick } from '../util/pick';
 //@ts-ignore
-import shaderSource from '../shaders/rect.wgsl';
+import shaderSource from '../shaders/rule.wgsl';
 
 interface Rule {
   x: number;
@@ -17,6 +17,12 @@ interface Rule {
 }
 
 function draw(ctx: GPUCanvasContext, scene: {items: Array<Rule>}, tfx: [number, number]) {
+  const {items} = scene;
+  if (!items?.length) {
+    return;
+  }
+  const itemCount = items.length;
+
   const device = this._device;
   const shader = device.createShaderModule({code: shaderSource});
 
@@ -28,10 +34,35 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Rule>}, tfx: [number, 
         {
           arrayStride: Float32Array.BYTES_PER_ELEMENT * 2,
           attributes: [
+            // position
             {
               shaderLocation: 0,
               offset: 0,
               format: 'float32x2'
+            }
+          ]
+        },
+        {
+          arrayStride: Float32Array.BYTES_PER_ELEMENT * 8,
+          stepMode: 'instance',
+          attributes: [
+            // center
+            {
+              shaderLocation: 1,
+              offset: 0,
+              format: 'float32x2'
+            },
+            // scale
+            {
+              shaderLocation: 2,
+              offset: Float32Array.BYTES_PER_ELEMENT * 2,
+              format: 'float32x2'
+            },
+            // color
+            {
+              shaderLocation: 3,
+              offset: Float32Array.BYTES_PER_ELEMENT * 4,
+              format: 'float32x4'
             }
           ]
         }
@@ -62,6 +93,46 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Rule>}, tfx: [number, 
       topology: 'triangle-list'
     }
   });
+
+  const positionBuffer = createBuffer(device, quadVertex, GPUBufferUsage.VERTEX);
+  const attributes = [];
+
+  for (let i = 0; i < itemCount; i++) {
+    const {x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, strokeOpacity = 1} = items[i];
+    const dx = x2 != null ? x2 : x;
+    const dy = y2 != null ? y2 : y;
+    const ax = Math.abs(dx - x);
+    const ay = Math.abs(dy - y);
+
+    const col = color(stroke).rgb();
+    attributes.push(
+      Math.min(x, dx),
+      Math.min(y, dy),
+      ax ? ax : strokeWidth,
+      ay ? ay : strokeWidth,
+      col.r / 255,
+      col.g / 255,
+      col.b / 255,
+      strokeOpacity
+    );
+  }
+
+  const attributesBuffer = createBuffer(device, Float32Array.from(attributes), GPUBufferUsage.VERTEX);
+
+  const uniforms = new Float32Array([...this._uniforms.resolution, ...tfx]);
+  const uniformBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
+  const uniformBindGroup = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [
+      {
+        binding: 0,
+        resource: {
+          buffer: uniformBuffer
+        }
+      }
+    ]
+  });
+
   const commandEncoder = device.createCommandEncoder();
   //@ts-ignore
   const textureView = ctx.getCurrentTexture().createView();
@@ -75,62 +146,13 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Rule>}, tfx: [number, 
     ]
   };
 
-  const positions = new Float32Array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
-  const positionBuffer = createBuffer(device, positions, GPUBufferUsage.VERTEX);
-
-  const bundleEncoder = device.createRenderBundleEncoder({
-    colorFormats: [this._swapChainFormat]
-  });
-  bundleEncoder.setPipeline(pipeline);
-  bundleEncoder.setVertexBuffer(0, positionBuffer);
-
-  const {items} = scene;
-  const itemCount = items.length;
-  for (let i = 0; i < itemCount; i++) {
-    const {x = 0, y = 0, x2, y2, stroke, strokeWidth, strokeOpacity} = items[i];
-    const col = color(stroke);
-    const dx = x2 != null ? x2 : x;
-    const dy = y2 != null ? y2 : y;
-    const ax = Math.abs(dx - x);
-    const ay = Math.abs(dy - y);
-    const sw = strokeWidth ? strokeWidth : 1;
-
-    const uniforms = new Float32Array([
-      ...this._uniforms.resolution,
-      ...tfx,
-      Math.min(x, dx),
-      Math.min(y, dy),
-      ax ? ax : sw,
-      ay ? ay : sw
-    ]);
-    //@ts-ignore
-    const fillColor = new Float32Array([col.r / 255, col.g / 255, col.b / 255, strokeOpacity || 1.0]);
-    const uniformBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
-    const fillBuffer = createBuffer(device, fillColor, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
-    const uniformBindGroup = device.createBindGroup({
-      layout: pipeline.getBindGroupLayout(0),
-      entries: [
-        {
-          binding: 0,
-          resource: {
-            buffer: uniformBuffer
-          }
-        },
-        {
-          binding: 1,
-          resource: {
-            buffer: fillBuffer
-          }
-        }
-      ]
-    });
-    bundleEncoder.setBindGroup(0, uniformBindGroup);
-    bundleEncoder.draw(6, 1, 0, 0);
-  }
-
-  const renderBundle = bundleEncoder.finish();
   const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-  passEncoder.executeBundles([renderBundle]);
+  passEncoder.setPipeline(pipeline);
+  passEncoder.setVertexBuffer(0, positionBuffer);
+  passEncoder.setVertexBuffer(1, attributesBuffer);
+  passEncoder.setBindGroup(0, uniformBindGroup);
+  // 6 because rectangles are a quad -- two triangles
+  passEncoder.draw(6, itemCount);
   passEncoder.endPass();
   device.queue.submit([commandEncoder.finish()]);
 }

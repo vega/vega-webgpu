@@ -12,6 +12,11 @@ interface Symbol {
 }
 
 function draw(ctx: GPUCanvasContext, scene: {items: Array<Symbol>}, tfx: [number, number]) {
+  const {items} = scene;
+  if (!items?.length) {
+    return;
+  }
+  const itemCount = items.length;
   const device = this._device;
   const shader = device.createShaderModule({
     code: shaderSource
@@ -24,10 +29,35 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Symbol>}, tfx: [number
         {
           arrayStride: Float32Array.BYTES_PER_ELEMENT * 2,
           attributes: [
+            // position
             {
               shaderLocation: 0,
               offset: 0,
               format: 'float32x2'
+            }
+          ]
+        },
+        {
+          arrayStride: Float32Array.BYTES_PER_ELEMENT * 7,
+          stepMode: 'instance',
+          attributes: [
+            // center
+            {
+              shaderLocation: 1,
+              offset: 0,
+              format: 'float32x2'
+            },
+            // color
+            {
+              shaderLocation: 2,
+              offset: Float32Array.BYTES_PER_ELEMENT * 2,
+              format: 'float32x4'
+            },
+            // radius
+            {
+              shaderLocation: 3,
+              offset: Float32Array.BYTES_PER_ELEMENT * 6,
+              format: 'float32'
             }
           ]
         }
@@ -58,18 +88,6 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Symbol>}, tfx: [number
       topology: 'triangle-list'
     }
   });
-  const commandEncoder = device.createCommandEncoder();
-  //@ts-ignore
-  const textureView = ctx.getCurrentTexture().createView();
-  const renderPassDescriptor = {
-    colorAttachments: [
-      {
-        view: textureView,
-        loadValue: 'load',
-        storeOp: 'store'
-      }
-    ]
-  };
 
   const segments = 32;
   const positions = new Float32Array(
@@ -85,48 +103,55 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Symbol>}, tfx: [number
     }).flat()
   );
 
-  const positionBuffer = createBuffer(device, positions, GPUBufferUsage.VERTEX);
+  const attributes = [];
 
-  const bundleEncoder = device.createRenderBundleEncoder({
-    colorFormats: [this._swapChainFormat]
-  });
-  bundleEncoder.setPipeline(pipeline);
-  bundleEncoder.setVertexBuffer(0, positionBuffer);
-
-  const itemCount = scene.items.length;
   for (let i = 0; i < itemCount; i++) {
-    const {x, y, size, fill, opacity} = scene.items[i];
-    const col = color(fill);
-    const r = Math.sqrt(size) / 2;
-    const uniforms = new Float32Array([...this._uniforms.resolution, ...tfx, x, y, r, r]);
-    //@ts-ignore
-    const fillColor = new Float32Array([col.r / 255, col.g / 255, col.b / 255, opacity || 1.0]);
-    const uniformBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
-    const fillBuffer = createBuffer(device, fillColor, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
-    const uniformBindGroup = device.createBindGroup({
-      layout: pipeline.getBindGroupLayout(0),
-      entries: [
-        {
-          binding: 0,
-          resource: {
-            buffer: uniformBuffer
-          }
-        },
-        {
-          binding: 1,
-          resource: {
-            buffer: fillBuffer
-          }
-        }
-      ]
-    });
-    bundleEncoder.setBindGroup(0, uniformBindGroup);
-    bundleEncoder.draw(segments * 3, 1, 0, 0);
+    const {x = 0, y = 0, size, fill, opacity = 0} = items[i];
+    const col = color(fill).rgb();
+    const rad = Math.sqrt(size) / 2;
+    const r = col.r / 255;
+    const g = col.g / 255;
+    const b = col.b / 255;
+    attributes.push(x, y, r, g, b, opacity, rad);
   }
 
-  const renderBundle = bundleEncoder.finish();
+  const attributesBuffer = createBuffer(device, Float32Array.from(attributes), GPUBufferUsage.VERTEX);
+
+  const uniforms = new Float32Array([...this._uniforms.resolution, ...tfx]);
+  const uniformBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
+  const uniformBindGroup = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: [
+      {
+        binding: 0,
+        resource: {
+          buffer: uniformBuffer
+        }
+      }
+    ]
+  });
+
+  const commandEncoder = device.createCommandEncoder();
+  //@ts-ignore
+  const textureView = ctx.getCurrentTexture().createView();
+  const renderPassDescriptor = {
+    colorAttachments: [
+      {
+        view: textureView,
+        loadValue: 'load',
+        storeOp: 'store'
+      }
+    ]
+  };
+
+  const positionBuffer = createBuffer(device, positions, GPUBufferUsage.VERTEX);
+
   const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-  passEncoder.executeBundles([renderBundle]);
+  passEncoder.setPipeline(pipeline);
+  passEncoder.setVertexBuffer(0, positionBuffer);
+  passEncoder.setVertexBuffer(1, attributesBuffer);
+  passEncoder.setBindGroup(0, uniformBindGroup);
+  passEncoder.draw(segments * 3, itemCount, 0, 0);
   passEncoder.endPass();
   device.queue.submit([commandEncoder.finish()]);
 }
