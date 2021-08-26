@@ -1,5 +1,5 @@
 import {color} from 'd3-color';
-import {createBuffer, quadVertex} from '../util/arrays';
+import {quadVertex} from '../util/arrays';
 import {Bounds} from 'vega-scenegraph';
 //@ts-ignore
 import shaderSource from '../shaders/rect.wgsl';
@@ -7,9 +7,10 @@ import {SceneGroup, SceneRect} from 'vega-typings';
 
 interface WebGPUSceneGroup extends SceneGroup {
   _pipeline?: GPURenderPipeline;
-  _geometryBuffer?: GPUBuffer;
-  _instanceBuffer?: GPUBuffer;
+  _geometryBuffer?: GPUBuffer; // geometry to be instanced
+  _instanceBuffer?: GPUBuffer; // attributes for each instance
   _uniformsBuffer?: GPUBuffer;
+  _frameBuffer?: GPUBuffer; // writebuffer to be used for each frame
   _uniformsBindGroup?: GPUBindGroup;
 }
 
@@ -19,9 +20,11 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
+      //@ts-ignore
       buffers: [
         {
           arrayStride: Float32Array.BYTES_PER_ELEMENT * 2,
+          stepMode: 'vertex',
           attributes: [
             // position
             {
@@ -72,6 +75,7 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
     fragment: {
       module: shader,
       entryPoint: 'main_fragment',
+      //@ts-ignore
       targets: [
         {
           format: 'bgra8unorm',
@@ -94,9 +98,23 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
       topology: 'triangle-list'
     }
   });
-  scene._geometryBuffer = createBuffer(device, quadVertex, GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST);
-  const uniforms = Float32Array.from([0, 0, 0, 0]);
-  scene._uniformsBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
+
+  scene._geometryBuffer = device.createBuffer({
+    size: quadVertex.byteLength,
+    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    mappedAtCreation: true
+  });
+
+  const geometryData = new Float32Array(scene._geometryBuffer.getMappedRange());
+  geometryData.set(quadVertex);
+  scene._geometryBuffer.unmap();
+
+  scene._uniformsBuffer = device.createBuffer({
+    size: Float32Array.BYTES_PER_ELEMENT * 4,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    mappedAtCreation: true
+  });
+
   scene._uniformsBindGroup = device.createBindGroup({
     layout: scene._pipeline.getBindGroupLayout(0),
     entries: [
@@ -109,12 +127,20 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
     ]
   });
 
-  scene._instanceBuffer = createBuffer(
-    device,
+  scene._instanceBuffer = device.createBuffer({
     // 13 for number of attributes
-    Float32Array.from({length: scene.items.length * 13}).fill(0),
-    GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
-  );
+    size: scene.items.length * 13 * Float32Array.BYTES_PER_ELEMENT,
+    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    mappedAtCreation: true
+  });
+  scene._instanceBuffer.unmap();
+
+  scene._frameBuffer = device.createBuffer({
+    size: scene.items.length * 13 * Float32Array.BYTES_PER_ELEMENT,
+    usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.MAP_WRITE,
+    mappedAtCreation: true
+  });
+  scene._frameBuffer.unmap();
 }
 
 function draw(ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds) {
@@ -126,8 +152,10 @@ function draw(ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds) {
 
   if (!this._pipeline) {
     initRenderPipeline(device, scene);
+    const uniformsData = new Float32Array(scene._uniformsBuffer.getMappedRange());
     const uniforms = Float32Array.from([...this._uniforms.resolution, vb.x1, vb.y1]);
-    device.queue.writeBuffer(scene._uniformsBuffer, 0, uniforms.buffer, uniforms.byteOffset, uniforms.byteLength);
+    uniformsData.set(uniforms);
+    scene._uniformsBuffer.unmap();
   }
 
   const attributes = Float32Array.from(
@@ -169,30 +197,43 @@ function draw(ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds) {
     })
   );
 
-  device.queue.writeBuffer(scene._instanceBuffer, 0, attributes.buffer, attributes.byteOffset, attributes.byteLength);
+  scene._frameBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
+    const frameData = new Float32Array(scene._frameBuffer.getMappedRange());
+    frameData.set(attributes);
 
-  const commandEncoder = device.createCommandEncoder();
-  //@ts-ignore
-  const textureView = ctx.getCurrentTexture().createView();
-  const renderPassDescriptor = {
-    colorAttachments: [
-      {
-        view: textureView,
-        loadValue: 'load',
-        storeOp: 'store'
-      }
-    ]
-  };
+    const copyEncoder = this._device.createCommandEncoder();
+    copyEncoder.copyBufferToBuffer(
+      scene._frameBuffer,
+      frameData.byteOffset,
+      scene._instanceBuffer,
+      attributes.byteOffset,
+      attributes.byteLength
+    );
 
-  const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-  passEncoder.setPipeline(scene._pipeline);
-  passEncoder.setVertexBuffer(0, scene._geometryBuffer);
-  passEncoder.setVertexBuffer(1, scene._instanceBuffer);
-  passEncoder.setBindGroup(0, scene._uniformsBindGroup);
-  // 6 because we are drawing two triangles
-  passEncoder.draw(6, scene.items.length);
-  passEncoder.endPass();
-  device.queue.submit([commandEncoder.finish()]);
+    const commandEncoder = device.createCommandEncoder();
+    //@ts-ignore
+    const textureView = ctx.getCurrentTexture().createView();
+    const renderPassDescriptor = {
+      colorAttachments: [
+        {
+          view: textureView,
+          loadValue: 'load',
+          storeOp: 'store'
+        }
+      ]
+    };
+
+    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+    passEncoder.setPipeline(scene._pipeline);
+    passEncoder.setVertexBuffer(0, scene._geometryBuffer);
+    passEncoder.setVertexBuffer(1, scene._instanceBuffer);
+    passEncoder.setBindGroup(0, scene._uniformsBindGroup);
+    // 6 because we are drawing two triangles
+    passEncoder.draw(6, scene.items.length);
+    passEncoder.endPass();
+    scene._frameBuffer.unmap();
+    device.queue.submit([copyEncoder.finish(), commandEncoder.finish()]);
+  });
 }
 
 export default {

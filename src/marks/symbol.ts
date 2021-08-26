@@ -1,4 +1,3 @@
-import {createBuffer} from '../util/arrays';
 import {color} from 'd3-color';
 import {Bounds} from 'vega-scenegraph';
 //@ts-ignore
@@ -10,20 +9,23 @@ interface WebGPUSceneGroup extends SceneGroup {
   _geometryBuffer?: GPUBuffer;
   _instanceBuffer?: GPUBuffer;
   _uniformsBuffer?: GPUBuffer;
+  _frameBuffer?: GPUBuffer;
   _uniformsBindGroup?: GPUBindGroup;
 }
 
 const segments = 32;
 
-function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup, vb: Bounds, resolution: [number, number]) {
+function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
   const shader = device.createShaderModule({code: shaderSource});
   scene._pipeline = device.createRenderPipeline({
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
+      //@ts-ignore
       buffers: [
         {
           arrayStride: Float32Array.BYTES_PER_ELEMENT * 2,
+          stepMode: 'vertex',
           attributes: [
             // position
             {
@@ -62,6 +64,7 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup, vb: Boun
     fragment: {
       module: shader,
       entryPoint: 'main_fragment',
+      //@ts-ignore
       targets: [
         {
           format: 'bgra8unorm',
@@ -98,9 +101,21 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup, vb: Boun
     }).flat()
   );
 
-  scene._geometryBuffer = createBuffer(device, positions, GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST);
-  const uniforms = Float32Array.from([...resolution, vb.x1, vb.y1]);
-  scene._uniformsBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
+  scene._geometryBuffer = device.createBuffer({
+    size: positions.byteLength,
+    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    mappedAtCreation: true
+  });
+  const geometryData = new Float32Array(scene._geometryBuffer.getMappedRange());
+  geometryData.set(positions);
+  scene._geometryBuffer.unmap();
+
+  scene._uniformsBuffer = device.createBuffer({
+    size: Float32Array.BYTES_PER_ELEMENT * 4,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    mappedAtCreation: true
+  });
+
   scene._uniformsBindGroup = device.createBindGroup({
     layout: scene._pipeline.getBindGroupLayout(0),
     entries: [
@@ -114,11 +129,18 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup, vb: Boun
   });
 
   scene._instanceBuffer = device.createBuffer({
-    size: scene.items.length * 7,
+    size: scene.items.length * 7 * Float32Array.BYTES_PER_ELEMENT,
     usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
     mappedAtCreation: true
   });
   scene._instanceBuffer.unmap();
+
+  scene._frameBuffer = device.createBuffer({
+    size: scene.items.length * 7 * Float32Array.BYTES_PER_ELEMENT,
+    usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.MAP_WRITE,
+    mappedAtCreation: true
+  });
+  scene._frameBuffer.unmap();
 }
 
 function draw(ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds) {
@@ -126,7 +148,11 @@ function draw(ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds) {
     return;
   }
   if (!this._pipeline) {
-    initRenderPipeline(this._device, scene, vb, this._uniforms.resolution);
+    initRenderPipeline(this._device, scene);
+    const uniformsData = new Float32Array(scene._uniformsBuffer.getMappedRange());
+    const uniforms = Float32Array.from([...this._uniforms.resolution, vb.x1, vb.y1]);
+    uniformsData.set(uniforms);
+    scene._uniformsBuffer.unmap();
   }
 
   const attributes = Float32Array.from(
@@ -142,39 +168,44 @@ function draw(ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds) {
     })
   );
 
-  const tempBuffer = this._device.createBuffer({
-    usage: GPUBufferUsage.MAP_WRITE | GPUBufferUsage.COPY_SRC,
-    size: scene.items.length * 7,
-    mappedAtCreation: true
+  scene._frameBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
+    const frameData = new Float32Array(scene._frameBuffer.getMappedRange());
+    const copyEncoder = this._device.createCommandEncoder();
+    frameData.set(attributes);
+
+    copyEncoder.copyBufferToBuffer(
+      scene._frameBuffer,
+      frameData.byteOffset,
+      scene._instanceBuffer,
+      attributes.byteOffset,
+      attributes.byteLength
+    );
+
+    const commandEncoder = this._device.createCommandEncoder();
+    //@ts-ignore
+    const textureView = ctx.getCurrentTexture().createView();
+    const renderPassDescriptor = {
+      colorAttachments: [
+        {
+          view: textureView,
+          loadValue: 'load',
+          storeOp: 'store'
+        }
+      ]
+    };
+
+    //@ts-ignore
+    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+    passEncoder.setPipeline(scene._pipeline);
+    passEncoder.setVertexBuffer(0, scene._geometryBuffer);
+    passEncoder.setVertexBuffer(1, scene._instanceBuffer);
+    passEncoder.setBindGroup(0, scene._uniformsBindGroup);
+    passEncoder.draw(segments * 3, scene.items.length, 0, 0);
+    passEncoder.endPass();
+
+    scene._frameBuffer.unmap();
+    this._device.queue.submit([copyEncoder.finish(), commandEncoder.finish()]);
   });
-
-  const stagingData = new Float32Array(tempBuffer.getMappedRange());
-  stagingData.set(attributes);
-  const copyEncoder = this._device.createCommandEncoder();
-  copyEncoder.copyBufferToBuffer(tempBuffer, 0, scene._instanceBuffer, 0, scene.items.length);
-  tempBuffer.unmap();
-  const commandEncoder = this._device.createCommandEncoder();
-  //@ts-ignore
-  const textureView = ctx.getCurrentTexture().createView();
-  const renderPassDescriptor = {
-    colorAttachments: [
-      {
-        view: textureView,
-        loadValue: 'load',
-        storeOp: 'store'
-      }
-    ]
-  };
-
-  //@ts-ignore
-  const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-  passEncoder.setPipeline(scene._pipeline);
-  passEncoder.setVertexBuffer(0, scene._geometryBuffer);
-  passEncoder.setVertexBuffer(1, scene._instanceBuffer);
-  passEncoder.setBindGroup(0, scene._uniformsBindGroup);
-  passEncoder.draw(segments * 3, scene.items.length, 0, 0);
-  passEncoder.endPass();
-  this._device.queue.submit([commandEncoder.finish()]);
 }
 
 export default {
