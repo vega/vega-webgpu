@@ -1,6 +1,6 @@
 import {color} from 'd3-color';
 import {createBuffer, quadVertex} from '../util/arrays';
-//import { pick } from '../util/pick';
+import {Bounds} from 'vega-scenegraph';
 //@ts-ignore
 import shaderSource from '../shaders/rule.wgsl';
 
@@ -16,12 +16,15 @@ interface Rule {
   strokeOpacity: number;
 }
 
-function draw(ctx: GPUCanvasContext, scene: {items: Array<Rule>}, tfx: [number, number]) {
-  const {items} = scene;
+function draw(ctx: GPUCanvasContext, scene: {items: Array<Rule>; bounds: Bounds}, vb: Bounds) {
+  const {items, bounds} = scene;
   if (!items?.length) {
     return;
   }
   const itemCount = items.length;
+  if (bounds) {
+    vb.translate(bounds.x1, bounds.y1);
+  }
 
   const device = this._device;
   const shader = device.createShaderModule({code: shaderSource});
@@ -98,16 +101,16 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Rule>}, tfx: [number, 
   const attributes = [];
 
   for (let i = 0; i < itemCount; i++) {
-    const {x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, strokeOpacity = 1} = items[i];
-    const dx = x2 != null ? x2 : x;
-    const dy = y2 != null ? y2 : y;
-    const ax = Math.abs(dx - x);
-    const ay = Math.abs(dy - y);
+    let {x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, strokeOpacity = 1} = items[i];
+    x2 ??= x;
+    y2 ??= y;
+    const ax = Math.abs(x2 - x);
+    const ay = Math.abs(y2 - y);
 
     const col = color(stroke).rgb();
     attributes.push(
-      Math.min(x, dx),
-      Math.min(y, dy),
+      Math.min(x, x2),
+      Math.min(y, y2),
       ax ? ax : strokeWidth,
       ay ? ay : strokeWidth,
       col.r / 255,
@@ -119,7 +122,7 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Rule>}, tfx: [number, 
 
   const attributesBuffer = createBuffer(device, Float32Array.from(attributes), GPUBufferUsage.VERTEX);
 
-  const uniforms = new Float32Array([...this._uniforms.resolution, ...tfx]);
+  const uniforms = new Float32Array([...this._uniforms.resolution, vb.x1 + scene.bounds.x1, vb.y1 + scene.bounds.y1]);
   const uniformBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
   const uniformBindGroup = device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),

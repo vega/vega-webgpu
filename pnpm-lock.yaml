@@ -17,6 +17,7 @@ specifiers:
   vega-canvas: ^1.2.6
   vega-loader: ^4.4.0
   vega-scenegraph: ^4.9.4
+  vega-typings: ^0.21.0
   vega-util: ^1.16.1
 
 devDependencies:
@@ -36,6 +37,7 @@ devDependencies:
   vega-canvas: 1.2.6
   vega-loader: 4.4.0
   vega-scenegraph: 4.9.4
+  vega-typings: 0.21.0
   vega-util: 1.16.1
 
 packages:
@@ -2438,6 +2440,12 @@ packages:
     dependencies:
       d3-array: 2.12.1
       d3-time: 2.1.1
+      vega-util: 1.16.1
+    dev: true
+
+  /vega-typings/0.21.0:
+    resolution: {integrity: sha512-dG0RtnJUn3+BQMO4NjjTdcp5UTBR56yQsLXPPCAFUHeLuycEVKlyhBa/kbvAZv2r+QxdeEYwKUNYy9CQotF5KA==}
+    dependencies:
       vega-util: 1.16.1
     dev: true
 

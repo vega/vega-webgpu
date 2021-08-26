@@ -1,4 +1,4 @@
-import Handler from './Handler';
+import {Handler, point, domFind} from 'vega-scenegraph';
 import Marks from './marks/index';
 import {
   ClickEvent,
@@ -19,9 +19,7 @@ import {
   TouchStartEvent
 } from './util/events';
 
-import point from './util/point';
-import { domFind } from './util/dom';
-import { inherits } from 'vega-util';
+import {inherits} from 'vega-util';
 
 export default function WebGPUHandler(loader, tooltip) {
   Handler.call(this, loader, tooltip);
@@ -50,7 +48,7 @@ function addEventListener(handler, type) {
 }
 
 function move(moveEvent, overEvent, outEvent) {
-  return function(evt) {
+  return function (evt) {
     const a = this._active,
       p = this.pickEvent(evt);
 
@@ -72,7 +70,7 @@ function move(moveEvent, overEvent, outEvent) {
 }
 
 function inactive(type) {
-  return function(evt) {
+  return function (evt) {
     this.fire(type, evt);
     this._active = null;
   };

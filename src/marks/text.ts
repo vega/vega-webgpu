@@ -1,13 +1,14 @@
-import {font, lineHeight, textLines, offset, textValue} from '../util/text';
+import {lineHeight, Bounds} from 'vega-scenegraph';
+import {font, textLines, offset, textValue, textMetrics} from '../util/text';
 import {HalfPi, DegToRad} from '../util/constants';
 import {blend, fill, stroke} from '../util/canvas';
 import {createBuffer} from '../util/arrays';
-import {pick} from '../util/pick';
 import shaderSource from '../shaders/text.wgsl';
 
 interface Text {
   x: number;
   y: number;
+  bounds: Bounds;
   dx: number;
   dy: number;
   baseline: 'top' | 'middle' | 'bottom' | 'line-top' | 'line-bottom';
@@ -20,83 +21,133 @@ interface Text {
   blend: string;
   fill: string;
   stroke: string;
+  fontSize: number;
+  text: string;
 }
 
-function anchorPoint(item: Text): {x1: number; y1: number} {
-  let x = item.x || 0,
+const tempBounds = new Bounds();
+
+function anchorPoint(item: Text) {
+  var x = item.x || 0,
     y = item.y || 0,
     r = item.radius || 0,
     t: number;
+
   if (r) {
     t = (item.theta || 0) - HalfPi;
     x += r * Math.cos(t);
     y += r * Math.sin(t);
   }
-  return {x1: x, y1: y};
+
+  tempBounds.x1 = x;
+  tempBounds.y1 = y;
+  return tempBounds;
 }
 
-function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>}, tfx: [number, number]) {
-  const [offsetx, offsety] = tfx;
+function bound(bounds: Bounds, item: Text, mode: number) {
+  const dpi = this._uniforms.dpi;
+  var h = textMetrics.height(item),
+    a = item.align,
+    p = anchorPoint(item),
+    x = p.x1,
+    y = p.y1,
+    dx = item.dx * dpi || 0,
+    dy = ((item.dy || 0) + offset(item) - Math.round(0.8 * h)) * dpi, // use 4/5 offset
+    tl = textLines(item),
+    w;
+
+  // get dimensions
+  if (Array.isArray(tl)) {
+    // multi-line text
+    h += lineHeight(item) * (tl.length - 1);
+    w = tl.reduce((w, t) => Math.max(w, textMetrics.width(item, t)), 0);
+  } else {
+    // single-line text
+    w = textMetrics.width(item, tl);
+  }
+
+  // horizontal alignment
+  if (a === 'center') {
+    dx -= w / 2;
+  } else if (a === 'right') {
+    dx -= w;
+  } else {
+    // left by default, do nothing
+  }
+
+  bounds.set((dx += x), (dy += y), dx + w, dy + h);
+
+  if (item.angle && !mode) {
+    bounds.rotate(item.angle * DegToRad, x, y);
+  } else if (mode === 2) {
+    return bounds.rotatedPoints(item.angle * DegToRad, x, y);
+  }
+  return bounds;
+}
+
+function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>; bounds: Bounds}, vb: Bounds) {
   const dpi = this._uniforms.dpi;
   const [w, h] = this._uniforms.resolution;
   const canvas = document.createElement('canvas');
   canvas.width = w * dpi;
   canvas.height = h * dpi;
-  const octx = canvas.getContext('2d');
+  const context = canvas.getContext('2d');
   const {items} = scene;
   if (!items?.length) {
     return;
   }
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
-    let opacity = item.opacity == null ? 1 : item.opacity,
-      p: {x1: number; y1: number},
+    var opacity = item.opacity == null ? 1 : item.opacity,
+      p: Bounds,
       x: number,
       y: number,
-      j: number,
+      i: number,
       lh: number,
-      tl: unknown,
+      tl: number | Array<number>,
       str: string;
-    octx.font = font(item);
-    octx.textAlign = item.align || 'left';
+
+    context.font = font(item);
+    context.textAlign = item.align || 'left';
 
     p = anchorPoint(item);
-    x = (p.x1 + offsetx) * dpi;
-    y = (p.y1 + offsety) * dpi;
+    x = (p.x1 - vb.x1) * dpi;
+    y = (p.y1 - vb.y1) * dpi;
 
     if (item.angle) {
-      octx.save();
-      octx.translate(x, y);
-      octx.rotate(item.angle * DegToRad);
+      context.save();
+      context.translate(x, y);
+      context.rotate(item.angle * DegToRad);
       x = y = 0; // reset x, y
     }
     x += item.dx * dpi || 0;
-    y += (item.dy * dpi || 0) + offset(item);
+    y += ((item.dy || 0) + offset(item)) * dpi;
+
     tl = textLines(item);
-    blend(octx, item);
+    blend(context, item);
     if (Array.isArray(tl)) {
       lh = lineHeight(item);
-      for (j = 0; j < tl.length; ++j) {
-        str = textValue(item, tl[j]);
-        if (item.fill && fill(octx, item, opacity)) {
-          octx.fillText(str, x, y);
+      for (i = 0; i < tl.length; ++i) {
+        str = textValue(item, tl[i]);
+        if (item.fill && fill(context, item, opacity)) {
+          context.fillText(str, x, y);
         }
-        if (item.stroke && stroke(octx, item, opacity)) {
-          octx.strokeText(str, x, y);
+        if (item.stroke && stroke(context, item, opacity)) {
+          context.strokeText(str, x, y);
         }
-        y += lh;
+        y += lh * dpi;
       }
     } else {
       str = textValue(item, tl);
-      if (item.fill && fill(octx, item, opacity)) {
-        octx.fillText(str, x, y);
+      if (item.fill && fill(context, item, opacity)) {
+        context.fillText(str, x, y);
       }
-      if (item.stroke && stroke(octx, item, opacity)) {
-        octx.strokeText(str, x, y);
+      if (item.stroke && stroke(context, item, opacity)) {
+        context.strokeText(str, x, y);
       }
     }
 
-    if (item.angle) octx.restore();
+    if (item.angle) context.restore();
   }
 
   const device = this._device;
@@ -150,6 +201,7 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>}, tfx: [number, 
       topology: 'triangle-list'
     }
   });
+
   const positions = new Float32Array([
     1.0, 1.0, 1.0, 0.0,
 
@@ -163,6 +215,7 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>}, tfx: [number, 
 
     0.0, 1.0, 0.0, 0.0
   ]);
+
   const positionBuffer = createBuffer(device, positions, GPUBufferUsage.VERTEX);
 
   const sampler = device.createSampler({});
@@ -172,7 +225,7 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>}, tfx: [number, 
     const texture = device.createTexture({
       size: {width: w * dpi, height: h * dpi, depthOrArrayLayers: 1},
       format: 'rgba8unorm',
-      usage: GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
     });
 
     device.queue.copyExternalImageToTexture({source: bitmap}, {texture}, {width: w * dpi, height: h * dpi});
@@ -213,26 +266,8 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>}, tfx: [number, 
   })();
 }
 
-function hit(context, item, x, y, gx, gy) {
-  if (item.fontSize <= 0) return false;
-  if (!item.angle) return true; // bounds sufficient if no rotation
-
-  // project point into space of unrotated bounds
-  var p = anchorPoint(item),
-    ax = p.x1,
-    ay = p.y1,
-    b = bound(tempBounds, item, 1),
-    a = -item.angle * DegToRad,
-    cos = Math.cos(a),
-    sin = Math.sin(a),
-    px = cos * gx - sin * gy + (ax - cos * ax + sin * ay),
-    py = sin * gx + cos * gy + (ay - sin * ax - cos * ay);
-
-  return false; //b.contains(px, py);
-}
-
 export default {
   type: 'text',
   draw: draw,
-  pick: pick(hit)
+  pick: () => null
 };

@@ -1,29 +1,21 @@
 import {color} from 'd3-color';
 import {createBuffer, quadVertex} from '../util/arrays';
+import {Bounds} from 'vega-scenegraph';
 //@ts-ignore
 import shaderSource from '../shaders/rect.wgsl';
+import {SceneGroup, SceneRect} from 'vega-typings';
 
-interface Rect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  fill: string;
-  fillOpacity: number;
-  stroke: string;
-  strokeOpacity: number;
+interface WebGPUSceneGroup extends SceneGroup {
+  _pipeline?: GPURenderPipeline;
+  _geometryBuffer?: GPUBuffer;
+  _instanceBuffer?: GPUBuffer;
+  _uniformsBuffer?: GPUBuffer;
+  _uniformsBindGroup?: GPUBindGroup;
 }
 
-function draw(ctx: GPUCanvasContext, scene: {items: Array<Rect>}, tfx: [number, number]) {
-  const {items} = scene;
-  if (!items?.length) {
-    return;
-  }
-  const itemCount = items.length;
-  const device = this._device;
+function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
   const shader = device.createShaderModule({code: shaderSource});
-
-  const pipeline = device.createRenderPipeline({
+  scene._pipeline = device.createRenderPipeline({
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
@@ -40,7 +32,7 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Rect>}, tfx: [number, 
           ]
         },
         {
-          arrayStride: Float32Array.BYTES_PER_ELEMENT * 8,
+          arrayStride: Float32Array.BYTES_PER_ELEMENT * 13,
           stepMode: 'instance',
           attributes: [
             // center
@@ -55,11 +47,23 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Rect>}, tfx: [number, 
               offset: Float32Array.BYTES_PER_ELEMENT * 2,
               format: 'float32x2'
             },
-            // color
+            // fill color
             {
               shaderLocation: 3,
               offset: Float32Array.BYTES_PER_ELEMENT * 4,
               format: 'float32x4'
+            },
+            // stroke color
+            {
+              shaderLocation: 4,
+              offset: Float32Array.BYTES_PER_ELEMENT * 8,
+              format: 'float32x4'
+            },
+            // stroke width
+            {
+              shaderLocation: 5,
+              offset: Float32Array.BYTES_PER_ELEMENT * 12,
+              format: 'float32'
             }
           ]
         }
@@ -70,7 +74,7 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Rect>}, tfx: [number, 
       entryPoint: 'main_fragment',
       targets: [
         {
-          format: this._swapChainFormat,
+          format: 'bgra8unorm',
           blend: {
             alpha: {
               srcFactor: 'one',
@@ -90,33 +94,82 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Rect>}, tfx: [number, 
       topology: 'triangle-list'
     }
   });
-
-  const positionBuffer = createBuffer(device, quadVertex, GPUBufferUsage.VERTEX);
-
-  const attributes = [];
-
-  for (let i = 0; i < itemCount; i++) {
-    const {x = 0, y = 0, width = 0, height = 0, fill, fillOpacity = 1} = items[i];
-    const col = color(fill);
-    //@ts-ignore
-    attributes.push(x, y, width, height, col.r / 255, col.g / 255, col.b / 255, fillOpacity);
-  }
-
-  const attributesBuffer = createBuffer(device, Float32Array.from(attributes), GPUBufferUsage.VERTEX);
-
-  const uniforms = Float32Array.from([...this._uniforms.resolution, ...tfx]);
-  const uniformsBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
-  const uniformsBindGroup = device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(0),
+  scene._geometryBuffer = createBuffer(device, quadVertex, GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST);
+  const uniforms = Float32Array.from([0, 0, 0, 0]);
+  scene._uniformsBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
+  scene._uniformsBindGroup = device.createBindGroup({
+    layout: scene._pipeline.getBindGroupLayout(0),
     entries: [
       {
         binding: 0,
         resource: {
-          buffer: uniformsBuffer
+          buffer: scene._uniformsBuffer
         }
       }
     ]
   });
+
+  scene._instanceBuffer = createBuffer(
+    device,
+    // 13 for number of attributes
+    Float32Array.from({length: scene.items.length * 13}).fill(0),
+    GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
+  );
+}
+
+function draw(ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds) {
+  if (!scene.items?.length) {
+    return;
+  }
+
+  const device = this._device;
+
+  if (!this._pipeline) {
+    initRenderPipeline(device, scene);
+    const uniforms = Float32Array.from([...this._uniforms.resolution, vb.x1, vb.y1]);
+    device.queue.writeBuffer(scene._uniformsBuffer, 0, uniforms.buffer, uniforms.byteOffset, uniforms.byteLength);
+  }
+
+  const attributes = Float32Array.from(
+    scene.items.flatMap((item: SceneRect) => {
+      const {
+        x = 0,
+        y = 0,
+        width = 0,
+        height = 0,
+        fill,
+        //@ts-ignore
+        fillOpacity = 1,
+        //@ts-ignore
+        stroke,
+        //@ts-ignore
+        strokeOpacity = 1,
+        //@ts-ignore
+        strokeWidth = 1
+      } = item;
+      const fillCol = color(fill).rgb();
+      const strokeCol = color(stroke)?.rgb();
+      const stropacity = strokeCol ? strokeOpacity : 0;
+      const strcol = strokeCol ? strokeCol : {r: 0, g: 0, b: 0};
+      return [
+        x,
+        y,
+        width,
+        height,
+        fillCol.r / 255,
+        fillCol.g / 255,
+        fillCol.b / 255,
+        fillOpacity,
+        strcol.r / 255,
+        strcol.g / 255,
+        strcol.b / 255,
+        stropacity,
+        strokeWidth
+      ];
+    })
+  );
+
+  device.queue.writeBuffer(scene._instanceBuffer, 0, attributes.buffer, attributes.byteOffset, attributes.byteLength);
 
   const commandEncoder = device.createCommandEncoder();
   //@ts-ignore
@@ -132,17 +185,18 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Rect>}, tfx: [number, 
   };
 
   const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-  passEncoder.setPipeline(pipeline);
-  passEncoder.setVertexBuffer(0, positionBuffer);
-  passEncoder.setVertexBuffer(1, attributesBuffer);
-  passEncoder.setBindGroup(0, uniformsBindGroup);
+  passEncoder.setPipeline(scene._pipeline);
+  passEncoder.setVertexBuffer(0, scene._geometryBuffer);
+  passEncoder.setVertexBuffer(1, scene._instanceBuffer);
+  passEncoder.setBindGroup(0, scene._uniformsBindGroup);
   // 6 because we are drawing two triangles
-  passEncoder.draw(6, itemCount);
+  passEncoder.draw(6, scene.items.length);
   passEncoder.endPass();
   device.queue.submit([commandEncoder.finish()]);
 }
 
 export default {
   type: 'rect',
-  draw: draw
+  draw: draw,
+  pick: () => null
 };

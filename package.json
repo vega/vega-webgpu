@@ -29,6 +29,7 @@
         "vega-canvas": "^1.2.6",
         "vega-loader": "^4.4.0",
         "vega-scenegraph": "^4.9.4",
+        "vega-typings": "^0.21.0",
         "vega-util": "^1.16.1"
     }
 }

@@ -1,6 +1,6 @@
 import {color} from 'd3-color';
 import {createBuffer} from '../util/arrays';
-import {hitPath} from '../util/pick';
+import {Bounds} from 'vega-scenegraph';
 
 //@ts-ignore
 import shaderSource from '../shaders/line.wgsl';
@@ -13,7 +13,7 @@ interface Line {
   strokeOpacity: number;
 }
 
-function draw(ctx: GPUCanvasContext, scene: {items: Array<Line>}, tfx: [number, number]) {
+function draw(ctx: GPUCanvasContext, scene: {items: Array<Line>}, vb: Bounds) {
   const {items} = scene;
   if (!items?.length) {
     return;
@@ -166,7 +166,7 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Line>}, tfx: [number, 
 
   const positionBuffer = createBuffer(device, Float32Array.from(positions), GPUBufferUsage.VERTEX);
 
-  const uniforms = Float32Array.from([...this._uniforms.resolution, ...tfx]);
+  const uniforms = Float32Array.from([...this._uniforms.resolution, vb.x1, vb.y1]);
   const uniformBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
   const uniformBindGroup = device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),
@@ -203,19 +203,8 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Line>}, tfx: [number, 
   device.queue.submit([commandEncoder.finish()]);
 }
 
-const hit = hitPath(draw);
-
 function pick(context, scene, x, y, gx, gy) {
-  var items = scene.items,
-    b = scene.bounds;
-
-  if (!items || !items.length || (b && !b.contains(gx, gy))) {
-    return null;
-  }
-
-  x *= context.pixelRatio;
-  y *= context.pixelRatio;
-  return hit(context, items, x, y) ? items[0] : null;
+  return null;
 }
 
 export default {

@@ -5,7 +5,7 @@ import {Bounds, Renderer, domClear} from 'vega-scenegraph';
 import {canvas} from 'vega-canvas';
 import {error, inherits} from 'vega-util';
 
-export default function WebGPURenderer(loader) {
+export default function WebGPURenderer(loader: unknown) {
   Renderer.call(this, loader);
   this._options = {};
   this._redraw = false;
@@ -15,7 +15,8 @@ export default function WebGPURenderer(loader) {
 
 const base = Renderer.prototype;
 
-const viewBounds = (origin, width, height) => new Bounds().set(0, 0, width, height).translate(-origin[0], -origin[1]);
+const viewBounds = (origin: [number, number], width: number, height: number) =>
+  new Bounds().set(0, 0, width, height).translate(-origin[0], -origin[1]);
 
 inherits(WebGPURenderer, Renderer, {
   async wgpuInit() {
@@ -25,7 +26,14 @@ inherits(WebGPURenderer, Renderer, {
     this._context = this._canvas.getContext('webgpu');
   },
 
-  initialize(el, width, height, origin, scaleFactor, options) {
+  initialize(
+    el: HTMLCanvasElement,
+    width: number,
+    height: number,
+    origin: [number, number],
+    scaleFactor: number,
+    options: unknown
+  ) {
     this._options = options || {};
 
     this._canvas = canvas(1, 1, this._options.type); // instantiate a small canvas
@@ -45,7 +53,7 @@ inherits(WebGPURenderer, Renderer, {
     return base.initialize.call(this, el, width, height, origin, scaleFactor);
   },
 
-  resize(width, height, origin, scaleFactor) {
+  resize(width: number, height: number, origin: [number, number], scaleFactor: number) {
     base.resize.call(this, width, height, origin, scaleFactor);
 
     if (this._canvas) {
@@ -55,8 +63,6 @@ inherits(WebGPURenderer, Renderer, {
       // external context needs to be scaled and positioned to origin
       const ctx = this._options.externalContext;
       if (!ctx) error('WebGPURenderer is missing a valid canvas or context.');
-      //gl.scale(this._scale, this._scale);
-      //gl.translate(this._origin[0], this._origin[1]);
     }
 
     this._redraw = true;
@@ -75,7 +81,7 @@ inherits(WebGPURenderer, Renderer, {
     return this._device;
   },
 
-  dirty(item) {
+  dirty(item: {bounds: Bounds; mark: {group: {x?: number; y?: number; mark?: {group: unknown}}}}) {
     const b = this._tempb.clear().union(item.bounds);
     let g = item.mark.group;
 
@@ -87,13 +93,12 @@ inherits(WebGPURenderer, Renderer, {
     this._dirty.union(b);
   },
 
-  _render(scene) {
-    let c = this._canvas,
-      o = this._origin,
+  _render(scene: unknown) {
+    let o = this._origin,
       w = this._width,
       h = this._height,
-      db = this._dirty,
-      vb = this._origin;
+      // db = this._dirty,
+      vb = viewBounds(o, w, h);
 
     const ctx = this.context();
     if (ctx) {
@@ -120,7 +125,7 @@ inherits(WebGPURenderer, Renderer, {
     return this;
   },
 
-  draw(ctx, scene, transform) {
+  draw(ctx: unknown, scene: {marktype: string}, transform: unknown) {
     const mark = marks[scene.marktype];
     mark.draw.call(this, ctx, scene, transform);
   }
