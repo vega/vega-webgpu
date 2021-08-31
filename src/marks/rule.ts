@@ -16,7 +16,7 @@ interface Rule {
   strokeOpacity: number;
 }
 
-function draw(ctx: GPUCanvasContext, scene: {items: Array<Rule>; bounds: Bounds}, vb: Bounds) {
+function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Rule>; bounds: Bounds}, vb: Bounds) {
   const {items, bounds} = scene;
   if (!items?.length) {
     return;
@@ -26,7 +26,6 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Rule>; bounds: Bounds}
     vb.translate(bounds.x1, bounds.y1);
   }
 
-  const device = this._device;
   const shader = device.createShaderModule({code: shaderSource});
 
   const pipeline = device.createRenderPipeline({

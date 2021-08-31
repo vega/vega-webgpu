@@ -85,7 +85,7 @@ function bound(bounds: Bounds, item: Text, mode: number) {
   return bounds;
 }
 
-function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>; bounds: Bounds}, vb: Bounds) {
+function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Text>; bounds: Bounds}, vb: Bounds) {
   const dpi = this._uniforms.dpi;
   const [w, h] = this._uniforms.resolution;
   const canvas = document.createElement('canvas');
@@ -150,7 +150,6 @@ function draw(ctx: GPUCanvasContext, scene: {items: Array<Text>; bounds: Bounds}
     if (item.angle) context.restore();
   }
 
-  const device = this._device;
   const shader = device.createShaderModule({code: shaderSource});
   const pipeline = device.createRenderPipeline({
     vertex: {
