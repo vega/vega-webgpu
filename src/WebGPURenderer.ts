@@ -5,6 +5,8 @@ import {Bounds, Renderer, domClear} from 'vega-scenegraph';
 import {canvas} from 'vega-canvas';
 import {error, inherits} from 'vega-util';
 
+const CONTEXT = 'webgpu';
+
 export default function WebGPURenderer(loader: unknown) {
   Renderer.call(this, loader);
   this._options = {};
@@ -19,13 +21,6 @@ const viewBounds = (origin: [number, number], width: number, height: number) =>
   new Bounds().set(0, 0, width, height).translate(-origin[0], -origin[1]);
 
 inherits(WebGPURenderer, Renderer, {
-  async wgpuInit() {
-    //@ts-ignore
-    this._adapter = await navigator.gpu.requestAdapter();
-    this._device = await this._adapter.requestDevice();
-    this._context = this._canvas.getContext('webgpu');
-  },
-
   initialize(
     el: HTMLCanvasElement,
     width: number,
@@ -40,10 +35,7 @@ inherits(WebGPURenderer, Renderer, {
     //@ts-ignore
     if (!navigator.gpu) {
       error('WebGPU is not available or enabled on this device.');
-    } else {
-      this.wgpuInit();
     }
-
     if (el && this._canvas) {
       domClear(el, 0).appendChild(this._canvas);
       this._canvas.setAttribute('class', 'marks');
@@ -74,7 +66,7 @@ inherits(WebGPURenderer, Renderer, {
   },
 
   context() {
-    return this._canvas ? this._canvas.getContext('webgpu') : null;
+    return this._canvas ? this._canvas.getContext(CONTEXT) : null;
   },
 
   device() {
@@ -100,33 +92,45 @@ inherits(WebGPURenderer, Renderer, {
       // db = this._dirty,
       vb = viewBounds(o, w, h);
 
-    const ctx = this.context();
-    if (ctx) {
-      (async () => {
-        const adapter = await navigator.gpu.requestAdapter();
-        const device = await adapter.requestDevice();
-        this._device = device;
-        this._swapChainFormat = 'bgra8unorm';
-        ctx.configure({
-          device,
-          format: this._swapChainFormat,
-          compositingAlphaMode: 'premultiplied'
+    this._uniforms = {
+      resolution: [w, h],
+      origin: o,
+      //@ts-ignore
+      dpi: window.devicePixelRatio || 1
+    };
+    this._swapChainFormat = 'bgra8unorm';
+
+    if (this._device) {
+      const device = this._device;
+      this._ctx.configure({
+        device,
+        format: this._swapChainFormat,
+        compositingAlphaMode: 'premultiplied'
+      });
+      this.draw(device, this._ctx, scene, vb);
+    } else {
+      navigator.gpu
+        .requestAdapter()
+        .then(adapter => adapter.requestDevice())
+        .then(device => {
+          this._device = device;
+          if (!this._ctx) {
+            this._ctx = this._canvas.getContext(CONTEXT);
+          }
+          this._ctx.configure({
+            device,
+            format: this._swapChainFormat,
+            compositingAlphaMode: 'premultiplied'
+          });
+          this.draw(device, this._ctx, scene, vb);
         });
-        this._uniforms = {
-          resolution: [w, h],
-          origin: o,
-          //@ts-ignore
-          dpi: window.devicePixelRatio || 1
-        };
-        this.draw(ctx, scene, vb);
-      })();
     }
 
     return this;
   },
 
-  draw(ctx: unknown, scene: {marktype: string}, transform: unknown) {
+  draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {marktype: string}, transform: Bounds) {
     const mark = marks[scene.marktype];
-    mark.draw.call(this, ctx, scene, transform);
+    mark.draw.call(this, device, ctx, scene, transform);
   }
 });

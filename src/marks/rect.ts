@@ -143,12 +143,10 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
   scene._frameBuffer.unmap();
 }
 
-function draw(ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds) {
+function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds) {
   if (!scene.items?.length) {
     return;
   }
-
-  const device = this._device;
 
   if (!this._pipeline) {
     initRenderPipeline(device, scene);
@@ -201,7 +199,7 @@ function draw(ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds) {
     const frameData = new Float32Array(scene._frameBuffer.getMappedRange());
     frameData.set(attributes);
 
-    const copyEncoder = this._device.createCommandEncoder();
+    const copyEncoder = device.createCommandEncoder();
     copyEncoder.copyBufferToBuffer(
       scene._frameBuffer,
       frameData.byteOffset,

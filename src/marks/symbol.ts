@@ -5,12 +5,11 @@ import shaderSource from '../shaders/symbol.wgsl';
 import {SceneGroup, SceneSymbol} from 'vega-typings';
 
 interface WebGPUSceneGroup extends SceneGroup {
-  _pipeline?: GPURenderPipeline;
-  _geometryBuffer?: GPUBuffer;
-  _instanceBuffer?: GPUBuffer;
-  _uniformsBuffer?: GPUBuffer;
-  _frameBuffer?: GPUBuffer;
-  _uniformsBindGroup?: GPUBindGroup;
+  _pipeline: GPURenderPipeline;
+  _geometryBuffer: GPUBuffer;
+  _uniformsBuffer: GPUBuffer;
+  _frameBuffer: GPUBuffer;
+  _uniformsBindGroup: GPUBindGroup;
 }
 
 const segments = 32;
@@ -106,7 +105,8 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
     usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
     mappedAtCreation: true
   });
-  const geometryData = new Float32Array(scene._geometryBuffer.getMappedRange());
+  let geometryData: Float32Array;
+  geometryData = new Float32Array(scene._geometryBuffer.getMappedRange());
   geometryData.set(positions);
   scene._geometryBuffer.unmap();
 
@@ -127,30 +127,16 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
       }
     ]
   });
-
-  scene._instanceBuffer = device.createBuffer({
-    size: scene.items.length * 7 * Float32Array.BYTES_PER_ELEMENT,
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-    mappedAtCreation: true
-  });
-  scene._instanceBuffer.unmap();
-
-  scene._frameBuffer = device.createBuffer({
-    size: scene.items.length * 7 * Float32Array.BYTES_PER_ELEMENT,
-    usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.MAP_WRITE,
-    mappedAtCreation: true
-  });
-  scene._frameBuffer.unmap();
 }
 
-function draw(ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds) {
+function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds) {
   if (!scene.items?.length) {
     return;
   }
-  if (!this._pipeline) {
-    initRenderPipeline(this._device, scene);
-    const uniformsData = new Float32Array(scene._uniformsBuffer.getMappedRange());
+  if (!scene._pipeline) {
+    initRenderPipeline(device, scene);
     const uniforms = Float32Array.from([...this._uniforms.resolution, vb.x1, vb.y1]);
+    const uniformsData = new Float32Array(scene._uniformsBuffer.getMappedRange());
     uniformsData.set(uniforms);
     scene._uniformsBuffer.unmap();
   }
@@ -168,44 +154,38 @@ function draw(ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds) {
     })
   );
 
-  scene._frameBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
-    const frameData = new Float32Array(scene._frameBuffer.getMappedRange());
-    const copyEncoder = this._device.createCommandEncoder();
-    frameData.set(attributes);
-
-    copyEncoder.copyBufferToBuffer(
-      scene._frameBuffer,
-      frameData.byteOffset,
-      scene._instanceBuffer,
-      attributes.byteOffset,
-      attributes.byteLength
-    );
-
-    const commandEncoder = this._device.createCommandEncoder();
-    //@ts-ignore
-    const textureView = ctx.getCurrentTexture().createView();
-    const renderPassDescriptor = {
-      colorAttachments: [
-        {
-          view: textureView,
-          loadValue: 'load',
-          storeOp: 'store'
-        }
-      ]
-    };
-
-    //@ts-ignore
-    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-    passEncoder.setPipeline(scene._pipeline);
-    passEncoder.setVertexBuffer(0, scene._geometryBuffer);
-    passEncoder.setVertexBuffer(1, scene._instanceBuffer);
-    passEncoder.setBindGroup(0, scene._uniformsBindGroup);
-    passEncoder.draw(segments * 3, scene.items.length, 0, 0);
-    passEncoder.endPass();
-
-    scene._frameBuffer.unmap();
-    this._device.queue.submit([copyEncoder.finish(), commandEncoder.finish()]);
+  const instanceBuffer = device.createBuffer({
+    size: attributes.byteLength,
+    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.VERTEX,
+    mappedAtCreation: true
   });
+  instanceBuffer.unmap();
+
+  device.queue.writeBuffer(instanceBuffer, attributes.byteOffset, attributes.buffer);
+
+  const commandEncoder = device.createCommandEncoder();
+  //@ts-ignore
+  const textureView = ctx.getCurrentTexture().createView();
+  const renderPassDescriptor = {
+    colorAttachments: [
+      {
+        view: textureView,
+        loadValue: 'load',
+        storeOp: 'store'
+      }
+    ]
+  };
+
+  //@ts-ignore
+  const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+  passEncoder.setPipeline(scene._pipeline);
+  passEncoder.setVertexBuffer(0, scene._geometryBuffer);
+  passEncoder.setVertexBuffer(1, instanceBuffer);
+  passEncoder.setBindGroup(0, scene._uniformsBindGroup);
+  passEncoder.draw(segments * 3, scene.items.length, 0, 0);
+  passEncoder.endPass();
+
+  device.queue.submit([commandEncoder.finish()]);
 }
 
 export default {

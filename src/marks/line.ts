@@ -13,14 +13,13 @@ interface Line {
   strokeOpacity: number;
 }
 
-function draw(ctx: GPUCanvasContext, scene: {items: Array<Line>}, vb: Bounds) {
+function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Line>}, vb: Bounds) {
   const {items} = scene;
   if (!items?.length) {
     return;
   }
   const itemCount = items.length;
 
-  const device = this._device;
   const shader = device.createShaderModule({code: shaderSource});
 
   const pipeline = device.createRenderPipeline({
