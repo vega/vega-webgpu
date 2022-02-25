@@ -15,8 +15,9 @@ interface WebGPUSceneGroup extends SceneGroup {
 const segments = 32;
 
 function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
-  const shader = device.createShaderModule({code: shaderSource});
+  const shader = device.createShaderModule({code: shaderSource, label: 'Symbol Shader'});
   scene._pipeline = device.createRenderPipeline({
+    label: 'Symbol Render Pipeline',
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
@@ -30,9 +31,9 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
             {
               shaderLocation: 0,
               offset: 0,
-              format: 'float32x2'
-            }
-          ]
+              format: 'float32x2',
+            },
+          ],
         },
         {
           arrayStride: Float32Array.BYTES_PER_ELEMENT * 7,
@@ -42,23 +43,23 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
             {
               shaderLocation: 1,
               offset: 0,
-              format: 'float32x2'
+              format: 'float32x2',
             },
             // color
             {
               shaderLocation: 2,
               offset: Float32Array.BYTES_PER_ELEMENT * 2,
-              format: 'float32x4'
+              format: 'float32x4',
             },
             // radius
             {
               shaderLocation: 3,
               offset: Float32Array.BYTES_PER_ELEMENT * 6,
-              format: 'float32'
-            }
-          ]
-        }
-      ]
+              format: 'float32',
+            },
+          ],
+        },
+      ],
     },
     fragment: {
       module: shader,
@@ -71,20 +72,20 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
             alpha: {
               srcFactor: 'one',
               dstFactor: 'one-minus-src-alpha',
-              operation: 'add'
+              operation: 'add',
             },
             color: {
               srcFactor: 'src-alpha',
               dstFactor: 'one-minus-src-alpha',
-              operation: 'add'
-            }
-          }
-        }
-      ]
+              operation: 'add',
+            },
+          },
+        },
+      ],
     },
     primitive: {
-      topology: 'triangle-list'
-    }
+      topology: 'triangle-list',
+    },
   });
 
   const positions = new Float32Array(
@@ -97,13 +98,14 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
       const x2 = Math.cos(ang2);
       const y2 = Math.sin(ang2);
       return [x1, y1, 0, 0, x2, y2];
-    }).flat()
+    }).flat(),
   );
 
   scene._geometryBuffer = device.createBuffer({
+    label: 'Symbol Geometry Buffer',
     size: positions.byteLength,
     usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-    mappedAtCreation: true
+    mappedAtCreation: true,
   });
   let geometryData: Float32Array;
   geometryData = new Float32Array(scene._geometryBuffer.getMappedRange());
@@ -111,21 +113,23 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
   scene._geometryBuffer.unmap();
 
   scene._uniformsBuffer = device.createBuffer({
+    label: 'Symbol Uniform Buffer',
     size: Float32Array.BYTES_PER_ELEMENT * 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    mappedAtCreation: true
+    mappedAtCreation: true,
   });
 
   scene._uniformsBindGroup = device.createBindGroup({
+    label: 'Symbol Uniform Bind Group',
     layout: scene._pipeline.getBindGroupLayout(0),
     entries: [
       {
         binding: 0,
         resource: {
-          buffer: scene._uniformsBuffer
-        }
-      }
-    ]
+          buffer: scene._uniformsBuffer,
+        },
+      },
+    ],
   });
 }
 
@@ -151,15 +155,14 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
       const g = col.g / 255;
       const b = col.b / 255;
       return [x, y, r, g, b, opacity, rad];
-    })
+    }),
   );
 
   const instanceBuffer = device.createBuffer({
+    label: 'Symbol Instance Buffer',
     size: attributes.byteLength,
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.VERTEX,
-    mappedAtCreation: true
   });
-  instanceBuffer.unmap();
 
   device.queue.writeBuffer(instanceBuffer, attributes.byteOffset, attributes.buffer);
 
@@ -167,13 +170,14 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
   //@ts-ignore
   const textureView = ctx.getCurrentTexture().createView();
   const renderPassDescriptor = {
+    label: 'Symbol Render Pass',
     colorAttachments: [
       {
         view: textureView,
         loadValue: 'load',
-        storeOp: 'store'
-      }
-    ]
+        storeOp: 'store',
+      },
+    ],
   };
 
   //@ts-ignore
@@ -183,7 +187,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
   passEncoder.setVertexBuffer(1, instanceBuffer);
   passEncoder.setBindGroup(0, scene._uniformsBindGroup);
   passEncoder.draw(segments * 3, scene.items.length, 0, 0);
-  passEncoder.endPass();
+  passEncoder.end();
 
   device.queue.submit([commandEncoder.finish()]);
 }
@@ -191,5 +195,5 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
 export default {
   type: 'symbol',
   draw: draw,
-  pick: () => null
+  pick: () => null,
 };

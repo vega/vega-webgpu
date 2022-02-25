@@ -1,11 +1,7 @@
 import resize from './util/resize';
 import marks from './marks/index';
-
-import {Bounds, Renderer, domClear} from 'vega-scenegraph';
-import {canvas} from 'vega-canvas';
+import {Bounds, Renderer, domClear as clear} from 'vega-scenegraph';
 import {error, inherits} from 'vega-util';
-
-const CONTEXT = 'webgpu';
 
 export default function WebGPURenderer(loader: unknown) {
   Renderer.call(this, loader);
@@ -21,41 +17,30 @@ const viewBounds = (origin: [number, number], width: number, height: number) =>
   new Bounds().set(0, 0, width, height).translate(-origin[0], -origin[1]);
 
 inherits(WebGPURenderer, Renderer, {
-  initialize(
-    el: HTMLCanvasElement,
-    width: number,
-    height: number,
-    origin: [number, number],
-    scaleFactor: number,
-    options: unknown
-  ) {
-    this._options = options || {};
-
-    this._canvas = canvas(1, 1, this._options.type); // instantiate a small canvas
-    //@ts-ignore
-    if (!navigator.gpu) {
-      error('WebGPU is not available or enabled on this device.');
-    }
-    if (el && this._canvas) {
-      domClear(el, 0).appendChild(this._canvas);
+  initialize(el: HTMLCanvasElement, width: number, height: number, origin: [number, number]) {
+    this._canvas = document.createElement('canvas'); // instantiate a small canvas
+    if (el) {
+      clear(el, 0).appendChild(this._canvas);
       this._canvas.setAttribute('class', 'marks');
     }
+    const textCanvas = document.createElement('canvas');
+    this._textCanvas = textCanvas;
+    this._textContext = textCanvas.getContext('2d');
+
+    this._uniforms = {
+      resolution: [width, height],
+      origin: origin,
+      dpi: window.devicePixelRatio || 1,
+    };
 
     // this method will invoke resize to size the canvas appropriately
-    return base.initialize.call(this, el, width, height, origin, scaleFactor);
+    return base.initialize.call(this, el, width, height, origin);
   },
 
-  resize(width: number, height: number, origin: [number, number], scaleFactor: number) {
-    base.resize.call(this, width, height, origin, scaleFactor);
+  resize(width: number, height: number, origin: [number, number]) {
+    base.resize.call(this, width, height, origin);
 
-    if (this._canvas) {
-      // configure canvas size and transform
-      resize(this._canvas, this._width, this._height, this._origin, this._scale, this._options.context);
-    } else {
-      // external context needs to be scaled and positioned to origin
-      const ctx = this._options.externalContext;
-      if (!ctx) error('WebGPURenderer is missing a valid canvas or context.');
-    }
+    resize(this._canvas, this._width, this._height, this._origin, this._textCanvas, this._textContext);
 
     this._redraw = true;
     return this;
@@ -66,11 +51,11 @@ inherits(WebGPURenderer, Renderer, {
   },
 
   context() {
-    return this._canvas ? this._canvas.getContext(CONTEXT) : null;
+    return this._ctx ? this._ctx : null;
   },
 
   device() {
-    return this._device;
+    return this._device ? this._device : null;
   },
 
   dirty(item: {bounds: Bounds; mark: {group: {x?: number; y?: number; mark?: {group: unknown}}}}) {
@@ -92,45 +77,26 @@ inherits(WebGPURenderer, Renderer, {
       // db = this._dirty,
       vb = viewBounds(o, w, h);
 
-    this._uniforms = {
-      resolution: [w, h],
-      origin: o,
-      //@ts-ignore
-      dpi: window.devicePixelRatio || 1
-    };
-    this._swapChainFormat = 'bgra8unorm';
+    const ctx = this.context();
+    const device = this.device();
 
-    if (this._device) {
-      const device = this._device;
-      this._ctx.configure({
-        device,
-        format: this._swapChainFormat,
-        compositingAlphaMode: 'premultiplied'
-      });
-      this.draw(device, this._ctx, scene, vb);
+    if (ctx && device) {
+      console.log('success');
+      this.draw(device, ctx, scene, vb);
     } else {
-      navigator.gpu
-        .requestAdapter()
-        .then(adapter => adapter.requestDevice())
-        .then(device => {
-          this._device = device;
-          if (!this._ctx) {
-            this._ctx = this._canvas.getContext(CONTEXT);
-          }
-          this._ctx.configure({
-            device,
-            format: this._swapChainFormat,
-            compositingAlphaMode: 'premultiplied'
-          });
-          this.draw(device, this._ctx, scene, vb);
-        });
+      async () => {
+        const adapter = await navigator.gpu.requestAdapter();
+        const device = await adapter.requestDevice();
+        this._device = device;
+        this._ctx = this._canvas.getContext('webgpu');
+        this.draw(device, ctx, scene, vb);
+      };
     }
-
     return this;
   },
 
   draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {marktype: string}, transform: Bounds) {
     const mark = marks[scene.marktype];
     mark.draw.call(this, device, ctx, scene, transform);
-  }
+  },
 });

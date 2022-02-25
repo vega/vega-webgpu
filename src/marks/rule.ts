@@ -26,9 +26,10 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Rul
     vb.translate(bounds.x1, bounds.y1);
   }
 
-  const shader = device.createShaderModule({code: shaderSource});
+  const shader = device.createShaderModule({code: shaderSource, label: 'Rule Shader'});
 
   const pipeline = device.createRenderPipeline({
+    label: 'Rule Render Pipeline',
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
@@ -40,9 +41,9 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Rul
             {
               shaderLocation: 0,
               offset: 0,
-              format: 'float32x2'
-            }
-          ]
+              format: 'float32x2',
+            },
+          ],
         },
         {
           arrayStride: Float32Array.BYTES_PER_ELEMENT * 8,
@@ -52,48 +53,48 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Rul
             {
               shaderLocation: 1,
               offset: 0,
-              format: 'float32x2'
+              format: 'float32x2',
             },
             // scale
             {
               shaderLocation: 2,
               offset: Float32Array.BYTES_PER_ELEMENT * 2,
-              format: 'float32x2'
+              format: 'float32x2',
             },
             // color
             {
               shaderLocation: 3,
               offset: Float32Array.BYTES_PER_ELEMENT * 4,
-              format: 'float32x4'
-            }
-          ]
-        }
-      ]
+              format: 'float32x4',
+            },
+          ],
+        },
+      ],
     },
     fragment: {
       module: shader,
       entryPoint: 'main_fragment',
       targets: [
         {
-          format: this._swapChainFormat,
+          format: 'bgra8unorm',
           blend: {
             alpha: {
               srcFactor: 'one',
               dstFactor: 'one-minus-src-alpha',
-              operation: 'add'
+              operation: 'add',
             },
             color: {
               srcFactor: 'src-alpha',
               dstFactor: 'one-minus-src-alpha',
-              operation: 'add'
-            }
-          }
-        }
-      ]
+              operation: 'add',
+            },
+          },
+        },
+      ],
     },
     primitives: {
-      topology: 'triangle-list'
-    }
+      topology: 'triangle-list',
+    },
   });
 
   const positionBuffer = createBuffer(device, quadVertex, GPUBufferUsage.VERTEX);
@@ -115,7 +116,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Rul
       col.r / 255,
       col.g / 255,
       col.b / 255,
-      strokeOpacity
+      strokeOpacity,
     );
   }
 
@@ -129,23 +130,24 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Rul
       {
         binding: 0,
         resource: {
-          buffer: uniformBuffer
-        }
-      }
-    ]
+          buffer: uniformBuffer,
+        },
+      },
+    ],
   });
 
   const commandEncoder = device.createCommandEncoder();
   //@ts-ignore
   const textureView = ctx.getCurrentTexture().createView();
   const renderPassDescriptor = {
+    label: 'Rule Render Pass',
     colorAttachments: [
       {
         view: textureView,
         loadValue: 'load',
-        storeOp: 'store'
-      }
-    ]
+        storeOp: 'store',
+      },
+    ],
   };
 
   const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
@@ -155,12 +157,12 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Rul
   passEncoder.setBindGroup(0, uniformBindGroup);
   // 6 because rectangles are a quad -- two triangles
   passEncoder.draw(6, itemCount);
-  passEncoder.endPass();
+  passEncoder.end();
   device.queue.submit([commandEncoder.finish()]);
 }
 
 export default {
   type: 'rule',
   draw: draw,
-  pick: () => null
+  pick: () => null,
 };

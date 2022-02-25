@@ -20,12 +20,14 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Lin
   }
   const itemCount = items.length;
 
-  const shader = device.createShaderModule({code: shaderSource});
+  const shader = device.createShaderModule({code: shaderSource, label: 'Line Shader'});
 
   const pipeline = device.createRenderPipeline({
+    label: 'Line Render Pipeline',
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
+      //@ts-ignore
       buffers: [
         {
           arrayStride: Float32Array.BYTES_PER_ELEMENT * 9,
@@ -34,54 +36,55 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Lin
             {
               shaderLocation: 0,
               offset: 0,
-              format: 'float32x2'
+              format: 'float32x2',
             },
             // normal
             {
               shaderLocation: 1,
               offset: Float32Array.BYTES_PER_ELEMENT * 2,
-              format: 'float32x2'
+              format: 'float32x2',
             },
             // color
             {
               shaderLocation: 2,
               offset: Float32Array.BYTES_PER_ELEMENT * 4,
-              format: 'float32x4'
+              format: 'float32x4',
             },
             // strokewidth
             {
               shaderLocation: 3,
               offset: Float32Array.BYTES_PER_ELEMENT * 8,
-              format: 'float32'
-            }
-          ]
-        }
-      ]
+              format: 'float32',
+            },
+          ],
+        },
+      ],
     },
     fragment: {
       module: shader,
       entryPoint: 'main_fragment',
+      //@ts-ignore
       targets: [
         {
-          format: this._swapChainFormat,
+          format: 'bgra8unorm',
           blend: {
             alpha: {
               srcFactor: 'one',
               dstFactor: 'one-minus-src-alpha',
-              operation: 'add'
+              operation: 'add',
             },
             color: {
               srcFactor: 'src-alpha',
               dstFactor: 'one-minus-src-alpha',
-              operation: 'add'
-            }
-          }
-        }
-      ]
+              operation: 'add',
+            },
+          },
+        },
+      ],
     },
     primitives: {
-      topology: 'triangle-list'
-    }
+      topology: 'triangle-list',
+    },
   });
 
   const positions = [];
@@ -159,7 +162,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Lin
       g,
       b,
       strokeOpacity,
-      strokeWidth
+      strokeWidth,
     );
   }
 
@@ -168,37 +171,40 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Lin
   const uniforms = Float32Array.from([...this._uniforms.resolution, vb.x1, vb.y1]);
   const uniformBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
   const uniformBindGroup = device.createBindGroup({
+    label: 'Line Uniform Bind Group',
     layout: pipeline.getBindGroupLayout(0),
     entries: [
       {
         binding: 0,
         resource: {
-          buffer: uniformBuffer
-        }
-      }
-    ]
+          buffer: uniformBuffer,
+        },
+      },
+    ],
   });
 
   const commandEncoder = device.createCommandEncoder();
   //@ts-ignore
   const textureView = ctx.getCurrentTexture().createView();
   const renderPassDescriptor = {
+    label: 'Line Render Pass Descriptor',
     colorAttachments: [
       {
         view: textureView,
         loadValue: 'load',
-        storeOp: 'store'
-      }
-    ]
+        storeOp: 'store',
+      },
+    ],
   };
 
+  //@ts-ignore
   const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
   passEncoder.setPipeline(pipeline);
   passEncoder.setBindGroup(0, uniformBindGroup);
   passEncoder.setVertexBuffer(0, positionBuffer);
   // 6 because our lines are made of quads
   passEncoder.draw(itemCount * 6, 1);
-  passEncoder.endPass();
+  passEncoder.end();
   device.queue.submit([commandEncoder.finish()]);
 }
 
@@ -209,5 +215,5 @@ function pick(context, scene, x, y, gx, gy) {
 export default {
   type: 'rule',
   draw: draw,
-  pick: pick
+  pick: pick,
 };

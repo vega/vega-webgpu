@@ -10,4 +10,5 @@ export function createBuffer(device: GPUDevice, arr: Uint16Array | Float32Array,
   return buffer;
 }
 
-export const quadVertex = Float32Array.from([0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1]);
+export const quadVertex = Float32Array.from([0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1]);
+export const textureCoordinates = Float32Array.from([0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1]);

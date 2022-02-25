@@ -1,4 +1,5 @@
-import {sceneVisit as visit, Bounds} from 'vega-scenegraph';
+import {Bounds} from 'vega-scenegraph';
+import {visit} from '../util/visit';
 import {Scene, SceneGroup, SceneItem} from 'vega-typings';
 
 function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: Scene, vb: Bounds) {
@@ -15,5 +16,4 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: Scene, vb: Bounds
 export default {
   type: 'group',
   draw: draw,
-  pick: () => null
 };

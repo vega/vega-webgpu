@@ -7,15 +7,21 @@ export default {
   input: 'src/index.ts',
   output: {file: './dist/vega-webgpu.module.js', format: 'es'},
   plugins: [
-    commonjs(),
-    resolve(),
-    typescript({
-      allowSyntheticDefaultImports: true,
-      lib: ['esnext', 'dom']
+    commonjs({
+      include: 'node_modules/**',
+    }),
+    resolve({
+      jsnext: true,
+      // main: true,
+      browser: true,
     }),
     string({
       include: '**/*.wgsl',
-      exclude: ['node_modules/*']
-    })
-  ]
+      exclude: ['node_modules/*'],
+    }),
+    typescript({
+      allowSyntheticDefaultImports: true,
+      lib: ['esnext', 'dom'],
+    }),
+  ],
 };

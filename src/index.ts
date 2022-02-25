@@ -1,8 +1,8 @@
 import WebGPURenderer from './WebGPURenderer';
-import WebGPUHandler from './WebGPUHandler';
 
-export default {
-  renderer: WebGPURenderer,
-  headless: WebGPURenderer,
-  handler: WebGPUHandler
-};
+export default function initRenderer(device: GPUDevice) {
+  return {
+    renderer: WebGPURenderer,
+    handler: null,
+  };
+}
