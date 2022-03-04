@@ -174,7 +174,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
     colorAttachments: [
       {
         view: textureView,
-        loadValue: 'load',
+        loadOp: 'load',
         storeOp: 'store',
       },
     ],

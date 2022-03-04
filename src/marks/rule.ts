@@ -36,36 +36,37 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Rul
       buffers: [
         {
           arrayStride: Float32Array.BYTES_PER_ELEMENT * 2,
+          stepMode: 'vertex' as GPUVertexStepMode,
           attributes: [
             // position
             {
               shaderLocation: 0,
               offset: 0,
-              format: 'float32x2',
+              format: 'float32x2' as GPUVertexFormat,
             },
           ],
         },
         {
           arrayStride: Float32Array.BYTES_PER_ELEMENT * 8,
-          stepMode: 'instance',
+          stepMode: 'instance' as GPUVertexStepMode,
           attributes: [
             // center
             {
               shaderLocation: 1,
               offset: 0,
-              format: 'float32x2',
+              format: 'float32x2' as GPUVertexFormat,
             },
             // scale
             {
               shaderLocation: 2,
               offset: Float32Array.BYTES_PER_ELEMENT * 2,
-              format: 'float32x2',
+              format: 'float32x2' as GPUVertexFormat,
             },
             // color
             {
               shaderLocation: 3,
               offset: Float32Array.BYTES_PER_ELEMENT * 4,
-              format: 'float32x4',
+              format: 'float32x4' as GPUVertexFormat,
             },
           ],
         },
@@ -76,24 +77,24 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Rul
       entryPoint: 'main_fragment',
       targets: [
         {
-          format: 'bgra8unorm',
+          format: 'bgra8unorm' as GPUTextureFormat,
           blend: {
             alpha: {
-              srcFactor: 'one',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
+              srcFactor: 'one' as GPUBlendFactor,
+              dstFactor: 'one-minus-src-alpha' as GPUBlendFactor,
+              operation: 'add' as GPUBlendOperation,
             },
             color: {
-              srcFactor: 'src-alpha',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
+              srcFactor: 'src-alpha' as GPUBlendFactor,
+              dstFactor: 'one-minus-src-alpha' as GPUBlendFactor,
+              operation: 'add' as GPUBlendOperation,
             },
           },
         },
       ],
     },
-    primitives: {
-      topology: 'triangle-list',
+    primitive: {
+      topology: 'triangle-list' as GPUPrimitiveTopology,
     },
   });
 
@@ -139,14 +140,14 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Rul
   const commandEncoder = device.createCommandEncoder();
   //@ts-ignore
   const textureView = ctx.getCurrentTexture().createView();
-  const renderPassDescriptor = {
+  const renderPassDescriptor: GPURenderPassDescriptor = {
     label: 'Rule Render Pass',
     colorAttachments: [
       {
         view: textureView,
-        loadValue: 'load',
+        loadOp: 'load',
         storeOp: 'store',
-      },
+      } as GPURenderPassColorAttachment,
     ],
   };
 

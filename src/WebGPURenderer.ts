@@ -81,16 +81,19 @@ inherits(WebGPURenderer, Renderer, {
     const device = this.device();
 
     if (ctx && device) {
-      console.log('success');
       this.draw(device, ctx, scene, vb);
     } else {
-      async () => {
+      (async () => {
         const adapter = await navigator.gpu.requestAdapter();
         const device = await adapter.requestDevice();
         this._device = device;
         this._ctx = this._canvas.getContext('webgpu');
-        this.draw(device, ctx, scene, vb);
-      };
+        this._ctx.configure({
+          device,
+          format: 'bgra8unorm',
+        });
+        this.draw(device, this._ctx, scene, vb);
+      })();
     }
     return this;
   },

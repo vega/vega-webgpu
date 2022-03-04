@@ -191,7 +191,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Lin
     colorAttachments: [
       {
         view: textureView,
-        loadValue: 'load',
+        loadOp: 'load',
         storeOp: 'store',
       },
     ],

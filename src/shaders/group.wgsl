@@ -1,30 +1,30 @@
-[[block]] struct Uniforms {
+@block struct Uniforms {
     resolution: vec2<f32>;
     origin: vec2<f32>;
     scale: vec2<f32>;
 };
 
-[[block]] struct ColorUniforms {
+@block struct ColorUniforms {
     fill: vec4<f32>;
     stroke: vec4<f32>;
     strokewidth: f32;
 };
 
-[[group(0), binding(0)]] var<uniform> uniforms : Uniforms; 
-[[group(0), binding(1)]] var<uniform> colors : ColorUniforms; 
+@group(0) @binding(0) var<uniform> uniforms : Uniforms; 
+@group(0) @binding(1) var<uniform> colors : ColorUniforms; 
 
 struct VertexInput {
-    [[location(0)]] position: vec2<f32>;
-    [[location(1)]] uv: vec2<f32>;
+    @location(0) position: vec2<f32>;
+    @location(1) uv: vec2<f32>;
 };
 
 
 struct VertexOutput {
-    [[builtin(position)]] pos : vec4<f32>;
-    [[location(0)]] uv : vec2<f32>;
+    @builtin(position) pos : vec4<f32>;
+    @location(0) uv : vec2<f32>;
 };
 
-[[stage(vertex)]]
+@stage(vertex)
 fn main_vertex(in: VertexInput) -> VertexOutput {
     var output: VertexOutput;
     var pos : vec2<f32> = in.position * uniforms.scale + uniforms.origin;
@@ -36,8 +36,8 @@ fn main_vertex(in: VertexInput) -> VertexOutput {
     return output;
 }
 
-[[stage(fragment)]]
-fn main_fragment(in: VertexOutput) -> [[location(0)]] vec4<f32> {
+@stage(fragment)
+fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     var col : vec4<f32> = colors.fill;
     let sw : vec2<f32> = vec2<f32>(colors.strokewidth, colors.strokewidth) * 2.0 / uniforms.resolution;
     if (in.uv.x < sw.x || in.uv.x > 1.0 - sw.x) {

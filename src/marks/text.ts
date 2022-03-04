@@ -102,7 +102,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Tex
     colorAttachments: [
       {
         view: textureView,
-        loadValue: 'load',
+        loadOp: 'load',
         storeOp: 'store',
       },
     ],
