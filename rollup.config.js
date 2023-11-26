@@ -5,13 +5,18 @@ import resolve from '@rollup/plugin-node-resolve';
 import typescript from '@rollup/plugin-typescript';
 
 export default {
-  input: 'src/index.ts',
+  input: 'index.ts',
   output: {
-    file: './dist/vega-webgpu.module.js',
-    format: 'es',
-    name: 'vegaWebGPUenderer',
+    file: 'build/vega-webgpu-renderer.js',
+    format: 'umd',
+    name: 'WevGPURenderer',
     sourcemap: true,
+    globals: {
+      'd3-color': 'd3',
+      'vega-scenegraph': 'vega'
+    }
   },
+  external: ['d3-color', 'vega-scenegraph'],
   plugins: [
     commonjs({
       include: 'node_modules/**',

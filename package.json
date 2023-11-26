@@ -1,17 +1,24 @@
 {
-  "name": "vega-webgpu",
+  "name": "vega-webgpu-renderer",
   "type": "module",
   "version": "1.0.0",
-  "description": "",
-  "main": "src/index.ts",
+  "description": "Vega WebGPU renderer.",
+  "keywords": [],
+  "author": {
+    "name": "Jeffrey Baumes",
+    "url": "http://www.kitware.com/company/team/baumes.html"
+  },
+  "license": "ISC",
+  "main": "build/vega-webgpu-renderer.js",
+  "module": "index",
+  "jsnext:main": "index",
+  "tsnext:main": "index",
   "scripts": {
     "build": "rollup -c",
+    "postbuild": "uglifyjs build/vega-webgpu-renderer.js -c -m -o build/vega-webgpu-renderer.min.js",
     "dev": "rollup -c --watch",
     "serve": "live-server --open=test"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^19.0.2",
     "@rollup/plugin-node-resolve": "^13.0.6",
@@ -28,12 +35,14 @@
     "typescript": "^4.5.2",
     "vega-canvas": "^1.2.6",
     "vega-loader": "^4.4.1",
-    "vega-scenegraph": "^4.9.4",
     "vega-typings": "^0.21.0",
     "vega-util": "^1.17.0",
-    "webpack": "^5.89.0"
+    "webdriverio": "^4.4.0"
   },
   "dependencies": {
-    "nodemon": "^3.0.1"
+    "d3-color": "1",
+    "nodemon": "^3.0.1",
+    "uglifyjs": "^2.4.11",
+    "vega-scenegraph": "^4.9.4"
   }
 }

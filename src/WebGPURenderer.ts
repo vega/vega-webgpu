@@ -1,7 +1,8 @@
+import { Bounds, Renderer, domClear as clear } from 'vega-scenegraph';
 import resize from './util/resize';
 import marks from './marks/index';
-import { Bounds, Renderer, domClear as clear } from 'vega-scenegraph';
 import { error, inherits } from 'vega-util';
+
 
 export default function WebGPURenderer(loader: unknown) {
   Renderer.call(this, loader);
@@ -11,7 +12,7 @@ export default function WebGPURenderer(loader: unknown) {
   this._tempb = new Bounds();
 }
 
-const base = Renderer.prototype;
+let base = Renderer.prototype;
 
 const viewBounds = (origin: [number, number], width: number, height: number) =>
   new Bounds().set(0, 0, width, height).translate(-origin[0], -origin[1]);
@@ -19,11 +20,13 @@ const viewBounds = (origin: [number, number], width: number, height: number) =>
 inherits(WebGPURenderer, Renderer, {
   initialize(el: HTMLCanvasElement, width: number, height: number, origin: [number, number]) {
     this._canvas = document.createElement('canvas'); // instantiate a small canvas
+    this._ctx = this._canvas.getContext('webgpu');
     if (el) {
       clear(el, 0).appendChild(this._canvas);
       this._canvas.setAttribute('class', 'marks');
     }
     const textCanvas = document.createElement('canvas');
+    this._canvas._textCanvas = textCanvas
     this._textCanvas = textCanvas;
     this._textContext = textCanvas.getContext('2d');
 
