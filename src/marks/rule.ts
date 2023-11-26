@@ -1,8 +1,12 @@
 import {color} from 'd3-color';
-import {createBuffer, quadVertex} from '../util/arrays';
 import {Bounds} from 'vega-scenegraph';
+
 //@ts-ignore
 import shaderSource from '../shaders/rule.wgsl';
+import {
+  createBuffer,
+  quadVertex,
+} from '../util/arrays';
 
 interface Rule {
   x: number;
@@ -30,6 +34,8 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Rul
 
   const pipeline = device.createRenderPipeline({
     label: 'Rule Render Pipeline',
+    //@ts-ignore
+    layout: "auto",
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',

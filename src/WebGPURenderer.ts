@@ -1,7 +1,7 @@
 import resize from './util/resize';
 import marks from './marks/index';
-import {Bounds, Renderer, domClear as clear} from 'vega-scenegraph';
-import {error, inherits} from 'vega-util';
+import { Bounds, Renderer, domClear as clear } from 'vega-scenegraph';
+import { error, inherits } from 'vega-util';
 
 export default function WebGPURenderer(loader: unknown) {
   Renderer.call(this, loader);
@@ -58,7 +58,7 @@ inherits(WebGPURenderer, Renderer, {
     return this._device ? this._device : null;
   },
 
-  dirty(item: {bounds: Bounds; mark: {group: {x?: number; y?: number; mark?: {group: unknown}}}}) {
+  dirty(item: { bounds: Bounds; mark: { group: { x?: number; y?: number; mark?: { group: unknown } } } }) {
     const b = this._tempb.clear().union(item.bounds);
     let g = item.mark.group;
 
@@ -98,8 +98,12 @@ inherits(WebGPURenderer, Renderer, {
     return this;
   },
 
-  draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {marktype: string}, transform: Bounds) {
+  draw(device: GPUDevice, ctx: GPUCanvasContext, scene: { marktype: string }, transform: Bounds) {
     const mark = marks[scene.marktype];
-    mark.draw.call(this, device, ctx, scene, transform);
+    if (mark == null) {
+      console.error(`Unknown mark type: '${scene.marktype}'`)
+    } else {
+      mark.draw.call(this, device, ctx, scene, transform);
+    }
   },
 });

@@ -1,9 +1,9 @@
 import {color} from 'd3-color';
-import {createBuffer} from '../util/arrays';
 import {Bounds} from 'vega-scenegraph';
 
 //@ts-ignore
 import shaderSource from '../shaders/line.wgsl';
+import {createBuffer} from '../util/arrays';
 
 interface Line {
   x: number;

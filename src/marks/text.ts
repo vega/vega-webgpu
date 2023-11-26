@@ -1,5 +1,5 @@
 import {Bounds} from 'vega-scenegraph';
-import Marks from '../marks/index';
+
 import shaderSource from '../shaders/text.wgsl';
 
 function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Text>; bounds: Bounds}, bounds: Bounds) {
@@ -7,6 +7,8 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Tex
   const shader = device.createShaderModule({code: shaderSource, label: 'Text Shader'});
   const pipeline = device.createRenderPipeline({
     label: 'Text Render Pipeline',
+    //@ts-ignore
+    layout: "auto",
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
@@ -36,17 +38,17 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Tex
       entryPoint: 'main_fragment',
       targets: [
         {
-          format: 'bgra8unorm',
+          format: 'bgra8unorm' as GPUTextureFormat,
           blend: {
-            alpha: {
-              srcFactor: 'one',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
-            },
             color: {
-              srcFactor: 'src-alpha',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
+              srcFactor: 'src-alpha' as GPUBlendFactor,
+              dstFactor: 'one-minus-src-alpha' as GPUBlendFactor,
+              operation: 'add' as GPUBlendOperation,
+            },
+            alpha: {
+              srcFactor: 'one' as GPUBlendFactor,
+              dstFactor: 'one-minus-src-alpha' as GPUBlendFactor,
+              operation: 'add' as GPUBlendOperation,
             },
           },
         },
@@ -102,8 +104,8 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Tex
     colorAttachments: [
       {
         view: textureView,
-        loadOp: 'load',
-        storeOp: 'store',
+        loadOp: "load" as GPULoadOp,
+        storeOp: 'store' as GPUStoreOp,
       },
     ],
   };

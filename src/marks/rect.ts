@@ -1,9 +1,13 @@
-import {color} from 'd3-color';
-import {quadVertex} from '../util/arrays';
-import {Bounds} from 'vega-scenegraph';
+import { color } from 'd3-color';
+import { Bounds } from 'vega-scenegraph';
+import {
+  SceneGroup,
+  SceneRect,
+} from 'vega-typings';
+
 //@ts-ignore
 import shaderSource from '../shaders/rect.wgsl';
-import {SceneGroup, SceneRect} from 'vega-typings';
+import { quadVertex } from '../util/arrays';
 
 interface WebGPUSceneGroup extends SceneGroup {
   _pipeline?: GPURenderPipeline;
@@ -15,9 +19,11 @@ interface WebGPUSceneGroup extends SceneGroup {
 }
 
 function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
-  const shader = device.createShaderModule({code: shaderSource, label: 'Rect Shader'});
+  const shader = device.createShaderModule({ code: shaderSource, label: 'Rect Shader' });
   scene._pipeline = device.createRenderPipeline({
     label: 'Rect Render Pipeline',
+    //@ts-ignore
+    layout: "auto",
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
@@ -182,7 +188,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
       const fillCol = color(fill).rgb();
       const strokeCol = color(stroke)?.rgb();
       const stropacity = strokeCol ? strokeOpacity : 0;
-      const strcol = strokeCol ? strokeCol : {r: 0, g: 0, b: 0};
+      const strcol = strokeCol ? strokeCol : { r: 0, g: 0, b: 0 };
       return [
         x,
         y,

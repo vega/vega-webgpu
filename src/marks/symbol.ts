@@ -1,8 +1,12 @@
-import {color} from 'd3-color';
-import {Bounds} from 'vega-scenegraph';
+import { color } from 'd3-color';
+import { Bounds } from 'vega-scenegraph';
+import {
+  SceneGroup,
+  SceneSymbol,
+} from 'vega-typings';
+
 //@ts-ignore
 import shaderSource from '../shaders/symbol.wgsl';
-import {SceneGroup, SceneSymbol} from 'vega-typings';
 
 interface WebGPUSceneGroup extends SceneGroup {
   _pipeline: GPURenderPipeline;
@@ -15,9 +19,10 @@ interface WebGPUSceneGroup extends SceneGroup {
 const segments = 32;
 
 function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
-  const shader = device.createShaderModule({code: shaderSource, label: 'Symbol Shader'});
+  const shader = device.createShaderModule({ code: shaderSource, label: 'Symbol Shader' });
   scene._pipeline = device.createRenderPipeline({
     label: 'Symbol Render Pipeline',
+    layout: createPipelineLayout(device),
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
@@ -89,7 +94,7 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
   });
 
   const positions = new Float32Array(
-    Array.from({length: segments}, (_, i) => {
+    Array.from({ length: segments }, (_, i) => {
       const j = (i + 1) % segments;
       const ang1 = !i ? 0 : ((Math.PI * 2.0) / segments) * i;
       const ang2 = !j ? 0 : ((Math.PI * 2.0) / segments) * j;
@@ -133,6 +138,33 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
   });
 }
 
+function createPipelineLayout(device: GPUDevice): GPUPipelineLayout {
+  const bindGroupLayout = device.createBindGroupLayout({
+    entries: [
+      {
+        binding: 0,
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        buffer: {},
+      },
+      {
+        binding: 1,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: {},
+      },
+      {
+        binding: 2,
+        visibility: GPUShaderStage.FRAGMENT,
+        sampler: {},
+      },
+    ],
+  });
+
+  const pipelineLayout = device.createPipelineLayout({
+    bindGroupLayouts: [bindGroupLayout],
+  });
+  return pipelineLayout;
+}
+
 function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds) {
   if (!scene.items?.length) {
     return;
@@ -148,7 +180,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
   const attributes = Float32Array.from(
     scene.items.flatMap((item: SceneSymbol) => {
       //@ts-ignore
-      const {x = 0, y = 0, size, fill, opacity = 0} = item;
+      const { x = 0, y = 0, size, fill, opacity = 0 } = item;
       const col = color(fill).rgb();
       const rad = Math.sqrt(size) / 2;
       const r = col.r / 255;
