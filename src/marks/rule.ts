@@ -83,7 +83,8 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: { items: Array<Ru
       entryPoint: 'main_fragment',
       targets: [
         {
-          format: 'bgra8unorm' as GPUTextureFormat,
+          // @ts-ignore
+          format: navigator.gpu.getPreferredCanvasFormat(),
           blend: {
             alpha: {
               srcFactor: 'one' as GPUBlendFactor,
@@ -103,9 +104,9 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: { items: Array<Ru
       topology: 'triangle-list' as GPUPrimitiveTopology,
     },
     depthStencil: {
-      format: 'depth24plus-stencil8' as GPUTextureFormat, // Choose the appropriate format
+      format: 'depth24plus' as GPUTextureFormat,
+      depthCompare: 'less' as GPUCompareFunction,
       depthWriteEnabled: true,
-      depthCompare: 'less' as GPUCompareFunction, // Choose the appropriate comparison function
     },
   });
 
@@ -147,21 +148,27 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: { items: Array<Ru
       },
     ],
   });
-
+  
   const commandEncoder = device.createCommandEncoder();
-  //@ts-ignore
-  const textureView = ctx.getCurrentTexture().createView();
+  const depthTexture = this.depthTexture();
   const renderPassDescriptor = {
     label: 'Rule Render Pass',
     colorAttachments: [
       {
-        view: textureView,
+        view: undefined, // Assigned later
+        clearValue: this.clearColor(),
         loadOp: 'clear',
         storeOp: 'store',
-        clearValue: [0.0, 1.0, 1.0, 1.0] as GPUColor,
       },
     ],
+    depthStencilAttachment: {
+      view: depthTexture.createView(),
+      depthClearValue: 1.0,
+      depthLoadOp: 'clear',
+      depthStoreOp: 'store',
+    },
   };
+  renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 
   //@ts-ignore
   const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);

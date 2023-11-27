@@ -106,9 +106,9 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
       topology: 'triangle-list',
     },
     depthStencil: {
-      depthWriteEnabled: true,
-      depthCompare: 'less',
       format: 'depth24plus',
+      depthCompare: 'less',
+      depthWriteEnabled: true,
     },
   });
 
@@ -227,19 +227,13 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
     );
 
     const commandEncoder = device.createCommandEncoder();
-    //@ts-ignore
-    const textureView = ctx.getCurrentTexture().createView();
-    const depthTexture = device.createTexture({
-      size: [ctx.canvas.width, ctx.canvas.height],
-      format: 'depth24plus',
-      usage: GPUTextureUsage.RENDER_ATTACHMENT,
-    });
+    const depthTexture = this.depthTexture();
     const renderPassDescriptor = {
       label: 'Rect Render Pass Descriptor',
       colorAttachments: [
         {
           view: undefined, // Assigned later
-          clearValue: [1.0, 1.0, 1.0, 1.0],
+          clearValue: this.clearColor(),
           loadOp: 'clear',
           storeOp: 'store',
         },
@@ -251,8 +245,8 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
         depthStoreOp: 'store',
       },
     };
-
     renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+    
     //@ts-ignore
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
     passEncoder.setPipeline(scene._pipeline);

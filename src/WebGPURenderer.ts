@@ -22,15 +22,16 @@ inherits(WebGPURenderer, Renderer, {
   initialize(el: HTMLCanvasElement, width: number, height: number, origin: [number, number]) {
     this._canvas = document.createElement('canvas'); // instantiate a small canvas
     this._ctx = this._canvas.getContext('webgpu');
+    this._textCanvas = document.createElement('canvas');
+    this._textContext = this._textCanvas.getContext('2d');
     if (el) {
       clear(el, 0).appendChild(this._canvas);
+      el.appendChild(this._textCanvas);
       this._canvas.setAttribute('class', 'marks');
     }
-    const textCanvas = document.createElement('canvas');
-    this._canvas._textCanvas = textCanvas
-    this._textCanvas = textCanvas;
-    this._textContext = textCanvas.getContext('2d');
-    this._bgcolor = "#ff44ee";
+    this._canvas._textCanvas = this._textCanvas
+    this._ctx._textContext = this._textContext;
+    this._bgcolor = "#ffffff";
 
     this._uniforms = {
       resolution: [width, height],
@@ -46,7 +47,6 @@ inherits(WebGPURenderer, Renderer, {
     base.resize.call(this, width, height, origin);
 
     resize(this._canvas, this._width, this._height, this._origin, this._textCanvas, this._textContext);
-
     this._redraw = true;
     return this;
   },
@@ -69,50 +69,6 @@ inherits(WebGPURenderer, Renderer, {
 
   device() {
     return this._device ? this._device : null;
-  },
-
-  clear() {
-    const device = this.device();
-    const depthTexture = device.createTexture({
-      size: { width: this._canvas.width, height: this._canvas.height, depthOrArrayLayers: 1 },
-      format: "depth24plus-stencil8", // You can choose an appropriate depth format
-      usage: GPUTextureUsage.RENDER_ATTACHMENT,
-    });
-    const commandEncoder = device.createCommandEncoder();
-    //@ts-ignore
-    const textureView = this._ctx.getCurrentTexture().createView();
-    const renderPassDescriptor = {
-      label: 'Background',
-      colorAttachments: [
-        {
-          view: textureView,
-          loadValue: [0.0, 1.0, 1.0, 1.0] as GPUColor,
-          storeOp: 'store',
-          loadOp: 'clear',
-          clearValue: [0.0, 1.0, 1.0, 1.0] as GPUColor,
-        },
-      ],
-      depthStencilAttachment: {
-        view: depthTexture.createView(),
-        depthLoadValue: 1.0,
-        depthClearValue: 1.0,
-        depthStoreOp: 'store',
-        depthLoadOp: 'clear',
-        stencilLoadValue: 0,
-        stencilStoreOp: 'store',
-        stencilLoadOp: 'clear',
-        depthReadOnly: false,
-      },
-    };
-    const textContext = this.textContext();;
-    textContext.save();
-    textContext.setTransform(1, 0, 0, 1, 0, 0);
-    textContext.clearRect(0, 0, this.textCanvas().width, this.textCanvas().height);
-    textContext.restore();
-
-    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-    passEncoder.end();
-    device.queue.submit([commandEncoder.finish()]);
   },
 
   dirty(item: { bounds: Bounds; mark: { group: { x?: number; y?: number; mark?: { group: unknown } } } }) {
@@ -165,5 +121,62 @@ inherits(WebGPURenderer, Renderer, {
     } else {
       mark.draw.call(this, device, ctx, scene, transform);
     }
+  },
+
+  clear() {
+    const device = this.device();
+    const depthTexture = device.createTexture({
+      size: { width: this._canvas.width, height: this._canvas.height, depthOrArrayLayers: 1 },
+      format: "depth24plus-stencil8", // You can choose an appropriate depth format
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+    const commandEncoder = device.createCommandEncoder();
+    //@ts-ignore
+    const textureView = this._ctx.getCurrentTexture().createView();
+    const renderPassDescriptor = {
+      label: 'Background',
+      colorAttachments: [
+        {
+          view: textureView,
+          loadValue: this.clearColor(),
+          storeOp: 'store',
+          loadOp: 'clear',
+          clearValue: this.clearColor(),
+        },
+      ],
+      depthStencilAttachment: {
+        view: depthTexture.createView(),
+        depthLoadValue: 1.0,
+        depthClearValue: 1.0,
+        depthStoreOp: 'store',
+        depthLoadOp: 'clear',
+        stencilLoadValue: 0,
+        stencilStoreOp: 'store',
+        stencilLoadOp: 'clear',
+        depthReadOnly: false,
+      },
+    };
+    const textContext = this.textContext();
+    textContext.save();
+    textContext.setTransform(1, 0, 0, 1, 0, 0);
+    textContext.clearRect(0, 0, this.textCanvas().width, this.textCanvas().height);
+    textContext.restore();
+
+    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+    passEncoder.end();
+    device.queue.submit([commandEncoder.finish()]);
+  },
+
+  depthTexture(): GPUTexture {
+    return this.device().createTexture({
+      // @ts-ignore
+      size: [this.canvas().width, this.canvas().height],
+      format: 'depth24plus',
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    } as GPUTextureDescriptor);
+  },
+
+  clearColor(): GPUColor {
+    return (this._bgcolor ? color(this._bgcolor) : { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }) as GPUColor;
   },
 });
