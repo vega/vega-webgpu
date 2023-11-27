@@ -85,7 +85,8 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
       //@ts-ignore
       targets: [
         {
-          format: 'bgra8unorm',
+          // @ts-ignore
+          format: navigator.gpu.getPreferredCanvasFormat(),
           blend: {
             alpha: {
               srcFactor: 'one',
@@ -103,6 +104,11 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
     },
     primitives: {
       topology: 'triangle-list',
+    },
+    depthStencil: {
+      depthWriteEnabled: true,
+      depthCompare: 'less',
+      format: 'depth24plus',
     },
   });
 
@@ -155,7 +161,7 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
   scene._frameBuffer.unmap();
 }
 
-function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds) {
+function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds): [] {
   if (!scene.items?.length) {
     return;
   }
@@ -223,17 +229,30 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
     const commandEncoder = device.createCommandEncoder();
     //@ts-ignore
     const textureView = ctx.getCurrentTexture().createView();
+    const depthTexture = device.createTexture({
+      size: [ctx.canvas.width, ctx.canvas.height],
+      format: 'depth24plus',
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    });
     const renderPassDescriptor = {
       label: 'Rect Render Pass Descriptor',
       colorAttachments: [
         {
-          view: textureView,
-          loadOp: 'load',
+          view: undefined, // Assigned later
+          clearValue: [1.0, 1.0, 1.0, 1.0],
+          loadOp: 'clear',
           storeOp: 'store',
         },
       ],
+      depthStencilAttachment: {
+        view: depthTexture.createView(),
+        depthClearValue: 1.0,
+        depthLoadOp: 'clear',
+        depthStoreOp: 'store',
+      },
     };
 
+    renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
     //@ts-ignore
     const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
     passEncoder.setPipeline(scene._pipeline);

@@ -106,6 +106,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Tex
         view: textureView,
         loadOp: "load" as GPULoadOp,
         storeOp: 'store' as GPUStoreOp,
+        clearValue: [0.0, 1.0, 1.0, 1.0] as GPUColor,
       },
     ],
   };

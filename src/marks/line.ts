@@ -191,8 +191,9 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Lin
     colorAttachments: [
       {
         view: textureView,
-        loadOp: 'load',
+        loadOp: 'clear',
         storeOp: 'store',
+        clearValue: [0.0, 1.0, 1.0, 1.0] as GPUColor,
       },
     ],
   };

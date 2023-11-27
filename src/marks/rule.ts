@@ -1,5 +1,5 @@
-import {color} from 'd3-color';
-import {Bounds} from 'vega-scenegraph';
+import { color } from 'd3-color';
+import { Bounds } from 'vega-scenegraph';
 
 //@ts-ignore
 import shaderSource from '../shaders/rule.wgsl';
@@ -20,8 +20,8 @@ interface Rule {
   strokeOpacity: number;
 }
 
-function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Rule>; bounds: Bounds}, vb: Bounds) {
-  const {items, bounds} = scene;
+function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: { items: Array<Rule>; bounds: Bounds }, vb: Bounds) {
+  const { items, bounds } = scene;
   if (!items?.length) {
     return;
   }
@@ -30,7 +30,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Rul
     vb.translate(bounds.x1, bounds.y1);
   }
 
-  const shader = device.createShaderModule({code: shaderSource, label: 'Rule Shader'});
+  const shader = device.createShaderModule({ code: shaderSource, label: 'Rule Shader' });
 
   const pipeline = device.createRenderPipeline({
     label: 'Rule Render Pipeline',
@@ -102,13 +102,18 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Rul
     primitive: {
       topology: 'triangle-list' as GPUPrimitiveTopology,
     },
+    depthStencil: {
+      format: 'depth24plus-stencil8' as GPUTextureFormat, // Choose the appropriate format
+      depthWriteEnabled: true,
+      depthCompare: 'less' as GPUCompareFunction, // Choose the appropriate comparison function
+    },
   });
 
   const positionBuffer = createBuffer(device, quadVertex, GPUBufferUsage.VERTEX);
   const attributes = [];
 
   for (let i = 0; i < itemCount; i++) {
-    let {x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, strokeOpacity = 1} = items[i];
+    let { x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, strokeOpacity = 1 } = items[i];
     x2 ??= x;
     y2 ??= y;
     const ax = Math.abs(x2 - x);
@@ -146,17 +151,19 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Rul
   const commandEncoder = device.createCommandEncoder();
   //@ts-ignore
   const textureView = ctx.getCurrentTexture().createView();
-  const renderPassDescriptor: GPURenderPassDescriptor = {
+  const renderPassDescriptor = {
     label: 'Rule Render Pass',
     colorAttachments: [
       {
         view: textureView,
-        loadOp: 'load',
+        loadOp: 'clear',
         storeOp: 'store',
-      } as GPURenderPassColorAttachment,
+        clearValue: [0.0, 1.0, 1.0, 1.0] as GPUColor,
+      },
     ],
   };
 
+  //@ts-ignore
   const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
   passEncoder.setPipeline(pipeline);
   passEncoder.setVertexBuffer(0, positionBuffer);
