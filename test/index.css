@@ -14,13 +14,22 @@ body {
   background: white;
 }
 
-#view {
+#vis {
   margin-top: 40px;
+}
+
+
+.textCanvas {
+  z-index: 10;
+  pointer-events: none;
 }
 
 canvas,
 svg {
   border: 1px dashed #ccc;
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 .vega-bind {

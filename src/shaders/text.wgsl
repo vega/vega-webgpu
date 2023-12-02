@@ -16,13 +16,11 @@ struct VertexOutput {
 fn main_vertex(in: VertexInput) -> VertexOutput {
     var output: VertexOutput;
     output.pos = vec4<f32>(in.position, 0.0, 1.0);
-    output.pos.x = output.pos.x * 2.0 - 1.0;
-    output.pos.y = output.pos.y * 2.0 - 1.0;
     output.uv = in.uv;
     return output;
 }
 
 @fragment
-fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(maintex, s, in.uv);
+fn main_fragment(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
+    return textureSample(maintex, s, uv);
 }

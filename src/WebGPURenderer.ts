@@ -1,6 +1,7 @@
 import { color } from 'd3-color';
 import { Bounds, Renderer, domClear as clear } from 'vega-scenegraph';
 import resize from './util/resize';
+import drawImage from './util/image';
 import marks from './marks/index';
 import { error, inherits } from 'vega-util';
 
@@ -25,9 +26,10 @@ inherits(WebGPURenderer, Renderer, {
     this._textCanvas = document.createElement('canvas');
     this._textContext = this._textCanvas.getContext('2d');
     if (el) {
-      clear(el, 0).appendChild(this._canvas);
-      el.appendChild(this._textCanvas);
       this._canvas.setAttribute('class', 'marks');
+      clear(el, 0).appendChild(this._canvas);
+      this._textCanvas.setAttribute('class', 'textCanvas');
+      el.appendChild(this._textCanvas);
     }
     this._canvas._textCanvas = this._textCanvas
     this._ctx._textContext = this._textContext;
@@ -46,9 +48,20 @@ inherits(WebGPURenderer, Renderer, {
   resize(width: number, height: number, origin: [number, number]) {
     base.resize.call(this, width, height, origin);
 
-    resize(this._canvas, this._width, this._height, this._origin, this._textCanvas, this._textContext);
-    this._redraw = true;
-    return this;
+    resize(this._canvas, this._ctx, this._width, this._height, this._origin, this._textCanvas, this._textContext);
+
+    const ratio = window.devicePixelRatio || 1;
+    if (ratio !== 1) {
+      this._textCanvas.style.width = width + 'px';
+      this._textCanvas.style.height = height + 'px';
+    }
+    this._uniforms = {
+      resolution: [width, height],
+      origin: origin,
+      dpi: window.devicePixelRatio || 1,
+    };
+
+    return this._redraw = true, this;
   },
 
   canvas() {
@@ -91,10 +104,18 @@ inherits(WebGPURenderer, Renderer, {
       vb = viewBounds(o, w, h);
 
     const ctx = this.context();
+    ctx._tx = 0;
+    ctx._ty = 0;
+
     const device = this.device();
 
-    if (ctx && device) {
+    this._textContext.save();
+    this._textContext.setTransform(1, 0, 0, 1, 0, 0);
+    this._textContext.clearRect(0, 0, this._textCanvas.width + 300, this._textCanvas.height + 300);
+    this._textContext.restore();
+    if (device) {
       this.draw(device, ctx, scene, vb);
+      // drawImage(device, this.context(), this.textCanvas());
     } else {
       (async () => {
         const adapter = await navigator.gpu.requestAdapter();
@@ -109,7 +130,15 @@ inherits(WebGPURenderer, Renderer, {
           alphaMode: 'premultiplied',
         });
         this.draw(device, this._ctx, scene, vb);
+        // drawImage(device, this.context(), this.textCanvas());
       })();
+    }
+    return this;
+  },
+
+  frame() {
+    if (this._lastScene) {
+      this._render(this._lastScene, []);
     }
     return this;
   },
@@ -124,10 +153,11 @@ inherits(WebGPURenderer, Renderer, {
   },
 
   clear() {
+    return;
     const device = this.device();
     const depthTexture = device.createTexture({
       size: { width: this._canvas.width, height: this._canvas.height, depthOrArrayLayers: 1 },
-      format: "depth24plus-stencil8", // You can choose an appropriate depth format
+      format: "depth24plus",
       usage: GPUTextureUsage.RENDER_ATTACHMENT,
     });
     const commandEncoder = device.createCommandEncoder();

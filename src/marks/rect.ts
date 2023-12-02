@@ -169,7 +169,8 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
   if (!this._pipeline) {
     initRenderPipeline(device, scene);
     const uniformsData = new Float32Array(scene._uniformsBuffer.getMappedRange());
-    const uniforms = Float32Array.from([...this._uniforms.resolution, vb.x1, vb.y1]);
+    const abc = this._uniforms.resolution;
+    const uniforms = Float32Array.from([...abc, vb.x1, vb.y1]);
     uniformsData.set(uniforms);
     scene._uniformsBuffer.unmap();
   }
@@ -212,53 +213,60 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
       ];
     }),
   );
+  const frameBuffer = scene._frameBuffer;
+  const instanceBuffer = scene._instanceBuffer;
+  const pipeline = scene._pipeline;
+  const geometryBuffer = scene._geometryBuffer;
+  const uniformsBindGroup = scene._uniformsBindGroup;
+  const items = scene.items;
+  (async () => {
+    await frameBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
+      const frameData = new Float32Array(frameBuffer.getMappedRange());
+      frameData.set(attributes);
 
-  scene._frameBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
-    const frameData = new Float32Array(scene._frameBuffer.getMappedRange());
-    frameData.set(attributes);
+      const copyEncoder = device.createCommandEncoder();
+      copyEncoder.copyBufferToBuffer(
+        frameBuffer,
+        frameData.byteOffset,
+        instanceBuffer,
+        attributes.byteOffset,
+        attributes.byteLength,
+      );
 
-    const copyEncoder = device.createCommandEncoder();
-    copyEncoder.copyBufferToBuffer(
-      scene._frameBuffer,
-      frameData.byteOffset,
-      scene._instanceBuffer,
-      attributes.byteOffset,
-      attributes.byteLength,
-    );
-
-    const commandEncoder = device.createCommandEncoder();
-    const depthTexture = this.depthTexture();
-    const renderPassDescriptor = {
-      label: 'Rect Render Pass Descriptor',
-      colorAttachments: [
-        {
-          view: undefined, // Assigned later
-          clearValue: this.clearColor(),
-          loadOp: 'clear',
-          storeOp: 'store',
+      const commandEncoder = device.createCommandEncoder();
+      const depthTexture = this.depthTexture();
+      const renderPassDescriptor = {
+        label: 'Rect Render Pass Descriptor',
+        colorAttachments: [
+          {
+            view: undefined, // Assigned later
+            clearValue: this.clearColor(),
+            loadOp: 'clear',
+            storeOp: 'store',
+          },
+        ],
+        depthStencilAttachment: {
+          view: depthTexture.createView(),
+          depthClearValue: 1.0,
+          depthLoadOp: 'clear',
+          depthStoreOp: 'store',
         },
-      ],
-      depthStencilAttachment: {
-        view: depthTexture.createView(),
-        depthClearValue: 1.0,
-        depthLoadOp: 'clear',
-        depthStoreOp: 'store',
-      },
-    };
-    renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
-    
-    //@ts-ignore
-    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-    passEncoder.setPipeline(scene._pipeline);
-    passEncoder.setVertexBuffer(0, scene._geometryBuffer);
-    passEncoder.setVertexBuffer(1, scene._instanceBuffer);
-    passEncoder.setBindGroup(0, scene._uniformsBindGroup);
-    // 6 because we are drawing two triangles
-    passEncoder.draw(6, scene.items.length);
-    passEncoder.end();
-    scene._frameBuffer.unmap();
-    device.queue.submit([copyEncoder.finish(), commandEncoder.finish()]);
-  });
+      };
+      renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+
+      //@ts-ignore
+      const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+      passEncoder.setPipeline(pipeline);
+      passEncoder.setVertexBuffer(0, geometryBuffer);
+      passEncoder.setVertexBuffer(1, instanceBuffer);
+      passEncoder.setBindGroup(0, uniformsBindGroup);
+      // 6 because we are drawing two triangles
+      passEncoder.draw(6, items.length);
+      passEncoder.end();
+      frameBuffer.unmap();
+      device.queue.submit([copyEncoder.finish(), commandEncoder.finish()]);
+    })
+  })();
 }
 
 export default {

@@ -22,7 +22,9 @@
     </select>
     &nbsp;
   </div>
-  <div id="view"></div>
+  <div>
+    <div id="vis"></div>
+  </div>
   <div id="external"></div>
 
   <script src="https://d3js.org/d3.v4.min.js" charset="utf-8"></script>
@@ -33,7 +35,7 @@
     let runtime, spec, view;
 
     const options = {
-      container: '#view',
+      container: '#vis',
       renderer: 'webgpu',
       logLevel: vega.Warn,
       hover: true,
@@ -89,13 +91,15 @@
           spec = await fetch(`specs-valid/${name}.vg.json`).then(r => r.json());
           console.log('LOAD', name);
 
-          if (view) view.finalize(); // finalize existing view
-
-          const t0 = Date.now();
-          runtime = vega.parse(spec);
-          view = new vega.View(runtime, options);
-          await view.runAsync();
-          console.log('INIT', name, Date.now() - t0);
+          runtime = vega.parse(spec)
+          view = new vega.View(runtime)
+            .logLevel(vega.Warn) // set view logging level
+            .initialize(document.querySelector('#vis')) // set parent DOM element
+            .renderer(options.renderer) // set render type (defaults to 'canvas')
+            .hover();
+          
+            view.runAsync();
+          console.log('INIT', name,);
         } catch (err) {
           console.error(err, err.stack);
         }
