@@ -4,11 +4,11 @@ import { Scene, SceneGroup, SceneItem } from 'vega-typings';
 
 
 interface GroupGPUCanvasContext extends GPUCanvasContext {
-  _tx : number,
-  _ty : number,
-  _origin : [number, number],
-  _clip : unknown,
-  _textContext : CanvasRenderingContext2D,
+  _tx: number,
+  _ty: number,
+  _origin: [number, number],
+  _clip: unknown,
+  _textContext: CanvasRenderingContext2D,
 }
 
 function draw(device: GPUDevice, ctx: GroupGPUCanvasContext, scene: Scene, vb: Bounds) {
@@ -26,7 +26,7 @@ function draw(device: GPUDevice, ctx: GroupGPUCanvasContext, scene: Scene, vb: B
     ctx._textContext.translate(gx, gy);
 
     //@ts-ignore
-    if (group.clip ||group.bounds.clip) {
+    if (group.clip || group.bounds.clip) {
       oldClip = ctx._clip;
       ctx._clip = [
         ctx._origin[0] + ctx._tx,
@@ -40,10 +40,10 @@ function draw(device: GPUDevice, ctx: GroupGPUCanvasContext, scene: Scene, vb: B
     visit(group, (item: SceneItem) => {
       this.draw(device, ctx, item, vb);
     });
-    
+
     if (vb) vb.translate(gx, gy);
     //@ts-ignore
-    if (group.clip ||group.bounds.clip) {
+    if (group.clip || group.bounds.clip) {
       ctx._clip = oldClip;
     }
     ctx._tx -= gx;

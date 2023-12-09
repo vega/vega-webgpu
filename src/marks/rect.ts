@@ -4,8 +4,6 @@ import {
   SceneGroup,
   SceneRect,
 } from 'vega-typings';
-
-//@ts-ignore
 import shaderSource from '../shaders/rect.wgsl';
 import { quadVertex } from '../util/arrays';
 
@@ -16,19 +14,18 @@ interface WebGPUSceneGroup extends SceneGroup {
   _uniformsBuffer?: GPUBuffer;
   _frameBuffer?: GPUBuffer; // writebuffer to be used for each frame
   _uniformsBindGroup?: GPUBindGroup;
+  _format: GPUTextureFormat;
 }
 
 function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
   const shader = device.createShaderModule({ code: shaderSource, label: 'Rect Shader' });
   scene._pipeline = device.createRenderPipeline({
     label: 'Rect Render Pipeline',
-    //@ts-ignore
-    layout: "auto",
+    layout: "auto" as unknown as GPUPipelineLayout,
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
-      //@ts-ignore
-      buffers: [
+      buffers: [  
         {
           arrayStride: Float32Array.BYTES_PER_ELEMENT * 2,
           stepMode: 'vertex',
@@ -77,16 +74,14 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
             },
           ],
         },
-      ],
+      ] as Iterable<GPUVertexBufferLayout | null>,
     },
     fragment: {
       module: shader,
       entryPoint: 'main_fragment',
-      //@ts-ignore
       targets: [
         {
-          // @ts-ignore
-          format: navigator.gpu.getPreferredCanvasFormat(),
+          format: scene._format,
           blend: {
             alpha: {
               srcFactor: 'one',
@@ -98,11 +93,11 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
               dstFactor: 'one-minus-src-alpha',
               operation: 'add',
             },
-          },
+          } as GPUBlendState,
         },
       ],
     },
-    primitives: {
+    primitive: {
       topology: 'triangle-list',
     },
     depthStencil: {
@@ -167,10 +162,11 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
   }
 
   if (!this._pipeline) {
+    scene._format = this.prefferedFormat();
     initRenderPipeline(device, scene);
     const uniformsData = new Float32Array(scene._uniformsBuffer.getMappedRange());
-    const abc = this._uniforms.resolution;
-    const uniforms = Float32Array.from([...abc, vb.x1, vb.y1]);
+    const resolution = this._uniforms.resolution;
+    const uniforms = Float32Array.from([...resolution, vb.x1, vb.y1]);
     uniformsData.set(uniforms);
     scene._uniformsBuffer.unmap();
   }
@@ -213,9 +209,10 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
       ];
     }),
   );
+
+  const pipeline = scene._pipeline;
   const frameBuffer = scene._frameBuffer;
   const instanceBuffer = scene._instanceBuffer;
-  const pipeline = scene._pipeline;
   const geometryBuffer = scene._geometryBuffer;
   const uniformsBindGroup = scene._uniformsBindGroup;
   const items = scene.items;
@@ -235,7 +232,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
 
       const commandEncoder = device.createCommandEncoder();
       const depthTexture = this.depthTexture();
-      const renderPassDescriptor = {
+      const renderPassDescriptor: GPURenderPassDescriptor = {
         label: 'Rect Render Pass Descriptor',
         colorAttachments: [
           {
@@ -243,7 +240,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
             clearValue: this.clearColor(),
             loadOp: 'clear',
             storeOp: 'store',
-          },
+          } as GPURenderPassColorAttachment,
         ],
         depthStencilAttachment: {
           view: depthTexture.createView(),
@@ -254,7 +251,6 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
       };
       renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 
-      //@ts-ignore
       const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
       passEncoder.setPipeline(pipeline);
       passEncoder.setVertexBuffer(0, geometryBuffer);

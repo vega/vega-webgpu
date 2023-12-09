@@ -120,10 +120,12 @@ inherits(WebGPURenderer, Renderer, {
       (async () => {
         const adapter = await navigator.gpu.requestAdapter();
         const device = await adapter.requestDevice();
+        this._adapter = adapter;
         this._device = device;
         this._ctx = this._canvas.getContext('webgpu');
         // @ts-ignore
         const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+        this._prefferedFormat = presentationFormat;
         this._ctx.configure({
           device,
           format: presentationFormat,
@@ -208,5 +210,9 @@ inherits(WebGPURenderer, Renderer, {
 
   clearColor(): GPUColor {
     return (this._bgcolor ? color(this._bgcolor) : { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }) as GPUColor;
+  },
+
+  prefferedFormat(): GPUColor {
+    return this._prefferedFormat != null ? this._prefferedFormat : null;
   },
 });
