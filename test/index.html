@@ -33,6 +33,8 @@
   <script>
 
     let runtime, spec, view;
+    const urlParams = new URLSearchParams(window.location.search);
+    const speced = urlParams.get('spec');
 
     const options = {
       container: '#vis',
@@ -65,8 +67,9 @@
             select.appendChild(opt);
           });
 
-          // if query string is present, try to load spec
-          if (location.search) load(location.search.slice(1));
+          if (speced) {
+            load(speced);
+          }
         } catch (err) {
           console.error(err, err.stack);
         }
@@ -97,9 +100,10 @@
             .initialize(document.querySelector('#vis')) // set parent DOM element
             .renderer(options.renderer) // set render type (defaults to 'canvas')
             .hover();
-          
-            view.runAsync();
+
+          view.runAsync();
           console.log('INIT', name,);
+          window.history.replaceState({}, '', `?spec=${name}`);
         } catch (err) {
           console.error(err, err.stack);
         }
