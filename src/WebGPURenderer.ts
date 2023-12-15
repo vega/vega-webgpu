@@ -27,13 +27,11 @@ inherits(WebGPURenderer, Renderer, {
     this._textContext = this._textCanvas.getContext('2d');
     if (el) {
       el.setAttribute('style', 'position: relative;');
-      this._containerDiv = document.createElement('div');
-      this._containerDiv.setAttribute('style', 'position: relative;');
       this._canvas.setAttribute('class', 'marks');
       this._textCanvas.setAttribute('class', 'textCanvas');
-      clear(el, 0).appendChild(this._containerDiv);
-      this._containerDiv.appendChild(this._canvas);
-      this._containerDiv.appendChild(this._textCanvas);
+      clear(el, 0);
+      el.appendChild(this._canvas);
+      el.appendChild(this._textCanvas);
     }
     this._canvas._textCanvas = this._textCanvas
     this._ctx._textContext = this._textContext;
@@ -60,8 +58,6 @@ inherits(WebGPURenderer, Renderer, {
       this._textCanvas.style.width = width + 'px';
       this._textCanvas.style.height = height + 'px';
     }
-    this._containerDiv.style.width = width + 'px';
-    this._containerDiv.style.height = height + 5 + 'px';
     this._uniforms = {
       resolution: [width, height],
       origin: origin,
