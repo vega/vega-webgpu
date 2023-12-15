@@ -20,29 +20,34 @@
     "serve": "live-server --open=test"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^19.0.2",
-    "@rollup/plugin-node-resolve": "^13.0.6",
-    "@rollup/plugin-typescript": "^8.3.0",
-    "@types/d3": "^6.7.5",
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.5",
+    "@types/d3": "^7.4.3",
     "@webgpu/types": "^0.1.7",
     "d3-color": "^3.0.1",
-    "eslint": "^7.32.0",
-    "live-server": "^1.1.0",
-    "prettier": "^2.4.1",
-    "rollup": "^2.79.1",
+    "eslint": "^8.55.0",
+    "nodemon": "^3.0.1",
+    "prettier": "^3.1.1",
+    "rollup": "^4.9.0",
     "rollup-plugin-string": "^3.0.0",
     "tslib": "^2.3.1",
-    "typescript": "^4.5.2",
+    "typescript": "^5.3.3",
     "vega-canvas": "^1.2.6",
     "vega-loader": "^4.4.1",
-    "vega-typings": "^0.21.0",
+    "vega-typings": "^1.0.1",
     "vega-util": "^1.17.0",
-    "webdriverio": "^4.4.0"
+    "webdriverio": "^8.26.1"
   },
   "dependencies": {
-    "d3-color": "1",
-    "nodemon": "^3.0.1",
-    "uglifyjs": "^2.4.11",
+    "chokidar": "^3.5.3",
+    "d3-color": "^3.1.0",
+    "extrude-polyline": "^1.0.6",
+    "parse-svg-path": "^0.1.2",
+    "simplify-path": "^1.1.0",
+    "svg-path-contours": "^2.0.0",
+    "triangulate-contours": "^1.0.2",
+    "uglify-js": "^3.17.4",
     "vega-scenegraph": "^4.9.4"
   }
 }

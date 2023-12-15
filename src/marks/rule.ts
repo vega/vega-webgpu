@@ -172,7 +172,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
     const uniforms = new Float32Array([...resolution, vb.x1 + 0.5, vb.y1 + 0.5]);
     scene._uniformsBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
   }
-  const ruleItems = scene.items as SceneLine[];
+  const ruleItems = scene.items as unknown as SceneLine[];
   const attributes = Float32Array.from(
     ruleItems.flatMap((item: SceneLine) => {
       let { x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, opacity = 1 } = item;

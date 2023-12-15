@@ -178,7 +178,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
   }
 
   const attributes = Float32Array.from(
-    scene.items.flatMap((item: SceneSymbol) => {
+    (scene.items as unknown as SceneSymbol[]).flatMap((item: SceneSymbol) => {
       //@ts-ignore
       const { x = 0, y = 0, size, fill, opacity = 0 } = item;
       const col = color(fill).rgb();

@@ -2,6 +2,7 @@ import { color } from 'd3-color';
 import { Bounds } from 'vega-scenegraph';
 import {
   SceneGroup,
+  SceneItem,
   SceneRect,
 } from 'vega-typings';
 import shaderSource from '../shaders/rect.wgsl';
@@ -172,7 +173,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
   }
 
   const attributes = Float32Array.from(
-    scene.items.flatMap((item: SceneRect) => {
+    (scene.items as unknown as SceneItem[]).flatMap((item: SceneRect) => {
       const {
         x = 0,
         y = 0,
