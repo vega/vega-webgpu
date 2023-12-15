@@ -1,6 +1,7 @@
 import { Bounds } from 'vega-scenegraph';
 import { visit } from '../util/visit';
-import { Scene, SceneGroup, SceneItem } from 'vega-typings';
+import { Scene, SceneItem } from 'vega-typings';
+import { GPUScene, GPUSceneGroup } from '../types/gpuscene.js'
 
 
 interface GroupGPUCanvasContext extends GPUCanvasContext {
@@ -12,7 +13,7 @@ interface GroupGPUCanvasContext extends GPUCanvasContext {
 }
 
 function draw(device: GPUDevice, ctx: GroupGPUCanvasContext, scene: Scene, vb: Bounds) {
-  visit(scene, (group: SceneGroup) => {
+  visit(scene, (group: GPUSceneGroup) => {
     var gx = group.x || 0,
       gy = group.y || 0,
       w = group.width || 0,
@@ -25,8 +26,7 @@ function draw(device: GPUDevice, ctx: GroupGPUCanvasContext, scene: Scene, vb: B
     ctx._textContext.save();
     ctx._textContext.translate(gx, gy);
 
-    //@ts-ignore
-    if (group.clip || group.bounds.clip) {
+    if (group.mark.clip) {
       oldClip = ctx._clip;
       ctx._clip = [
         ctx._origin[0] + ctx._tx,

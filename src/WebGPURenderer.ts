@@ -4,6 +4,7 @@ import resize from './util/resize';
 import marks from './marks/index';
 import { error, inherits } from 'vega-util';
 import { drawCanvas } from './util/image';
+import { GPUScene } from './types/gpuscene.js';
 
 
 export default function WebGPURenderer(loader: unknown) {
@@ -99,7 +100,7 @@ inherits(WebGPURenderer, Renderer, {
     this._dirty.union(b);
   },
 
-  _render(scene: unknown) {
+  _render(scene: GPUScene) {
     let o = this._origin,
       w = this._width,
       h = this._height,
@@ -148,11 +149,13 @@ inherits(WebGPURenderer, Renderer, {
     return this;
   },
 
-  draw(device: GPUDevice, ctx: GPUCanvasContext, scene: { marktype: string }, transform: Bounds) {
+  draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene & { marktype: string }, transform: Bounds) {
     const mark = marks[scene.marktype];
     if (mark == null) {
       console.error(`Unknown mark type: '${scene.marktype}'`)
     } else {
+      // ToDo: Set Options
+      scene._format = this.prefferedFormat();
       mark.draw.call(this, device, ctx, scene, transform);
     }
   },

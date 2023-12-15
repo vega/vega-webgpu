@@ -1,78 +1,33 @@
 import { color } from 'd3-color';
 import { Bounds } from 'vega-scenegraph';
-import {
-  SceneGroup,
-  SceneSymbol,
-} from 'vega-typings';
+import { SceneSymbol, SceneItem } from 'vega-typings';
+import { GPUScene } from '../types/gpuscene.js'
 
-//@ts-ignore
 import shaderSource from '../shaders/symbol.wgsl';
-
-interface WebGPUSceneGroup extends SceneGroup {
-  _pipeline: GPURenderPipeline;
-  _geometryBuffer: GPUBuffer;
-  _uniformsBuffer: GPUBuffer;
-  _frameBuffer: GPUBuffer;
-  _uniformsBindGroup: GPUBindGroup;
-}
+import { VertexBufferManager } from '../util/vertexBuffer.js';
 
 const segments = 32;
 
-function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
+function initRenderPipeline(device: GPUDevice, scene: GPUScene) {
   const shader = device.createShaderModule({ code: shaderSource, label: 'Symbol Shader' });
+  const vertextBufferManager = new VertexBufferManager(
+    ['float32x2'], // position
+    ['float32x2', 'float32x2', 'float32x4'] // center, color, radius
+  );
   scene._pipeline = device.createRenderPipeline({
     label: 'Symbol Render Pipeline',
-    layout: createPipelineLayout(device),
+    layout: "auto" as unknown as GPUPipelineLayout,
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
-      //@ts-ignore
-      buffers: [
-        {
-          arrayStride: Float32Array.BYTES_PER_ELEMENT * 2,
-          stepMode: 'vertex',
-          attributes: [
-            // position
-            {
-              shaderLocation: 0,
-              offset: 0,
-              format: 'float32x2',
-            },
-          ],
-        },
-        {
-          arrayStride: Float32Array.BYTES_PER_ELEMENT * 7,
-          stepMode: 'instance',
-          attributes: [
-            // center
-            {
-              shaderLocation: 1,
-              offset: 0,
-              format: 'float32x2',
-            },
-            // color
-            {
-              shaderLocation: 2,
-              offset: Float32Array.BYTES_PER_ELEMENT * 2,
-              format: 'float32x4',
-            },
-            // radius
-            {
-              shaderLocation: 3,
-              offset: Float32Array.BYTES_PER_ELEMENT * 6,
-              format: 'float32',
-            },
-          ],
-        },
-      ],
+      buffers: vertextBufferManager.getBuffers()
     },
     fragment: {
       module: shader,
       entryPoint: 'main_fragment',
-      //@ts-ignore
       targets: [
         {
-          format: 'bgra8unorm',
+          format: scene._format,
           blend: {
             alpha: {
               srcFactor: 'one',
@@ -86,10 +41,15 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
             },
           },
         },
-      ],
+      ] as Iterable<GPUColorTargetState>,
     },
     primitive: {
       topology: 'triangle-list',
+    },
+    depthStencil: {
+      format: 'depth24plus',
+      depthCompare: 'less',
+      depthWriteEnabled: true,
     },
   });
 
@@ -112,8 +72,7 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
     usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
     mappedAtCreation: true,
   });
-  let geometryData: Float32Array;
-  geometryData = new Float32Array(scene._geometryBuffer.getMappedRange());
+  const geometryData = new Float32Array(scene._geometryBuffer.getMappedRange());
   geometryData.set(positions);
   scene._geometryBuffer.unmap();
 
@@ -165,7 +124,7 @@ function createPipelineLayout(device: GPUDevice): GPUPipelineLayout {
   return pipelineLayout;
 }
 
-function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds) {
+function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bounds) {
   if (!scene.items?.length) {
     return;
   }
@@ -199,19 +158,25 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup,
   device.queue.writeBuffer(instanceBuffer, attributes.byteOffset, attributes.buffer);
 
   const commandEncoder = device.createCommandEncoder();
-  //@ts-ignore
-  const textureView = ctx.getCurrentTexture().createView();
-  const renderPassDescriptor = {
-    label: 'Symbol Render Pass',
+  const depthTexture = this.depthTexture();
+  const renderPassDescriptor: GPURenderPassDescriptor = {
+    label: 'Rect Render Pass Descriptor',
     colorAttachments: [
       {
-        view: textureView,
+        view: undefined, // Assigned later
+        clearValue: this.clearColor(),
         loadOp: 'clear',
         storeOp: 'store',
-        clearValue: [0.0, 1.0, 1.0, 1.0] as GPUColor,
-      },
+      } as GPURenderPassColorAttachment,
     ],
+    depthStencilAttachment: {
+      view: depthTexture.createView(),
+      depthClearValue: 1.0,
+      depthLoadOp: 'clear',
+      depthStoreOp: 'store',
+    },
   };
+  renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 
   //@ts-ignore
   const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);

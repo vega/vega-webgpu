@@ -1,81 +1,25 @@
 import { color } from 'd3-color';
 import { Bounds } from 'vega-scenegraph';
-import {
-  SceneGroup,
-  SceneItem,
-  SceneRect,
-} from 'vega-typings';
-import shaderSource from '../shaders/rect.wgsl';
+import { Scene, SceneGroup, SceneItem, SceneRect } from 'vega-typings';
+import { GPUScene } from '../types/gpuscene.js'
 import { quadVertex } from '../util/arrays';
+import { VertexBufferManager } from '../util/vertexBuffer.js';
 
-interface WebGPUSceneGroup extends SceneGroup {
-  _pipeline?: GPURenderPipeline;
-  _geometryBuffer?: GPUBuffer; // geometry to be instanced
-  _instanceBuffer?: GPUBuffer; // attributes for each instance
-  _uniformsBuffer?: GPUBuffer;
-  _frameBuffer?: GPUBuffer; // writebuffer to be used for each frame
-  _uniformsBindGroup?: GPUBindGroup;
-  _format: GPUTextureFormat;
-}
+import shaderSource from '../shaders/rect.wgsl';
 
-function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
+function initRenderPipeline(device: GPUDevice, scene: GPUScene) {
   const shader = device.createShaderModule({ code: shaderSource, label: 'Rect Shader' });
+  const vertextBufferManager = new VertexBufferManager(
+    ['float32x2'], // position
+    ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32'] // center, dimensions, fill color, stroke color, stroke width
+  );
   scene._pipeline = device.createRenderPipeline({
     label: 'Rect Render Pipeline',
     layout: "auto" as unknown as GPUPipelineLayout,
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
-      buffers: [  
-        {
-          arrayStride: Float32Array.BYTES_PER_ELEMENT * 2,
-          stepMode: 'vertex',
-          attributes: [
-            // position
-            {
-              shaderLocation: 0,
-              offset: 0,
-              format: 'float32x2',
-            },
-          ],
-        },
-        {
-          arrayStride: Float32Array.BYTES_PER_ELEMENT * 13,
-          stepMode: 'instance',
-          attributes: [
-            // center
-            {
-              shaderLocation: 1,
-              offset: 0,
-              format: 'float32x2',
-            },
-            // dimensions
-            {
-              shaderLocation: 2,
-              offset: Float32Array.BYTES_PER_ELEMENT * 2,
-              format: 'float32x2',
-            },
-            // fill color
-            {
-              shaderLocation: 3,
-              offset: Float32Array.BYTES_PER_ELEMENT * 4,
-              format: 'float32x4',
-            },
-            // stroke color
-            {
-              shaderLocation: 4,
-              offset: Float32Array.BYTES_PER_ELEMENT * 8,
-              format: 'float32x4',
-            },
-            // stroke width
-            {
-              shaderLocation: 5,
-              offset: Float32Array.BYTES_PER_ELEMENT * 12,
-              format: 'float32',
-            },
-          ],
-        },
-      ] as Iterable<GPUVertexBufferLayout | null>,
+      buffers: vertextBufferManager.getBuffers()
     },
     fragment: {
       module: shader,
@@ -157,13 +101,12 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
   scene._frameBuffer.unmap();
 }
 
-function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds): [] {
+function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bounds): [] {
   if (!scene.items?.length) {
     return;
   }
 
   if (!this._pipeline) {
-    scene._format = this.prefferedFormat();
     initRenderPipeline(device, scene);
     const uniformsData = new Float32Array(scene._uniformsBuffer.getMappedRange());
     const resolution = this._uniforms.resolution;
