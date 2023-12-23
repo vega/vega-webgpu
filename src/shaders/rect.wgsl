@@ -7,6 +7,9 @@ struct Uniforms {
 
 struct VertexInput {
   @location(0) position: vec2<f32>,
+}
+
+struct InstanceInput {
   @location(1) center: vec2<f32>,
   @location(2) scale: vec2<f32>,
   @location(3) fill_color: vec4<f32>,
@@ -23,18 +26,21 @@ struct VertexOutput {
 }
 
 @vertex
-fn main_vertex(in: VertexInput) -> VertexOutput {
+fn main_vertex(
+    model: VertexInput,
+    instance: InstanceInput
+) -> VertexOutput {
     var output: VertexOutput;
     var u = uniforms.resolution;
-    var pos = in.position * in.scale + in.center - uniforms.offset;
+    var pos = model.position * instance.scale + instance.center - uniforms.offset;
     pos = pos / uniforms.resolution;
     pos.y = 1.0 - pos.y;
     pos = pos * 2.0 - 1.0;
     output.pos = vec4<f32 >(pos, 0.0, 1.0);
-    output.uv = vec2<f32 >(in.position.x, 1.0 - in.position.y);
-    output.fill = in.fill_color;
-    output.stroke = in.stroke_color;
-    output.strokewidth = in.strokewidth;
+    output.uv = vec2<f32 >(model.position.x, 1.0 - model.position.y);
+    output.fill = instance.fill_color;
+    output.stroke = instance.stroke_color;
+    output.strokewidth = instance.strokewidth;
     return output;
 }
 

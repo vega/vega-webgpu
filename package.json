@@ -48,6 +48,8 @@
     "svg-path-contours": "^2.0.0",
     "triangulate-contours": "^1.0.2",
     "uglify-js": "^3.17.4",
-    "vega-scenegraph": "^4.9.4"
+    "vega-scenegraph": "^4.9.4",
+    "wgsl-debug": "^0.0.1",
+    "wgsl-debug-table": "^0.0.1"
   }
 }

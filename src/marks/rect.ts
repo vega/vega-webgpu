@@ -15,7 +15,7 @@ function initRenderPipeline(device: GPUDevice, scene: GPUScene) {
   );
   scene._pipeline = device.createRenderPipeline({
     label: 'Rect Render Pipeline',
-    layout: "auto" as unknown as GPUPipelineLayout,
+    layout: 'auto',
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
@@ -106,14 +106,12 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     return;
   }
 
-  if (!this._pipeline) {
-    initRenderPipeline(device, scene);
-    const uniformsData = new Float32Array(scene._uniformsBuffer.getMappedRange());
-    const resolution = this._uniforms.resolution;
-    const uniforms = Float32Array.from([...resolution, vb.x1, vb.y1]);
-    uniformsData.set(uniforms);
-    scene._uniformsBuffer.unmap();
-  }
+  initRenderPipeline(device, scene);
+  const uniformsData = new Float32Array(scene._uniformsBuffer.getMappedRange());
+  const resolution = this._uniforms.resolution;
+  const uniforms = Float32Array.from([...resolution, vb.x1, vb.y1]);
+  uniformsData.set(uniforms);
+  scene._uniformsBuffer.unmap();
 
   const attributes = Float32Array.from(
     (scene.items as unknown as SceneItem[]).flatMap((item: SceneRect) => {
@@ -155,11 +153,11 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   );
 
   const pipeline = scene._pipeline;
-  const frameBuffer = scene._frameBuffer;
   const instanceBuffer = scene._instanceBuffer;
   const geometryBuffer = scene._geometryBuffer;
   const uniformsBindGroup = scene._uniformsBindGroup;
   const items = scene.items;
+  const frameBuffer = scene._frameBuffer;
   (async () => {
     await frameBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
       const frameData = new Float32Array(frameBuffer.getMappedRange());

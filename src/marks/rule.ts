@@ -12,18 +12,6 @@ import {
 import { GPUScene } from '../types/gpuscene.js';
 import { VertexBufferManager } from '../util/vertexBuffer.js';
 
-interface RuleSceneItem {
-  x: number;
-  y: number;
-  x2: number;
-  y2: number;
-  width: number;
-  height: number;
-  stroke: string;
-  strokeWidth: string;
-  strokeOpacity: number;
-}
-
 function initRenderPipeline(device: GPUDevice, scene: GPUScene) {
   const shader = device.createShaderModule({ code: shaderSource, label: 'Rule Shader' });
   const vertextBufferManager = new VertexBufferManager(
@@ -32,7 +20,7 @@ function initRenderPipeline(device: GPUDevice, scene: GPUScene) {
   );
   scene._pipeline = device.createRenderPipeline({
     label: 'Rule Render Pipeline',
-    layout: "auto" as unknown as GPUPipelineLayout,
+    layout: 'auto',
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
@@ -123,12 +111,11 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     return;
   }
 
-  if (!this._pipeline) {
-    initRenderPipeline(device, scene);
-    const resolution = [this._uniforms.resolution[0] + 0.5, this._uniforms.resolution[1] + 0.5];
-    const uniforms = new Float32Array([...resolution, vb.x1 + 0.5, vb.y1 + 0.5]);
-    scene._uniformsBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
-  }
+  initRenderPipeline(device, scene);
+  const resolution = [this._uniforms.resolution[0] + 0.5, this._uniforms.resolution[1] + 0.5];
+  const uniforms = new Float32Array([...resolution, vb.x1 + 0.5, vb.y1 + 0.5]);
+  scene._uniformsBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
+
   const ruleItems = scene.items as unknown as SceneLine[];
   const attributes = Float32Array.from(
     ruleItems.flatMap((item: SceneLine) => {

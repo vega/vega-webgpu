@@ -12,11 +12,12 @@ function initRenderPipeline(device: GPUDevice, scene: GPUScene) {
   const shader = device.createShaderModule({ code: shaderSource, label: 'Symbol Shader' });
   const vertextBufferManager = new VertexBufferManager(
     ['float32x2'], // position
-    ['float32x2', 'float32x2', 'float32x4'] // center, color, radius
+    ['float32x2', 'float32x2', 'float32'] // center, color, radius
   );
   scene._pipeline = device.createRenderPipeline({
     label: 'Symbol Render Pipeline',
-    layout: "auto" as unknown as GPUPipelineLayout,
+    // layout: createPipelineLayout(device),
+    layout: 'auto',
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
@@ -53,7 +54,7 @@ function initRenderPipeline(device: GPUDevice, scene: GPUScene) {
     },
   });
 
-  const positions = new Float32Array(
+  const geometryVertices = new Float32Array(
     Array.from({ length: segments }, (_, i) => {
       const j = (i + 1) % segments;
       const ang1 = !i ? 0 : ((Math.PI * 2.0) / segments) * i;
@@ -68,12 +69,13 @@ function initRenderPipeline(device: GPUDevice, scene: GPUScene) {
 
   scene._geometryBuffer = device.createBuffer({
     label: 'Symbol Geometry Buffer',
-    size: positions.byteLength,
+    size: geometryVertices.byteLength,
     usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
     mappedAtCreation: true,
   });
+  
   const geometryData = new Float32Array(scene._geometryBuffer.getMappedRange());
-  geometryData.set(positions);
+  geometryData.set(geometryVertices);
   scene._geometryBuffer.unmap();
 
   scene._uniformsBuffer = device.createBuffer({
@@ -128,13 +130,11 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   if (!scene.items?.length) {
     return;
   }
-  if (!scene._pipeline) {
-    initRenderPipeline(device, scene);
-    const uniforms = Float32Array.from([...this._uniforms.resolution, vb.x1, vb.y1]);
-    const uniformsData = new Float32Array(scene._uniformsBuffer.getMappedRange());
-    uniformsData.set(uniforms);
-    scene._uniformsBuffer.unmap();
-  }
+  initRenderPipeline(device, scene);
+  const uniforms = Float32Array.from([...this._uniforms.resolution, vb.x1, vb.y1]);
+  const uniformsData = new Float32Array(scene._uniformsBuffer.getMappedRange());
+  uniformsData.set(uniforms);
+  scene._uniformsBuffer.unmap();
 
   const attributes = Float32Array.from(
     (scene.items as unknown as SceneSymbol[]).flatMap((item: SceneSymbol) => {
@@ -154,13 +154,18 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     size: attributes.byteLength,
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.VERTEX,
   });
+  device.queue.writeBuffer(instanceBuffer, 0, attributes.buffer, attributes.byteOffset, attributes.byteLength);
 
-  device.queue.writeBuffer(instanceBuffer, attributes.byteOffset, attributes.buffer);
+  const pipeline = scene._pipeline;
+  const geometryBuffer = scene._geometryBuffer;
+  const uniformsBindGroup = scene._uniformsBindGroup;
+  const items = scene.items;
 
+  
   const commandEncoder = device.createCommandEncoder();
   const depthTexture = this.depthTexture();
   const renderPassDescriptor: GPURenderPassDescriptor = {
-    label: 'Rect Render Pass Descriptor',
+    label: 'Symbol Render Pass Descriptor',
     colorAttachments: [
       {
         view: undefined, // Assigned later
@@ -178,15 +183,13 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   };
   renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 
-  //@ts-ignore
   const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-  passEncoder.setPipeline(scene._pipeline);
-  passEncoder.setVertexBuffer(0, scene._geometryBuffer);
+  passEncoder.setPipeline(pipeline);
+  passEncoder.setBindGroup(0, uniformsBindGroup);
+  passEncoder.setVertexBuffer(0, geometryBuffer);
   passEncoder.setVertexBuffer(1, instanceBuffer);
-  passEncoder.setBindGroup(0, scene._uniformsBindGroup);
-  passEncoder.draw(segments * 3, scene.items.length, 0, 0);
+  passEncoder.draw(segments * 3, items.length, 0, 0);
   passEncoder.end();
-
   device.queue.submit([commandEncoder.finish()]);
 }
 
