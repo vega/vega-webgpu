@@ -1,32 +1,36 @@
 import { color } from 'd3-color';
 import { Bounds } from 'vega-scenegraph';
-import { SceneItem, SceneRect } from 'vega-typings';
-import { GPUScene } from '../types/gpuscene.js'
+import {
+  SceneItem, SceneLine
+} from 'vega-typings';
+import shaderSource from '../shaders/rule.wgsl';
 import { quadVertex } from '../util/arrays';
+import { GPUScene } from '../types/gpuscene.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { createRenderPipeline, createDefaultBindGroup, createRenderPassDescriptor } from '../util/render.js';
 
-import shaderSource from '../shaders/rect.wgsl';
 
-const drawName = 'Rect';
+const drawName = 'Rule';
 export default {
-  type: 'rect',
-  draw: draw,
+  type: 'rule',
+  draw: draw
 };
 
-function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bounds): [] {
+
+function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bounds) {
   const items = scene.items;
-  if (!items?.length) {
+  if (!scene.items?.length) {
     return;
   }
 
-  const bufferManager = new BufferManager(device, drawName, this._uniforms.resolution, [vb.x1, vb.y1]);
-  const shader = device.createShaderModule({ code: shaderSource, label:  drawName + ' Shader' });
+  const resolution: [width: number, height: number] = [this._uniforms.resolution[0] + 0.5, this._uniforms.resolution[1] + 0.5];
+  const bufferManager = new BufferManager(device, "Rect", resolution, [vb.x1 + 0.5, vb.y1 + 0.5]);
+  const shader = device.createShaderModule({ code: shaderSource, label: 'Rect Shader' });
   const vertextBufferManager = new VertexBufferManager(
     ['float32x2'], // position
-    // center, dimensions, fill color, stroke color, stroke width
-    ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32']
+    // center, scale, color
+    ['float32x2', 'float32x2', 'float32x4']
   );
   const pipeline = createRenderPipeline(drawName, device, shader, scene._format, vertextBufferManager.getBuffers());
 
@@ -69,36 +73,23 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 
 function createAttributes(items: SceneItem[]): Float32Array {
   return Float32Array.from(
-    (items).flatMap((item: SceneRect) => {
-      const {
-        x = 0,
-        y = 0,
-        width = 0,
-        height = 0,
-        fill,
-        fillOpacity = 1,
-        stroke,
-        strokeOpacity = 1,
-        strokeWidth = 1,
-      } = item;
-      const fillCol = color(fill).rgb();
-      const strokeCol = color(stroke)?.rgb();
-      const stropacity = strokeCol ? strokeOpacity : 0;
-      const strcol = strokeCol ? strokeCol : { r: 0, g: 0, b: 0 };
+    items.flatMap((item: SceneLine) => {
+      let { x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, opacity = 1 } = item;
+      x2 ??= x;
+      y2 ??= y;
+      const ax = Math.abs(x2 - x);
+      const ay = Math.abs(y2 - y);
+
+      const col = color(stroke).rgb();
       return [
-        x,
-        y,
-        width,
-        height,
-        fillCol.r / 255,
-        fillCol.g / 255,
-        fillCol.b / 255,
-        fillOpacity,
-        strcol.r / 255,
-        strcol.g / 255,
-        strcol.b / 255,
-        stropacity,
-        strokeWidth,
+        Math.min(x, x2),
+        Math.min(y, y2),
+        ax ? ax : strokeWidth,
+        ay ? ay : strokeWidth,
+        col.r / 255,
+        col.g / 255,
+        col.b / 255,
+        opacity,
       ];
     }),
   );

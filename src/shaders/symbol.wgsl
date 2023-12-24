@@ -17,21 +17,22 @@ struct InstanceInput {
 
 struct VertexOutput {
   @builtin(position) pos: vec4<f32>,
-  @location(0) fill: vec4<f32>,
+  @location(0) uv: vec2<f32>,
+  @location(1) fill: vec4<f32>,
 }
 
 @vertex
 fn main_vertex(
-    @builtin(instance_index) instanceIdx: u32,
     model: VertexInput,
     instance: InstanceInput
 ) -> VertexOutput {
     var output: VertexOutput;
-    var pos = vec2<f32>(model.position * instance.radius) + instance.center + uniforms.offset;
+    var pos = vec2<f32>(model.position * instance.radius) + instance.center - uniforms.offset;
     pos = pos / uniforms.resolution;
     pos.y = 1.0 - pos.y;
     pos = pos * 2.0 - 1.0;
     output.pos = vec4<f32>(pos, 0.0, 1.0);
+    output.uv = pos;
     output.fill = instance.fill_color;
     return output;
 }

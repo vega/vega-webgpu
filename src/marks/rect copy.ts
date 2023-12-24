@@ -21,8 +21,8 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     return;
   }
 
-  const bufferManager = new BufferManager(device, drawName, this._uniforms.resolution, [vb.x1, vb.y1]);
-  const shader = device.createShaderModule({ code: shaderSource, label:  drawName + ' Shader' });
+  const bufferManager = new BufferManager(device, "Rect", this._uniforms.resolution, [vb.x1, vb.y1]);
+  const shader = device.createShaderModule({ code: shaderSource, label: 'Rect Shader' });
   const vertextBufferManager = new VertexBufferManager(
     ['float32x2'], // position
     // center, dimensions, fill color, stroke color, stroke width

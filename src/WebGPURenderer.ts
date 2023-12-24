@@ -139,6 +139,7 @@ inherits(WebGPURenderer, Renderer, {
         // await drawCanvas(device, this.context(), this.textCanvas(), this.prefferedFormat());
       })();
     }
+
     return this;
   },
 

@@ -1,124 +1,79 @@
 import { color } from 'd3-color';
 import { Bounds } from 'vega-scenegraph';
 import {
-  SceneGroup,
-  SceneLine
+  SceneItem, SceneLine
 } from 'vega-typings';
 import shaderSource from '../shaders/rule.wgsl';
-import {
-  createBuffer,
-  quadVertex,
-} from '../util/arrays';
+import { quadVertex } from '../util/arrays';
 import { GPUScene } from '../types/gpuscene.js';
-import { VertexBufferManager } from '../util/vertexBuffer.js';
+import { VertexBufferManager } from '../util/vertexManager.js';
+import { BufferManager } from '../util/bufferManager.js';
+import { createRenderPipeline, createDefaultBindGroup, createRenderPassDescriptor } from '../util/render.js';
 
-function initRenderPipeline(device: GPUDevice, scene: GPUScene) {
-  const shader = device.createShaderModule({ code: shaderSource, label: 'Rule Shader' });
-  const vertextBufferManager = new VertexBufferManager(
-    ['float32x2'], // position
-    ['float32x2', 'float32x2', 'float32x4'] // center, scale, color
-  );
-  scene._pipeline = device.createRenderPipeline({
-    label: 'Rule Render Pipeline',
-    layout: 'auto',
-    vertex: {
-      module: shader,
-      entryPoint: 'main_vertex',
-      buffers: vertextBufferManager.getBuffers()
-    },
-    fragment: {
-      module: shader,
-      entryPoint: 'main_fragment',
-      targets: [
-        {
-          format: scene._format,
-          blend: {
-            alpha: {
-              srcFactor: 'one',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
-            },
-            color: {
-              srcFactor: 'src-alpha',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
-            },
-          } as GPUBlendState,
-        },
-      ],
-    },
-    primitive: {
-      topology: 'triangle-list',
-    },
-    depthStencil: {
-      format: 'depth24plus',
-      depthCompare: 'less',
-      depthWriteEnabled: true,
-    },
-  });
 
-  scene._geometryBuffer = device.createBuffer({
-    label: 'Rule Geometry Buffer',
-    size: quadVertex.byteLength,
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-    mappedAtCreation: true,
-  });
+const drawName = 'Rule';
+export default {
+  type: 'rule',
+  draw: draw
+};
 
-  const geometryData = new Float32Array(scene._geometryBuffer.getMappedRange());
-  geometryData.set(quadVertex);
-  scene._geometryBuffer.unmap();
-
-  scene._uniformsBuffer = device.createBuffer({
-    label: 'Rule Uniform Buffer',
-    size: Float32Array.BYTES_PER_ELEMENT * 4,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    mappedAtCreation: true,
-  });
-
-  scene._uniformsBindGroup = device.createBindGroup({
-    label: 'Rule Uniform Bind Group',
-    layout: scene._pipeline.getBindGroupLayout(0),
-    entries: [
-      {
-        binding: 0,
-        resource: {
-          buffer: scene._uniformsBuffer,
-        },
-      },
-    ],
-  });
-
-  scene._instanceBuffer = device.createBuffer({
-    // 8 for number of attributes
-    label: 'Rule Instance Buffer',
-    size: scene.items.length * 8 * Float32Array.BYTES_PER_ELEMENT,
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-    mappedAtCreation: true,
-  });
-  scene._instanceBuffer.unmap();
-
-  scene._frameBuffer = device.createBuffer({
-    label: 'Rule Frame Buffer',
-    size: scene.items.length * 12 * Float32Array.BYTES_PER_ELEMENT,
-    usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.MAP_WRITE,
-    mappedAtCreation: true,
-  });
-  scene._frameBuffer.unmap();
-}
 
 function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bounds) {
-  if (!scene.items?.length) {
+  const items = scene.items;
+  if (!items?.length) {
     return;
   }
 
-  initRenderPipeline(device, scene);
-  const resolution = [this._uniforms.resolution[0] + 0.5, this._uniforms.resolution[1] + 0.5];
-  const uniforms = new Float32Array([...resolution, vb.x1 + 0.5, vb.y1 + 0.5]);
-  scene._uniformsBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
+  const resolution: [width: number, height: number] = [this._uniforms.resolution[0] + 0.5, this._uniforms.resolution[1] + 0.5];
+  const bufferManager = new BufferManager(device, drawName, resolution, [vb.x1 + 0.5, vb.y1 + 0.5]);
+  const shader = device.createShaderModule({ code: shaderSource, label: drawName + ' Shader' });
+  const vertextBufferManager = new VertexBufferManager(
+    ['float32x2'], // position
+    // center, scale, color
+    ['float32x2', 'float32x2', 'float32x4']
+  );
+  const pipeline = createRenderPipeline(drawName, device, shader, scene._format, vertextBufferManager.getBuffers());
 
-  const ruleItems = scene.items as unknown as SceneLine[];
-  const attributes = Float32Array.from(
-    ruleItems.flatMap((item: SceneLine) => {
+  const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
+  const uniformBuffer = bufferManager.createUniformBuffer();
+  const uniformBindGroup = createDefaultBindGroup(drawName, device, pipeline, uniformBuffer);
+  const attributes = createAttributes(items);
+  const instanceBuffer = bufferManager.createInstanceBuffer(attributes);
+  const frameBuffer = bufferManager.createFrameBuffer(attributes.byteLength);
+  (async () => {
+    await frameBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
+      const frameData = new Float32Array(frameBuffer.getMappedRange());
+      frameData.set(attributes);
+
+      const copyEncoder = device.createCommandEncoder();
+      copyEncoder.copyBufferToBuffer(
+        frameBuffer,
+        frameData.byteOffset,
+        instanceBuffer,
+        attributes.byteOffset,
+        attributes.byteLength,
+      );
+      const commandEncoder = device.createCommandEncoder();
+      const renderPassDescriptor = createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
+      renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+
+      const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+      passEncoder.setPipeline(pipeline);
+      passEncoder.setVertexBuffer(0, geometryBuffer);
+      passEncoder.setVertexBuffer(1, instanceBuffer);
+      passEncoder.setBindGroup(0, uniformBindGroup);
+      // 6 because we are drawing two triangles
+      passEncoder.draw(6, items.length);
+      passEncoder.end();
+      frameBuffer.unmap();
+      device.queue.submit([copyEncoder.finish(), commandEncoder.finish()]);
+    });
+  })();
+}
+
+function createAttributes(items: SceneItem[]): Float32Array {
+  return Float32Array.from(
+    items.flatMap((item: SceneLine) => {
       let { x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, opacity = 1 } = item;
       x2 ??= x;
       y2 ??= y;
@@ -138,76 +93,4 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
       ];
     }),
   );
-  const pipeline = scene._pipeline;
-  const frameBuffer = scene._frameBuffer;
-  const instanceBuffer = scene._instanceBuffer;
-  const geometryBuffer = scene._geometryBuffer;
-  const uniformsBuffer = scene._uniformsBuffer;
-
-  scene._uniformsBindGroup = device.createBindGroup({
-    label: 'Rule Uniform Bind Group',
-    layout: scene._pipeline.getBindGroupLayout(0),
-    entries: [
-      {
-        binding: 0,
-        resource: {
-          buffer: uniformsBuffer,
-        },
-      },
-    ],
-  });
-  const uniformsBindGroup = scene._uniformsBindGroup;
-
-  (async () => {
-    await frameBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
-      const frameData = new Float32Array(frameBuffer.getMappedRange());
-      frameData.set(attributes);
-
-      const copyEncoder = device.createCommandEncoder();
-      copyEncoder.copyBufferToBuffer(
-        frameBuffer,
-        frameData.byteOffset,
-        instanceBuffer,
-        attributes.byteOffset,
-        attributes.byteLength,
-      );
-
-      const commandEncoder = device.createCommandEncoder();
-      const depthTexture = this.depthTexture();
-      const renderPassDescriptor: GPURenderPassDescriptor = {
-        label: 'Rule Render Pass Descriptor',
-        colorAttachments: [
-          {
-            view: undefined, // Assigned later
-            clearValue: this.clearColor(),
-            loadOp: 'load',
-            storeOp: 'store',
-          } as GPURenderPassColorAttachment,
-        ],
-        depthStencilAttachment: {
-          view: depthTexture.createView(),
-          depthClearValue: 1.0,
-          depthLoadOp: 'clear',
-          depthStoreOp: 'store',
-        },
-      };
-      renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
-
-      const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-      passEncoder.setPipeline(pipeline);
-      passEncoder.setVertexBuffer(0, geometryBuffer);
-      passEncoder.setVertexBuffer(1, instanceBuffer);
-      passEncoder.setBindGroup(0, uniformsBindGroup);
-      // 6 because we are drawing two triangles
-      passEncoder.draw(6, ruleItems.length);
-      passEncoder.end();
-      frameBuffer.unmap();
-      device.queue.submit([copyEncoder.finish(), commandEncoder.finish()]);
-    })
-  })();
 }
-
-export default {
-  type: 'rule',
-  draw: draw
-};
