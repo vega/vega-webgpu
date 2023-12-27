@@ -6,7 +6,7 @@ export async function drawCanvas(device: GPUDevice, context: GPUCanvasContext, c
   const shader = device.createShaderModule({ code: shaderSource, label: 'Image Shader' });
   const pipeline = device.createRenderPipeline({
     label: 'Image Render Pipeline',
-    layout: "auto" as unknown as GPUPipelineLayout,
+    layout: 'auto',
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
@@ -37,7 +37,7 @@ export async function drawCanvas(device: GPUDevice, context: GPUCanvasContext, c
     },
     depthStencil: {
       format: 'depth24plus',
-      depthCompare: 'always',
+      depthCompare: 'less',
       depthWriteEnabled: true,
     },
   });
@@ -77,15 +77,14 @@ export async function drawCanvas(device: GPUDevice, context: GPUCanvasContext, c
     colorAttachments: [
       {
         view: undefined, // Assigned later
-        clearColor: { r: 0.0, g: 0.0, b: 0.0, a: 0.0 },
-        loadOp: 'clear',
+        loadOp: 'load',
         storeOp: 'store',
       },
     ],
     depthStencilAttachment: {
       view: depthTexture.createView(),
-      depthClearValue: 1,
-      depthLoadOp: 'load',
+      depthClearValue: 1.0,
+      depthLoadOp: 'clear',
       depthStoreOp: 'store',
     },
   } as GPURenderPassDescriptor;

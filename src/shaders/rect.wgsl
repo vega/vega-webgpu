@@ -33,18 +33,19 @@ fn main_vertex(
     var output: VertexOutput;
     var u = uniforms.resolution;
     var pos = model.position * instance.scale + instance.center - uniforms.offset;
-    pos = pos / uniforms.resolution;
+    pos = pos / u;
     pos.y = 1.0 - pos.y;
     pos = pos * 2.0 - 1.0;
     output.pos = vec4<f32 >(pos, 0.0, 1.0);
     output.uv = vec2<f32 >(model.position.x, 1.0 - model.position.y);
     output.fill = instance.fill_color;
     output.stroke = instance.stroke_color;
-    output.strokewidth = instance.strokewidth;
+    output.strokewidth = instance.strokewidth / min(u.x, u.y);
     return output;
 }
 
 @fragment
 fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+   // ToDo: Return stroke color if at edge with strokewidth
     return in.fill;
 }

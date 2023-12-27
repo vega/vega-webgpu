@@ -1,10 +1,12 @@
-import { formatSize } from "./formatSize.js";
+import { formatElementCount, formatSize } from "./formatSize.js";
 
 export class VertexBufferManager {
   private vertexFormats: GPUVertexFormat[] = [];
   private instanceFormats: GPUVertexFormat[] = [];
   private vertexLayout?: GPUVertexBufferLayout | null = null;
   private instanceLayout?: GPUVertexBufferLayout | null = null;
+  private vertexLength?: number | null = null;
+  private instanceLength?: number | null = null;
   private dirtyFlag: boolean = true;
   vertexLocationOffset: number;
   instanceLocationOffset: number;
@@ -48,6 +50,14 @@ export class VertexBufferManager {
       attributes: attributes,
     };
   }
+  private calculateLength(stepMode: GPUVertexStepMode): number {
+    let formats = stepMode === "vertex" ? this.vertexFormats : this.instanceFormats;
+    let totalLength = 0;
+    formats.forEach((format, index) => {
+      totalLength += formatElementCount(format);
+    });
+    return totalLength;
+  }
 
   private setDirty(): void {
     this.dirtyFlag = true;
@@ -77,8 +87,16 @@ export class VertexBufferManager {
     if (this.dirtyFlag) {
       this.vertexLayout = this.calculateLayouts("vertex");
       this.instanceLayout = this.calculateLayouts("instance");
+      this.vertexLength = this.calculateLength("vertex");
+      this.instanceLength = this.calculateLength("instance");
       this.dirtyFlag = false;
     }
+  }
+
+
+  getBuffers(): Iterable<GPUVertexBufferLayout | null> {
+    this.process();
+    return [this.vertexLayout, this.instanceLayout];
   }
 
   getVertexBuffer(): GPUVertexBufferLayout {
@@ -91,8 +109,13 @@ export class VertexBufferManager {
     return this.instanceLayout;
   }
 
-  getBuffers(): Iterable<GPUVertexBufferLayout | null> {
+  getVertexLength(): number {
     this.process();
-    return [this.vertexLayout, this.instanceLayout];
+    return this.vertexLength;
+  }
+
+  getInstanceLength(): number {
+    this.process();
+    return this.instanceLength;
   }
 }

@@ -3,24 +3,29 @@ import simplify from 'simplify-path';
 import contours from 'svg-path-contours';
 import triangulate from 'triangulate-contours';
 
-export default function(context, path, threshold) {
+interface Geometry {
+  lines: Float32Array | [],
+  triangles: Float32Array | [],
+  closed: boolean,
+  z: number,
+  key?: any,
+}
+
+
+export default function (ctx: GPUCanvasContext, path: string, threshold): Geometry {
   var key = path;
-  if (context._pathCache[key]) {
-    context._pathCacheHit++;
-    return context._pathCache[key];
-  }
-  context._pathCacheMiss++;
+  var context = ctx as any;
 
   threshold = threshold || 1.0;
   if (!path) {
-    return {lines: [], triangles: [], closed: false, z: 0};
+    return { lines: new Float32Array(), triangles: new Float32Array(), closed: false, z: 0 };
   }
 
   // get a list of polylines/contours from svg contents
   var lines = contours(parse(path)), tri;
 
   // simplify the contours before triangulation
-  lines = lines.map(function(path) {
+  lines = lines.map(function (path) {
     return simplify(path, threshold);
   });
 
@@ -28,19 +33,19 @@ export default function(context, path, threshold) {
   try {
     tri = triangulate(lines);
   }
-  catch(e) {
+  catch (e) {
     // console.log('Could not triangulate the following path:');
     // console.log(path);
     // console.log(e);
-    tri = {positions: [], cells: []};
+    tri = { positions: [], cells: [] };
   }
 
-  var z = context._randomZ ? 0.25*(Math.random() - 0.5) : 0;
+  var z = context._randomZ ? 0.25 * (Math.random() - 0.5) : 0;
 
   var triangles = [];
   var tcl = tri.cells.length,
-      tc = tri.cells,
-      tp = tri.positions;
+    tc = tri.cells,
+    tp = tri.positions;
   for (var ci = 0; ci < tcl; ci++) {
     var cell = tc[ci];
     var p1 = tp[cell[0]];
@@ -50,12 +55,12 @@ export default function(context, path, threshold) {
   }
 
   var geom = {
-    lines: lines,
-    triangles: triangles,
+    lines: lines as [],
+    triangles: triangles as [],
     closed: path.endsWith('Z'),
     z: z,
     key: key
-  };
+  } as Geometry;
 
   context._pathCache[key] = geom;
   context._pathCacheSize++;

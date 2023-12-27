@@ -35,7 +35,7 @@ export function createRenderPipeline(name: string, device: GPUDevice, shader: GP
     },
     depthStencil: {
       format: 'depth24plus',
-      depthCompare: 'less',
+      depthCompare: 'less-equal',
       depthWriteEnabled: true,
     },
   });

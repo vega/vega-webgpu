@@ -22,6 +22,14 @@ function def(item)   { return !(item.defined === false); }
 function size(item)  { return item.size == null ? 64 : item.size; }
 function type(item) { return pathSymbols(item.shape || 'circle'); }
 
+interface Geometry {
+  lines: Float32Array | [],
+  triangles: Float32Array | [],
+  closed: boolean,
+  z: number,
+  key?: any,
+}
+
 var arcShape    = d3_arc().cornerRadius(cr).padAngle(pa),
     areavShape  = d3_area().x(x).y1(y).y0(yh).defined(def),
     areahShape  = d3_area().y(y).x1(x).x0(xw).defined(def),
@@ -31,14 +39,14 @@ var arcShape    = d3_arc().cornerRadius(cr).padAngle(pa),
     rectShapeGL = pathRectangle().x(0).y(0).width(w).height(h).cornerRadius(cr),
     symbolShape = d3_symbol().type(type).size(size);
 
-export function arc(context, item) {
+export function arc(context, item): Geometry {
   if (!context || context.arc) {
-    return arcShape.context(context)(item);
+    return arcShape.context(context)(item) as unknown as Geometry;
   }
   return geometryForPath(context, arcShape.context(null)(item), 0.1);
 }
 
-export function area(context, items) {
+export function area(context, items): Geometry {
   var item = items[0],
       interp = item.interpolate || 'linear',
       s = (interp === 'trail' ? trailShape
@@ -51,7 +59,7 @@ export function area(context, items) {
   return geometryForPath(context, s.context(null)(items), 0.1);
 }
 
-export function shape(context, item) {
+export function shape(context, item): Geometry {
   var s = item.mark.shape || item.shape;
   if (!context || context.arc) {
     return s.context(context)(item);
@@ -59,12 +67,12 @@ export function shape(context, item) {
   return geometryForPath(context, s.context(null)(item), 0.1);
 }
 
-export function line(context, items) {
+export function line(context, items): Geometry {
   var item = items[0],
       interp = item.interpolate || 'linear',
       s = lineShape.curve(pathCurves(interp, item.orient, item.tension));
   if (!context || context.arc) {
-    return s.context(context)(items);
+    return s.context(context)(items) as unknown as Geometry;
   }
   return geometryForPath(context, s.context(null)(items), null);
 }
@@ -73,13 +81,13 @@ export function rectangle(context, item, x, y) {
   return rectShape.context(context)(item, x, y);
 }
 
-export function rectangleGL(context, item, x, y) {
+export function rectangleGL(context, item, x, y): Geometry {
   return geometryForPath(context, rectShapeGL.context(null)(item, x, y), 0.1);
 }
 
-export function symbol(context, item) {
+export function symbol(context, item): Geometry {
   if (!context || context.arc) {
-    return symbolShape.context(context)(item);
+    return symbolShape.context(context)(item) as unknown as Geometry;
   }
   return geometryForPath(context, symbolShape.context(null)(item), 0.1);
 }

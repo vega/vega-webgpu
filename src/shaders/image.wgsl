@@ -31,5 +31,15 @@ fn main_vertex(
 
 @fragment
 fn main_fragment(input: VertexOutput) -> @location(0) vec4f {
-    return textureSample(tex, s, input.uv);
+    var color: vec4<f32> = textureSample(tex, s, input.uv);
+
+    // Adjust alpha based on incoming alpha
+    color.a *= input.uv.x; // Assuming you want to use the x-coordinate as alpha
+
+    // Premultiply alpha
+    color.r = color.r * color.a;
+    color.g = color.g * color.a;
+    color.b = color.b * color.a;
+
+    return color;
 }

@@ -45,6 +45,8 @@ inherits(WebGPURenderer, Renderer, {
       dpi: window.devicePixelRatio || 1,
     };
 
+    this._ctx._pathCache = { };
+
     // this method will invoke resize to size the canvas appropriately
     return base.initialize.call(this, el, width, height, origin);
   },
@@ -117,7 +119,7 @@ inherits(WebGPURenderer, Renderer, {
     this._textContext.setTransform(1, 0, 0, 1, 0, 0);
     this._textContext.clearRect(0, 0, this._textCanvas.width + 300, this._textCanvas.height + 300);
     this._textContext.restore();
-    if (device) {
+    if (device && ctx) {
       this.draw(device, ctx, scene, vb);
       // await drawCanvas(device, this.context(), this.textCanvas(), this.prefferedFormat());
     } else {
@@ -136,7 +138,7 @@ inherits(WebGPURenderer, Renderer, {
           alphaMode: 'premultiplied',
         });
         this.draw(device, this._ctx, scene, vb);
-        // await drawCanvas(device, this.context(), this.textCanvas(), this.prefferedFormat());
+        //await drawCanvas(device, this.context(), this.textCanvas(), this.prefferedFormat());
       })();
     }
 
@@ -208,13 +210,15 @@ inherits(WebGPURenderer, Renderer, {
 
   depthTexture(): GPUTexture {
     if (this._depthTexture != null) {
-      return this._depthTexture;
+      if (this._depthTexture.device === this._device)
+        return this._depthTexture;
     }
     this._depthTexture = this.device().createTexture({
       size: [this.canvas().width, this.canvas().height, 1],
       format: 'depth24plus',
       usage: GPUTextureUsage.RENDER_ATTACHMENT,
     } as GPUTextureDescriptor);
+    this._depthTexture.device = this._device;
     return this._depthTexture;
   },
 
