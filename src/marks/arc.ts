@@ -24,8 +24,6 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   }
   for (var itemStr in items) {
     const item = items[itemStr];
-    // @ts-ignore
-    item.stroke = '#f72';
     const bufferManager = new BufferManager(device, drawName, this._uniforms.resolution, [vb.x1, vb.y1]);
 
     const shader = device.createShaderModule({ code: shaderSource, label: drawName + ' Shader' });
