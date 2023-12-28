@@ -6,14 +6,14 @@ import { VertexBufferManager } from '../util/vertexManager.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { createRenderPipeline, createDefaultBindGroup, createRenderPassDescriptor } from '../util/render.js';
 
-import { arc } from '../path/shapes';
+import { area } from '../path/shapes';
 import geometryForItem from '../path/geometryForItem';
 
 import shaderSource from '../shaders/triangles.wgsl';
 
-const drawName = 'Arc';
+const drawName = 'Area';
 export default {
-  type: 'arc',
+  type: 'area',
   draw: draw
 };
 
@@ -24,8 +24,6 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   }
   for (var itemStr in items) {
     const item = items[itemStr];
-    // @ts-ignore
-    item.stroke = '#f72';
     const bufferManager = new BufferManager(device, drawName, this._uniforms.resolution, [vb.x1, vb.y1]);
 
     const shader = device.createShaderModule({ code: shaderSource, label: drawName + ' Shader' });
@@ -35,12 +33,12 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     );
     const pipeline = createRenderPipeline(drawName, device, shader, scene._format, vertextBufferManager.getBuffers());
 
-    const geometryData = createGeometryData(ctx, item);
+    const geometryData = createGeometryData(ctx, item, items);
     const geometryCount = geometryData.length / vertextBufferManager.getVertexLength();
     const geometryBuffer = bufferManager.createGeometryBuffer(geometryData);
     const uniformBuffer = bufferManager.createUniformBuffer();
     const uniformBindGroup = createDefaultBindGroup(drawName, device, pipeline, uniformBuffer);
-    const attributes = createPosition(ctx, item);
+    const attributes = Float32Array.from([0.0, 0.0]);
     const instanceBuffer = bufferManager.createInstanceBuffer(attributes);
     const frameBuffer = bufferManager.createFrameBuffer(attributes.byteLength);
     (async () => {
@@ -74,16 +72,6 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   }
 }
 
-function createPosition(context: GPUCanvasContext, item: SceneItem): Float32Array {
-  const {
-    x = 0,
-    y = 0
-  } = item;
-  return Float32Array.from([x, y]);
-
-}
-
-
 interface ColoredGeometry {
   triangles: Float32Array,
   colors: Float32Array,
@@ -91,9 +79,10 @@ interface ColoredGeometry {
 }
 function createGeometryData(
   context: GPUCanvasContext,
-  item: SceneItem
+  item: SceneItem,
+  items: SceneItem[]
 ): Float32Array {
-  const shapeGeom = arc(context, item);
+  const shapeGeom = area(context, items);
   const geometry = geometryForItem(context, item, shapeGeom) as ColoredGeometry;
   const geometryData = [];
   for (var i = 0; i < geometry.numTriangles; i++) {

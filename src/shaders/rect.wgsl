@@ -15,6 +15,7 @@ struct InstanceInput {
   @location(3) fill_color: vec4<f32>,
   @location(4) stroke_color: vec4<f32>,
   @location(5) strokewidth: f32,
+  @location(6) corner_radii: vec4<f32>,
 }
 
 struct VertexOutput {
@@ -23,6 +24,7 @@ struct VertexOutput {
   @location(1) fill: vec4<f32>,
   @location(2) stroke: vec4<f32>,
   @location(3) strokewidth: f32,
+  @location(4) corner_radii: vec4<f32>,
 }
 
 @vertex
@@ -40,12 +42,28 @@ fn main_vertex(
     output.uv = vec2<f32 >(model.position.x, 1.0 - model.position.y);
     output.fill = instance.fill_color;
     output.stroke = instance.stroke_color;
-    output.strokewidth = instance.strokewidth / min(u.x, u.y);
+    output.strokewidth = instance.strokewidth;
+    output.corner_radii = instance.corner_radii;
     return output;
 }
 
 @fragment
 fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-   // ToDo: Return stroke color if at edge with strokewidth
-    return in.fill;
+  return in.fill;
+}
+
+fn roundedBox(center: vec2<f32>, size: vec2<f32>, radius: vec4<f32>) -> f32 {
+    var rad = radius;
+    if center.x > 0.0 {
+        rad.x = radius.x;
+        rad.y = radius.y;
+    } else {
+        rad.x = radius.z;
+        rad.y = radius.w;
+    }
+    if center.y > 0.0 {
+        rad.x = rad.y;
+    }
+    var q = abs(center) - size + rad.x;
+    return min(max(q.x, q.y), 0.0) + length(max(q, vec2<f32>(0.0))) - rad.x;
 }

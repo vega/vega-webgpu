@@ -25,8 +25,8 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   const shader = device.createShaderModule({ code: shaderSource, label: drawName + ' Shader' });
   const vertextBufferManager = new VertexBufferManager(
     ['float32x2'], // position
-    // center, dimensions, fill color, stroke color, stroke width
-    ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32']
+    // center, dimensions, fill color, stroke color, stroke width, corner radii
+    ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4']
   );
   const pipeline = createRenderPipeline(drawName, device, shader, scene._format, vertextBufferManager.getBuffers());
 
@@ -80,11 +80,26 @@ function createAttributes(items: SceneItem[]): Float32Array {
         stroke,
         strokeOpacity = 1,
         strokeWidth = 1,
+        cornerRadius = 0,
+        // @ts-ignore
+        cornerRadiusBottomLeft = null,
+        // @ts-ignore
+        cornerRadiusBottomRight = null,
+        // @ts-ignore
+        cornerRadiusTopRight = null,
+        // @ts-ignore
+        cornerRadiusTopLeft = null,
       } = item;
       const fillCol = color(fill).rgb();
       const strokeCol = color(stroke)?.rgb();
       const stropacity = strokeCol ? strokeOpacity : 0;
       const strcol = strokeCol ? strokeCol : { r: 0, g: 0, b: 0 };
+      const cornerRadii = [
+        cornerRadiusTopRight | cornerRadius,
+        cornerRadiusBottomRight | cornerRadius,
+        cornerRadiusBottomLeft | cornerRadius,
+        cornerRadiusTopLeft | cornerRadius,
+      ]
       return [
         x,
         y,
@@ -99,6 +114,7 @@ function createAttributes(items: SceneItem[]): Float32Array {
         strcol.b / 255,
         stropacity,
         strokeWidth,
+        ...cornerRadii,
       ];
     }),
   );
