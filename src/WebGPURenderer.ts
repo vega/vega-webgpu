@@ -45,7 +45,7 @@ inherits(WebGPURenderer, Renderer, {
       dpi: window.devicePixelRatio || 1,
     };
 
-    this._ctx._pathCache = { };
+    this._ctx._pathCache = {};
 
     // this method will invoke resize to size the canvas appropriately
     return base.initialize.call(this, el, width, height, origin);
@@ -210,7 +210,9 @@ inherits(WebGPURenderer, Renderer, {
 
   depthTexture(): GPUTexture {
     if (this._depthTexture != null) {
-      if (this._depthTexture.device === this._device)
+      if (this._depthTexture.device === this._device
+        && this._depthTexture.width === this.canvas().width
+        && this._depthTexture.height === this.canvas().height)
         return this._depthTexture;
     }
     this._depthTexture = this.device().createTexture({
