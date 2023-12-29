@@ -79,7 +79,7 @@ function createAttributes(items: SceneItem[]): Float32Array {
         fillOpacity = 1,
         stroke,
         strokeOpacity = 1,
-        strokeWidth = 1,
+        strokeWidth = 0,
         cornerRadius = 0,
         // @ts-ignore
         cornerRadiusBottomLeft = null,

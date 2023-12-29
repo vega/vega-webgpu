@@ -37,6 +37,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   const attributes = createAttributes(items);
   const instanceBuffer = bufferManager.createInstanceBuffer(attributes);
   const frameBuffer = bufferManager.createFrameBuffer(attributes.byteLength);
+  
   (async () => {
     await frameBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
       const frameData = new Float32Array(frameBuffer.getMappedRange());
@@ -70,13 +71,13 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 function createAttributes(items: SceneItem[]): Float32Array {
   return Float32Array.from(
     (items as unknown as SceneSymbol[]).flatMap((item: SceneSymbol) => {
-      const { x = 0, y = 0, size, fill, opacity = 0 } = item;
+      const { x = 0, y = 0, size, fill, opacity = 1, fillOpacity = 1 } = item;
       const col = color(fill).rgb();
       const rad = Math.sqrt(size) / 2;
       const r = col.r / 255;
       const g = col.g / 255;
       const b = col.b / 255;
-      return [x, y, r, g, b, opacity, rad];
+      return [x, y, r, g, b, opacity * fillOpacity, rad];
     }),
   );
 }

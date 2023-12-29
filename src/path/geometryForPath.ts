@@ -12,7 +12,7 @@ interface Geometry {
 }
 
 
-export default function (ctx: GPUCanvasContext, path: string, threshold): Geometry {
+export default function (ctx: GPUCanvasContext, path: string, threshold?: number): Geometry {
   var key = path;
   var context = ctx as any;
 
