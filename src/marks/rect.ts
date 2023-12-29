@@ -1,4 +1,4 @@
-import { color } from 'd3-color';
+import color from '../util/color';
 import { Bounds } from 'vega-scenegraph';
 import { SceneItem, SceneRect } from 'vega-typings';
 import { GPUScene } from '../types/gpuscene.js'
@@ -70,7 +70,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 function createAttributes(items: SceneItem[]): Float32Array {
   return Float32Array.from(
     (items).flatMap((item: SceneRect) => {
-      const {
+      let {
         x = 0,
         y = 0,
         width = 0,
@@ -90,10 +90,11 @@ function createAttributes(items: SceneItem[]): Float32Array {
         // @ts-ignore
         cornerRadiusTopLeft = null,
       } = item;
-      const fillCol = color(fill).rgb();
-      const strokeCol = color(stroke)?.rgb();
-      const stropacity = strokeCol ? strokeOpacity : 0;
-      const strcol = strokeCol ? strokeCol : { r: 0, g: 0, b: 0 };
+      const fillCol = color(fill);
+      fillOpacity = fill === 'transparent' ? 0 : fillOpacity;
+      const strokeCol = color(stroke) ?? { r: 0, g: 0, b: 0, a: 0 };
+      const stropacity = stroke && strokeCol ? strokeOpacity : 0;
+      strokeWidth = strokeWidth == 0 && stropacity ? 1 : strokeWidth;
       const cornerRadii = [
         cornerRadiusTopRight | cornerRadius,
         cornerRadiusBottomRight | cornerRadius,
@@ -105,13 +106,13 @@ function createAttributes(items: SceneItem[]): Float32Array {
         y,
         width,
         height,
-        fillCol.r / 255,
-        fillCol.g / 255,
-        fillCol.b / 255,
+        fillCol.r,
+        fillCol.g,
+        fillCol.b,
         fillOpacity,
-        strcol.r / 255,
-        strcol.g / 255,
-        strcol.b / 255,
+        strokeCol.r,
+        strokeCol.g,
+        strokeCol.b,
         stropacity,
         strokeWidth,
         ...cornerRadii,

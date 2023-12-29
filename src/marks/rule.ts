@@ -1,4 +1,4 @@
-import { color } from 'd3-color';
+import color from '../util/color';
 import { Bounds } from 'vega-scenegraph';
 import {
   SceneItem, SceneLine
@@ -24,8 +24,8 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     return;
   }
 
-  const resolution: [width: number, height: number] = [this._uniforms.resolution[0] + 0.5, this._uniforms.resolution[1] + 0.5];
-  const bufferManager = new BufferManager(device, drawName, resolution, [vb.x1 + 0.5, vb.y1 + 0.5]);
+  const resolution: [width: number, height: number] = [this._uniforms.resolution[0], this._uniforms.resolution[1]];
+  const bufferManager = new BufferManager(device, drawName, resolution, [vb.x1, vb.y1]);
   const shader = device.createShaderModule({ code: shaderSource, label: drawName + ' Shader' });
   const vertextBufferManager = new VertexBufferManager(
     ['float32x2'], // position
@@ -80,15 +80,15 @@ function createAttributes(items: SceneItem[]): Float32Array {
       const ax = Math.abs(x2 - x);
       const ay = Math.abs(y2 - y);
 
-      const col = color(stroke).rgb();
+      const col = color(stroke);
       return [
         Math.min(x, x2),
         Math.min(y, y2),
         ax ? ax : strokeWidth,
         ay ? ay : strokeWidth,
-        col.r / 255,
-        col.g / 255,
-        col.b / 255,
+        col.r,
+        col.g,
+        col.b,
         opacity,
       ];
     }),

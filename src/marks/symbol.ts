@@ -1,4 +1,4 @@
-import { color } from 'd3-color';
+import color from '../util/color';
 import { Bounds } from 'vega-scenegraph';
 import { SceneSymbol, SceneItem } from 'vega-typings';
 import { GPUScene } from '../types/gpuscene.js'
@@ -72,12 +72,9 @@ function createAttributes(items: SceneItem[]): Float32Array {
   return Float32Array.from(
     (items as unknown as SceneSymbol[]).flatMap((item: SceneSymbol) => {
       const { x = 0, y = 0, size, fill, opacity = 1, fillOpacity = 1 } = item;
-      const col = color(fill).rgb();
+      const col = color(fill);
       const rad = Math.sqrt(size) / 2;
-      const r = col.r / 255;
-      const g = col.g / 255;
-      const b = col.b / 255;
-      return [x, y, r, g, b, opacity * fillOpacity, rad];
+      return [x, y, col.r, col.g, col.b, opacity * fillOpacity, rad];
     }),
   );
 }

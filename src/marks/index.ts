@@ -7,14 +7,15 @@ import rect from './rect';
 import rule from './rule';
 import symbol from './symbol';
 import text from './text';
+import path from './path';
 
 export default {
   arc,
   area,
   group,
-  line,
   rect,
   rule,
   symbol,
   text,
+  path
 };

@@ -21,7 +21,15 @@ struct VertexOutput {
 fn main_vertex(in: VertexInput) -> VertexOutput {
     var output : VertexOutput;
     var u = uniforms.resolution;
-    var pos = in.position * in.scale  + in.center - uniforms.offset;
+    var x_width_offset = in.scale.x;
+    var y_width_offset = in.scale.y;
+    if x_width_offset > 1.0 {
+      x_width_offset = 0.0;
+    }
+    if y_width_offset > 1.0 {
+      y_width_offset = 0.0;
+    }
+    var pos = in.position * in.scale  + in.center - uniforms.offset - vec2<f32>(x_width_offset / 2.0, y_width_offset / 2.0);
     pos = pos / uniforms.resolution;
     pos.y = 1.0 - pos.y;
     pos = pos * 2.0 - 1.0;
