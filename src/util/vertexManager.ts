@@ -96,7 +96,12 @@ export class VertexBufferManager {
 
   getBuffers(): Iterable<GPUVertexBufferLayout | null> {
     this.process();
-    return [this.vertexLayout, this.instanceLayout];
+    var buffers = [];
+    if (this.vertexLength && this.vertexLayout)
+      buffers.push(this.vertexLayout);
+    if (this.instanceLength && this.instanceLayout)
+      buffers.push(this.instanceLayout);
+    return buffers;
   }
 
   getVertexBuffer(): GPUVertexBufferLayout {

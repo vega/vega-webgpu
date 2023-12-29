@@ -13,6 +13,7 @@ export default {
   arc,
   area,
   group,
+  line,
   rect,
   rule,
   symbol,

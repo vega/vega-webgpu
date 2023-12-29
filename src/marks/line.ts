@@ -1,9 +1,22 @@
-import {color} from 'd3-color';
-import {Bounds} from 'vega-scenegraph';
+import color from '../util/color';
+import { quadVertex } from '../util/arrays';
+import { Bounds } from 'vega-scenegraph';
+import { SceneLine, SceneItem } from 'vega-typings';
+import { GPUScene } from '../types/gpuscene.js'
+import { VertexBufferManager } from '../util/vertexManager.js';
+import { BufferManager } from '../util/bufferManager.js';
+import { createRenderPipeline, createDefaultBindGroup, createRenderPassDescriptor } from '../util/render.js';
 
-//@ts-ignore
 import shaderSource from '../shaders/line.wgsl';
-import {createBuffer} from '../util/arrays';
+
+
+const drawName = 'Line';
+export default {
+  type: 'line',
+  draw: draw,
+  pick: () => null,
+};
+
 
 interface Line {
   x: number;
@@ -13,208 +26,72 @@ interface Line {
   strokeOpacity: number;
 }
 
-function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Line>}, vb: Bounds) {
-  const {items} = scene;
+function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bounds) {
+  const items = scene.items;
   if (!items?.length) {
     return;
   }
-  const itemCount = items.length;
+  const bufferManager = new BufferManager(device, drawName, this._uniforms.resolution, [vb.x1, vb.y1]);
 
-  const shader = device.createShaderModule({code: shaderSource, label: 'Line Shader'});
+  const shader = device.createShaderModule({ code: shaderSource, label: drawName + ' Shader' });
+  const vertextBufferManager = new VertexBufferManager(
+    ['float32x2'], 
+    ['float32x2', 'float32x2', 'float32x4', 'float32'] // start, end, color, strokewidth
+  );
+  const pipeline = createRenderPipeline(drawName, device, shader, scene._format, vertextBufferManager.getBuffers());
 
-  const pipeline = device.createRenderPipeline({
-    label: 'Line Render Pipeline',
-    vertex: {
-      module: shader,
-      entryPoint: 'main_vertex',
-      //@ts-ignore
-      buffers: [
-        {
-          arrayStride: Float32Array.BYTES_PER_ELEMENT * 9,
-          attributes: [
-            // position
-            {
-              shaderLocation: 0,
-              offset: 0,
-              format: 'float32x2',
-            },
-            // normal
-            {
-              shaderLocation: 1,
-              offset: Float32Array.BYTES_PER_ELEMENT * 2,
-              format: 'float32x2',
-            },
-            // color
-            {
-              shaderLocation: 2,
-              offset: Float32Array.BYTES_PER_ELEMENT * 4,
-              format: 'float32x4',
-            },
-            // strokewidth
-            {
-              shaderLocation: 3,
-              offset: Float32Array.BYTES_PER_ELEMENT * 8,
-              format: 'float32',
-            },
-          ],
-        },
-      ],
-    },
-    fragment: {
-      module: shader,
-      entryPoint: 'main_fragment',
-      //@ts-ignore
-      targets: [
-        {
-          format: 'bgra8unorm',
-          blend: {
-            alpha: {
-              srcFactor: 'one',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
-            },
-            color: {
-              srcFactor: 'src-alpha',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
-            },
-          },
-        },
-      ],
-    },
-    primitives: {
-      topology: 'triangle-list',
-    },
-  });
+  const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
+  const uniformBuffer = bufferManager.createUniformBuffer();
+  const uniformBindGroup = createDefaultBindGroup(drawName, device, pipeline, uniformBuffer);
+  const attributes = createAttributes(items);
+  const instanceBuffer = bufferManager.createInstanceBuffer(attributes);
+  const frameBuffer = bufferManager.createFrameBuffer(attributes.byteLength);
+  (async () => {
+    await frameBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
+      const frameData = new Float32Array(frameBuffer.getMappedRange());
+      frameData.set(attributes);
 
-  const positions = [];
+      const copyEncoder = device.createCommandEncoder();
+      copyEncoder.copyBufferToBuffer(
+        frameBuffer,
+        frameData.byteOffset,
+        instanceBuffer,
+        attributes.byteOffset,
+        attributes.byteLength,
+      );
+      const commandEncoder = device.createCommandEncoder();
+      const renderPassDescriptor = createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
+      renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 
-  for (let i = 0; i < itemCount; i++) {
-    const {x = 0, y = 0, stroke, strokeWidth = 1, strokeOpacity = 1} = items[i];
-    const {x: x2, y: y2} = items[Math.min(itemCount - 1, i + 1)];
-    const [dx, dy] = [x2 - x, y2 - y];
-    let [nx, ny] = [-dy, dx];
-    const vlen = Math.sqrt(nx ** 2 + ny ** 2);
-    nx /= vlen || 1;
-    ny /= vlen || 1;
-
-    const col = color(stroke).rgb();
-    const r = col.r / 255;
-    const g = col.g / 255;
-    const b = col.b / 255;
-
-    positions.push(
-      x,
-      y,
-      nx,
-      ny,
-      r,
-      g,
-      b,
-      strokeOpacity,
-      strokeWidth,
-
-      x,
-      y,
-      -nx,
-      -ny,
-      r,
-      g,
-      b,
-      strokeOpacity,
-      strokeWidth,
-
-      x2,
-      y2,
-      -nx,
-      -ny,
-      r,
-      g,
-      b,
-      strokeOpacity,
-      strokeWidth,
-
-      x2,
-      y2,
-      -nx,
-      -ny,
-      r,
-      g,
-      b,
-      strokeOpacity,
-      strokeWidth,
-
-      x2,
-      y2,
-      nx,
-      ny,
-      r,
-      g,
-      b,
-      strokeOpacity,
-      strokeWidth,
-
-      x,
-      y,
-      nx,
-      ny,
-      r,
-      g,
-      b,
-      strokeOpacity,
-      strokeWidth,
-    );
-  }
-
-  const positionBuffer = createBuffer(device, Float32Array.from(positions), GPUBufferUsage.VERTEX);
-
-  const uniforms = Float32Array.from([...this._uniforms.resolution, vb.x1, vb.y1]);
-  const uniformBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
-  const uniformBindGroup = device.createBindGroup({
-    label: 'Line Uniform Bind Group',
-    layout: pipeline.getBindGroupLayout(0),
-    entries: [
-      {
-        binding: 0,
-        resource: {
-          buffer: uniformBuffer,
-        },
-      },
-    ],
-  });
-
-  const commandEncoder = device.createCommandEncoder();
-  //@ts-ignore
-  const textureView = ctx.getCurrentTexture().createView();
-  const renderPassDescriptor = {
-    label: 'Line Render Pass Descriptor',
-    colorAttachments: [
-      {
-        view: textureView,
-        loadOp: 'clear',
-        storeOp: 'store',
-        clearValue: [0.0, 1.0, 1.0, 1.0] as GPUColor,
-      },
-    ],
-  };
-
-  //@ts-ignore
-  const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-  passEncoder.setPipeline(pipeline);
-  passEncoder.setBindGroup(0, uniformBindGroup);
-  passEncoder.setVertexBuffer(0, positionBuffer);
-  // 6 because our lines are made of quads
-  passEncoder.draw(itemCount * 6, 1);
-  passEncoder.end();
-  device.queue.submit([commandEncoder.finish()]);
+      const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+      passEncoder.setPipeline(pipeline);
+      passEncoder.setVertexBuffer(0, geometryBuffer);
+      passEncoder.setVertexBuffer(1, instanceBuffer);
+      passEncoder.setBindGroup(0, uniformBindGroup);
+      // 6 because we are drawing two triangles
+      passEncoder.draw(6, items.length);
+      passEncoder.end();
+      frameBuffer.unmap();
+      device.queue.submit([copyEncoder.finish(), commandEncoder.finish()]);
+    });
+  })();
 }
 
-function pick(context, scene, x, y, gx, gy) {
-  return null;
+function createAttributes(items: SceneItem[]): Float32Array {
+  let counter = 0;
+  return Float32Array.from(
+    items.flatMap((item: SceneLine) => {
+      const { x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, strokeOpacity = 1 } = item;
+      const col = color(stroke);
+      let [r, g, b] = [col.r, col.g, col.b];
+      counter++;
+      return [
+        0, 0,
+        x, y,
+        x2, y2,
+        r, g, b, strokeOpacity,
+        strokeWidth
+      ];
+    }),
+  );
 }
-
-export default {
-  type: 'rule',
-  draw: draw,
-  pick: pick,
-};
