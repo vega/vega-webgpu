@@ -32,9 +32,10 @@
   <script src="../build/vega-webgpu-renderer.js"></script>
   <script>
 
-    let runtime, spec, view;
+    let runtime, spec, view, renderer, specname;
     const urlParams = new URLSearchParams(window.location.search);
     const speced = urlParams.get('spec');
+    const rendered = urlParams.get('renderer');
 
     const options = {
       container: '#vis',
@@ -51,9 +52,15 @@
 
       const render = document.querySelector('#render');
       render.addEventListener('change', function () {
-        options.renderer = render.options[render.selectedIndex].value;
+        renderer = render.options[render.selectedIndex].value;
+        options.renderer = renderer;
+        updateUrl();
         if (view) view.renderer(options.renderer).runAsync();
       });
+
+      function updateUrl() {
+        window.history.replaceState({}, '', `?spec=${specname}&renderer=${options.renderer}`);
+      }
 
       async function init() {
         try {
@@ -67,6 +74,9 @@
             select.appendChild(opt);
           });
 
+          if (rendered) {
+            options.renderer = rendered;
+          }
           if (speced) {
             load(speced);
           }
@@ -102,8 +112,9 @@
             .hover();
 
           view.runAsync();
-          console.log('INIT', name,);
-          window.history.replaceState({}, '', `?spec=${name}`);
+          console.log('INIT', name);
+          specname = name;
+          updateUrl();
         } catch (err) {
           console.error(err, err.stack);
         }

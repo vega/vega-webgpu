@@ -5,7 +5,11 @@ import { SceneLine, SceneItem } from 'vega-typings';
 import { GPUScene } from '../types/gpuscene.js'
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { BufferManager } from '../util/bufferManager.js';
-import { createRenderPipeline, createDefaultBindGroup, createRenderPassDescriptor } from '../util/render.js';
+import {
+  createRenderPipeline, createBindGroup, createBindGroupLayout,
+  createRenderPassDescriptor, createUniformBindGroup, BindGroupLayoutEntry,
+  createUniformBindGroupLayout, createPipelineLayout
+} from '../util/render.js';
 
 import shaderSource from '../shaders/line.wgsl';
 
@@ -36,15 +40,18 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   const shader = device.createShaderModule({ code: shaderSource, label: drawName + ' Shader' });
   const vertextBufferManager = new VertexBufferManager(
     [],
-    ['float32x2', 'float32x2', 'float32x4', 'float32'] // start, end, color, strokewidth
-  );
-  let buffers = vertextBufferManager.getBuffers();
-  const pipeline = createRenderPipeline(drawName, device, shader, scene._format, buffers);
+    [],);
 
-  const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
-  const uniformBuffer = bufferManager.createUniformBuffer();
-  const uniformBindGroup = createDefaultBindGroup(drawName, device, pipeline, uniformBuffer);
-  const attributes = createAttributes(items);
+  const pipeline = createRenderPipeline(drawName, device, shader, scene._format, vertextBufferManager.getBuffers());
+
+  const uniformBindGroup = createUniformBindGroup(drawName, device, pipeline, bufferManager.createUniformBuffer());
+  const pointDatas = createPointDatas(items);
+  const pointPositionBuffer = bufferManager.createBuffer(drawName + ' Point Position Buffer', pointDatas.pos, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
+  const pointColorBuffer = bufferManager.createBuffer(drawName + ' Point Color Buffer', pointDatas.colors, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
+  const pointWidthBuffer = bufferManager.createBuffer(drawName + ' Point Width Buffer', pointDatas.widths, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
+  const pointBindGroup = createBindGroup(drawName, device, pipeline, [pointPositionBuffer, pointColorBuffer, pointWidthBuffer], null, 1);
+  // const attributes = Uint32Array.from(Array.from({ length: items.length - 1 }, (_, index) => index));
+  const attributes = Uint32Array.from([]);
   const instanceBuffer = bufferManager.createInstanceBuffer(attributes);
   const frameBuffer = bufferManager.createFrameBuffer(attributes.byteLength);
   (async () => {
@@ -66,10 +73,11 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 
       const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
       passEncoder.setPipeline(pipeline);
-      passEncoder.setVertexBuffer(0, instanceBuffer);
       passEncoder.setBindGroup(0, uniformBindGroup);
+      passEncoder.setBindGroup(1, pointBindGroup);
+      // passEncoder.setVertexBuffer(0, instanceBuffer);
       // 6 because we are drawing two triangles
-      passEncoder.draw(6, items.length);
+      passEncoder.draw(6, items.length - 1);
       passEncoder.end();
       frameBuffer.unmap();
       device.queue.submit([copyEncoder.finish(), commandEncoder.finish()]);
@@ -78,12 +86,12 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 }
 
 function createAttributes(items: SceneItem[]): Float32Array {
+  const lines = items as SceneLine[];
   let attributes = [];
-  for (let i = 0; i < items.length - 1; i++) {
-    // @ts-ignore
-    const { x = 0, y = 0, stroke, strokeWidth = 1, strokeOpacity = 1 } = items[i]
-    const x2 = items[i + 1].x | 0;
-    const y2 = items[i + 1].y | 0;
+  for (let i = 0; i < lines.length - 1; i++) {
+    const { x = 0, y = 0, stroke, strokeWidth = 1, strokeOpacity = 1 } = lines[i]
+    const x2 = lines[i + 1].x | 0;
+    const y2 = lines[i + 1].y | 0;
     const col = color(stroke);
     let [r, g, b] = [col.r, col.g, col.b];
     attributes.push(...[
@@ -93,14 +101,21 @@ function createAttributes(items: SceneItem[]): Float32Array {
       strokeWidth
     ]);
   }
-  let lastItem = items[items.length - 1];
-  const lastCol = color((lastItem as SceneLine).stroke);
-  let [r, g, b] = [lastCol.r, lastCol.g, lastCol.b];
-  attributes.push(...[
-    lastItem.x, lastItem.y,
-    lastItem.x, lastItem.y,
-    r, g, b, 1.0,
-    (lastItem as SceneLine).strokeWidth
-  ]);
   return Float32Array.from(attributes);
+}
+
+function createPointDatas(items: SceneItem[]): { pos: Float32Array, colors: Float32Array, widths: Float32Array } {
+  const lines = items as SceneLine[];
+  const pos = [];
+  const colors = [];
+  const widths = [];
+  for (let i = 0; i < lines.length; i++) {
+    const { x = 0, y = 0, stroke, strokeWidth = 1, strokeOpacity = 1 } = lines[i]
+    const col = color(stroke);
+    let [r, g, b] = [col.r, col.g, col.b];
+    pos.push(...[x, y]);
+    colors.push(...[r, g, b, strokeOpacity]);
+    widths.push(...[strokeWidth]);
+  }
+  return { pos: Float32Array.from(pos), colors: Float32Array.from(colors), widths: Float32Array.from(widths), }
 }

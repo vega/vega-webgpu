@@ -5,7 +5,7 @@ import { GPUScene } from '../types/gpuscene.js'
 import { quadVertex } from '../util/arrays';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { BufferManager } from '../util/bufferManager.js';
-import { createRenderPipeline, createDefaultBindGroup, createRenderPassDescriptor } from '../util/render.js';
+import { createRenderPipeline, createUniformBindGroup, createRenderPassDescriptor } from '../util/render.js';
 
 import shaderSource from '../shaders/rect.wgsl';
 
@@ -32,7 +32,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 
   const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
   const uniformBuffer = bufferManager.createUniformBuffer();
-  const uniformBindGroup = createDefaultBindGroup(drawName, device, pipeline, uniformBuffer);
+  const uniformBindGroup = createUniformBindGroup(drawName, device, pipeline, uniformBuffer);
   const attributes = createAttributes(items);
   const instanceBuffer = bufferManager.createInstanceBuffer(attributes);
   const frameBuffer = bufferManager.createFrameBuffer(attributes.byteLength);
@@ -70,16 +70,16 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 function createAttributes(items: SceneItem[]): Float32Array {
   return Float32Array.from(
     (items).flatMap((item: SceneRect) => {
-      let {
+      const {
         x = 0,
         y = 0,
         width = 0,
         height = 0,
         fill,
         fillOpacity = 1,
-        stroke,
+        stroke = null,
         strokeOpacity = 1,
-        strokeWidth = 0,
+        strokeWidth = null,
         cornerRadius = 0,
         // @ts-ignore
         cornerRadiusBottomLeft = null,
@@ -91,10 +91,10 @@ function createAttributes(items: SceneItem[]): Float32Array {
         cornerRadiusTopLeft = null,
       } = item;
       const fillCol = color(fill);
-      fillOpacity = fill === 'transparent' ? 0 : fillOpacity;
+      const fillOpacity1 = fill === 'transparent' ? 0 : fillOpacity;
       const strokeCol = color(stroke) ?? { r: 0, g: 0, b: 0, a: 0 };
       const stropacity = stroke && strokeCol ? strokeOpacity : 0;
-      strokeWidth = strokeWidth == 0 && stropacity ? 1 : strokeWidth;
+      const strokeWidth1 = strokeWidth != 0 && stroke ? (strokeWidth ?? 1) : (strokeWidth ?? 0);
       const cornerRadii = [
         cornerRadiusTopRight | cornerRadius,
         cornerRadiusBottomRight | cornerRadius,
@@ -109,12 +109,12 @@ function createAttributes(items: SceneItem[]): Float32Array {
         fillCol.r,
         fillCol.g,
         fillCol.b,
-        fillOpacity,
+        fillOpacity1,
         strokeCol.r,
         strokeCol.g,
         strokeCol.b,
         stropacity,
-        strokeWidth,
+        strokeWidth1,
         ...cornerRadii,
       ];
     }),

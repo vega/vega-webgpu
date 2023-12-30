@@ -40,8 +40,8 @@ fn main_vertex(
     pos = pos / u;
     pos.y = 1.0 - pos.y;
     pos = pos * 2.0 - 1.0;
-    output.pos = vec4<f32 >(pos, 0.0, 1.0);
-    output.uv = vec2<f32 >(model.position.x, 1.0 - model.position.y);
+    output.pos = vec4<f32>(pos, 0.0, 1.0);
+    output.uv = vec2<f32>(model.position.x, 1.0 - model.position.y);
     output.fill = instance.fill_color;
     output.stroke = instance.stroke_color;
     output.strokewidth = instance.strokewidth;
@@ -53,7 +53,7 @@ fn main_vertex(
 @fragment
 fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     var col: vec4<f32> = in.fill;
-    let sw: vec2<f32> = vec2<f32>(in.strokewidth, in.strokewidth)/ in.scale;
+    let sw: vec2<f32> = vec2<f32>(in.strokewidth, in.strokewidth) / in.scale;
     if in.uv.x < sw.x || in.uv.x > 1.0 - sw.x {
         col = in.stroke;
     }

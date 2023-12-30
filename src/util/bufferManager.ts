@@ -20,8 +20,8 @@ export class BufferManager {
   createGeometryBuffer(data: Float32Array, usage: GPUBufferUsageFlags = GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST) {
     return this.createBuffer(this.bufferName + ' Geometry Buffer', data, usage);
   }
-  
-  createInstanceBuffer(data: Float32Array, usage: GPUBufferUsageFlags = GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST) {
+
+  createInstanceBuffer(data: Uint16Array | Uint32Array | Float32Array, usage: GPUBufferUsageFlags = GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST) {
     return this.createBuffer(this.bufferName + ' Instance Buffer', data, usage);
   }
 
@@ -37,12 +37,17 @@ export class BufferManager {
   }
 
   // source: https://alain.xyz/blog/raw-webgpu
-  createBuffer(name: string, data: Uint16Array | Float32Array, usage: GPUBufferUsageFlags) {
-    let desc = { name, size: (data.byteLength + 3) & ~3, usage, mappedAtCreation: true };
+  createBuffer(name: string, data: Uint16Array | Uint32Array | Float32Array, usage: GPUBufferUsageFlags) {
+    let desc: GPUBufferDescriptor = { label: name, size: (data.byteLength + 3) & ~3, usage, mappedAtCreation: true };
     let buffer = this.device.createBuffer(desc);
 
-    const writeArray =
-      data instanceof Uint16Array ? new Uint16Array(buffer.getMappedRange()) : new Float32Array(buffer.getMappedRange());
+    let writeArray;
+    if (data instanceof Uint16Array)
+      writeArray = new Uint16Array(buffer.getMappedRange());
+    if (data instanceof Uint32Array)
+      writeArray = writeArray = new Uint32Array(buffer.getMappedRange());
+    if (data instanceof Float32Array)
+      writeArray = new Float32Array(buffer.getMappedRange());
     writeArray.set(data);
     buffer.unmap();
     return buffer;

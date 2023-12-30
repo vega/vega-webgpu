@@ -8,7 +8,7 @@ import { quadVertex } from '../util/arrays';
 import { GPUScene } from '../types/gpuscene.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { BufferManager } from '../util/bufferManager.js';
-import { createRenderPipeline, createDefaultBindGroup, createRenderPassDescriptor } from '../util/render.js';
+import { createRenderPipeline, createUniformBindGroup, createRenderPassDescriptor } from '../util/render.js';
 
 
 const drawName = 'Rule';
@@ -36,7 +36,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 
   const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
   const uniformBuffer = bufferManager.createUniformBuffer();
-  const uniformBindGroup = createDefaultBindGroup(drawName, device, pipeline, uniformBuffer);
+  const uniformBindGroup = createUniformBindGroup(drawName, device, pipeline, uniformBuffer);
   const attributes = createAttributes(items);
   const instanceBuffer = bufferManager.createInstanceBuffer(attributes);
   const frameBuffer = bufferManager.createFrameBuffer(attributes.byteLength);

@@ -4,7 +4,7 @@ import { SceneItem } from 'vega-typings';
 import { GPUScene } from '../types/gpuscene.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { BufferManager } from '../util/bufferManager.js';
-import { createRenderPipeline, createDefaultBindGroup, createRenderPassDescriptor } from '../util/render.js';
+import { createRenderPipeline, createUniformBindGroup, createRenderPassDescriptor } from '../util/render.js';
 
 import { area } from '../path/shapes';
 import geometryForItem from '../path/geometryForItem';
@@ -39,7 +39,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     const geometryCount = geometryData.length / vertextBufferManager.getVertexLength();
     const geometryBuffer = bufferManager.createGeometryBuffer(geometryData);
     const uniformBuffer = bufferManager.createUniformBuffer();
-    const uniformBindGroup = createDefaultBindGroup(drawName, device, pipeline, uniformBuffer);
+    const uniformBindGroup = createUniformBindGroup(drawName, device, pipeline, uniformBuffer);
     const attributes = Float32Array.from([0.0, 0.0]);
     const instanceBuffer = bufferManager.createInstanceBuffer(attributes);
     const frameBuffer = bufferManager.createFrameBuffer(attributes.byteLength);

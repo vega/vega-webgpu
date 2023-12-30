@@ -4,7 +4,7 @@ import { SceneSymbol, SceneItem } from 'vega-typings';
 import { GPUScene } from '../types/gpuscene.js'
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { BufferManager } from '../util/bufferManager.js';
-import { createRenderPipeline, createDefaultBindGroup, createRenderPassDescriptor } from '../util/render.js';
+import { createRenderPipeline, createUniformBindGroup, createRenderPassDescriptor } from '../util/render.js';
 
 import shaderSource from '../shaders/symbol.wgsl';
 
@@ -33,7 +33,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 
   const geometryBuffer = bufferManager.createGeometryBuffer(createGeometry());
   const uniformBuffer = bufferManager.createUniformBuffer();
-  const uniformBindGroup = createDefaultBindGroup(drawName, device, pipeline, uniformBuffer);
+  const uniformBindGroup = createUniformBindGroup(drawName, device, pipeline, uniformBuffer);
   const attributes = createAttributes(items);
   const instanceBuffer = bufferManager.createInstanceBuffer(attributes);
   const frameBuffer = bufferManager.createFrameBuffer(attributes.byteLength);
@@ -52,7 +52,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
         attributes.byteLength,
       );
       const commandEncoder = device.createCommandEncoder();
-      const renderPassDescriptor = createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
+      const renderPassDescriptor = createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView());
       renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 
       const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
