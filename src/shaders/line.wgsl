@@ -6,11 +6,10 @@ struct Uniforms {
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
 
 struct VertexInput {
-    @location(0) position: vec2<f32>,
-    @location(1) start: vec2<f32>,
-    @location(2) end: vec2<f32>,
-    @location(3) color: vec4<f32>,
-    @location(4) strokewidth: f32,
+    @location(0) start: vec2<f32>,
+    @location(1) end: vec2<f32>,
+    @location(2) color: vec4<f32>,
+    @location(3) strokewidth: f32,
 };
 
 struct VertexOutput {

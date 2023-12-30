@@ -35,10 +35,11 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 
   const shader = device.createShaderModule({ code: shaderSource, label: drawName + ' Shader' });
   const vertextBufferManager = new VertexBufferManager(
-    ['float32x2'], 
+    [],
     ['float32x2', 'float32x2', 'float32x4', 'float32'] // start, end, color, strokewidth
   );
-  const pipeline = createRenderPipeline(drawName, device, shader, scene._format, vertextBufferManager.getBuffers());
+  let buffers = vertextBufferManager.getBuffers();
+  const pipeline = createRenderPipeline(drawName, device, shader, scene._format, buffers);
 
   const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
   const uniformBuffer = bufferManager.createUniformBuffer();
@@ -65,8 +66,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 
       const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
       passEncoder.setPipeline(pipeline);
-      passEncoder.setVertexBuffer(0, geometryBuffer);
-      passEncoder.setVertexBuffer(1, instanceBuffer);
+      passEncoder.setVertexBuffer(0, instanceBuffer);
       passEncoder.setBindGroup(0, uniformBindGroup);
       // 6 because we are drawing two triangles
       passEncoder.draw(6, items.length);
@@ -78,20 +78,29 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 }
 
 function createAttributes(items: SceneItem[]): Float32Array {
-  let counter = 0;
-  return Float32Array.from(
-    items.flatMap((item: SceneLine) => {
-      const { x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, strokeOpacity = 1 } = item;
-      const col = color(stroke);
-      let [r, g, b] = [col.r, col.g, col.b];
-      counter++;
-      return [
-        0, 0,
-        x, y,
-        x2, y2,
-        r, g, b, strokeOpacity,
-        strokeWidth
-      ];
-    }),
-  );
+  let attributes = [];
+  for (let i = 0; i < items.length - 1; i++) {
+    // @ts-ignore
+    const { x = 0, y = 0, stroke, strokeWidth = 1, strokeOpacity = 1 } = items[i]
+    const x2 = items[i + 1].x | 0;
+    const y2 = items[i + 1].y | 0;
+    const col = color(stroke);
+    let [r, g, b] = [col.r, col.g, col.b];
+    attributes.push(...[
+      x, y,
+      x2, y2,
+      r, g, b, strokeOpacity,
+      strokeWidth
+    ]);
+  }
+  let lastItem = items[items.length - 1];
+  const lastCol = color((lastItem as SceneLine).stroke);
+  let [r, g, b] = [lastCol.r, lastCol.g, lastCol.b];
+  attributes.push(...[
+    lastItem.x, lastItem.y,
+    lastItem.x, lastItem.y,
+    r, g, b, 1.0,
+    (lastItem as SceneLine).strokeWidth
+  ]);
+  return Float32Array.from(attributes);
 }
