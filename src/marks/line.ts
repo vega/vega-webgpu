@@ -1,4 +1,4 @@
-import color from '../util/color';
+import { Color } from '../util/color';
 import { quadVertex } from '../util/arrays';
 import { Bounds } from 'vega-scenegraph';
 import { SceneLine, SceneItem } from 'vega-typings';
@@ -85,36 +85,16 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   })();
 }
 
-function createAttributes(items: SceneItem[]): Float32Array {
-  const lines = items as SceneLine[];
-  let attributes = [];
-  for (let i = 0; i < lines.length - 1; i++) {
-    const { x = 0, y = 0, stroke, strokeWidth = 1, strokeOpacity = 1 } = lines[i]
-    const x2 = lines[i + 1].x | 0;
-    const y2 = lines[i + 1].y | 0;
-    const col = color(stroke);
-    let [r, g, b] = [col.r, col.g, col.b];
-    attributes.push(...[
-      x, y,
-      x2, y2,
-      r, g, b, strokeOpacity,
-      strokeWidth
-    ]);
-  }
-  return Float32Array.from(attributes);
-}
-
 function createPointDatas(items: SceneItem[]): { pos: Float32Array, colors: Float32Array, widths: Float32Array } {
   const lines = items as SceneLine[];
   const pos = [];
   const colors = [];
   const widths = [];
   for (let i = 0; i < lines.length; i++) {
-    const { x = 0, y = 0, stroke, strokeWidth = 1, strokeOpacity = 1 } = lines[i]
-    const col = color(stroke);
-    let [r, g, b] = [col.r, col.g, col.b];
+    const { x = 0, y = 0, stroke, strokeOpacity = 1, strokeWidth = 1, opacity = 1 } = lines[i]
+    const col = Color.from(stroke, opacity, strokeOpacity);
     pos.push(...[x, y]);
-    colors.push(...[r, g, b, strokeOpacity]);
+    colors.push(...col.rgba);
     widths.push(...[strokeWidth]);
   }
   return { pos: Float32Array.from(pos), colors: Float32Array.from(colors), widths: Float32Array.from(widths), }

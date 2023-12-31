@@ -1,4 +1,3 @@
-import { color } from 'd3-color';
 import { Bounds } from 'vega-scenegraph';
 import { SceneItem } from 'vega-typings';
 import { GPUScene } from '../types/gpuscene.js';

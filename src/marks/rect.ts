@@ -1,4 +1,4 @@
-import color from '../util/color';
+import { Color } from '../util/color';
 import { Bounds } from 'vega-scenegraph';
 import { SceneItem, SceneRect } from 'vega-typings';
 import { GPUScene } from '../types/gpuscene.js'
@@ -62,7 +62,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
       passEncoder.draw(6, items.length);
       passEncoder.end();
       frameBuffer.unmap();
-      device.queue.submit([copyEncoder.finish(), commandEncoder.finish()]);
+      device.queue.submit([commandEncoder.finish()]);
     });
   })();
 }
@@ -75,6 +75,7 @@ function createAttributes(items: SceneItem[]): Float32Array {
         y = 0,
         width = 0,
         height = 0,
+        opacity = 1,
         fill,
         fillOpacity = 1,
         stroke = null,
@@ -90,31 +91,23 @@ function createAttributes(items: SceneItem[]): Float32Array {
         // @ts-ignore
         cornerRadiusTopLeft = null,
       } = item;
-      const fillCol = color(fill);
-      const fillOpacity1 = fill === 'transparent' ? 0 : fillOpacity;
-      const strokeCol = color(stroke) ?? { r: 0, g: 0, b: 0, a: 0 };
-      const stropacity = stroke && strokeCol ? strokeOpacity : 0;
-      const strokeWidth1 = strokeWidth != 0 && stroke ? (strokeWidth ?? 1) : (strokeWidth ?? 0);
+      const col = Color.from(fill, opacity, fillOpacity);
+      const scol = Color.from(stroke, opacity, strokeOpacity);
+      const swidth = stroke ? strokeWidth ?? 1 : strokeWidth ?? 0;
       const cornerRadii = [
-        cornerRadiusTopRight | cornerRadius,
-        cornerRadiusBottomRight | cornerRadius,
-        cornerRadiusBottomLeft | cornerRadius,
-        cornerRadiusTopLeft | cornerRadius,
+        cornerRadiusTopRight ?? cornerRadius,
+        cornerRadiusBottomRight ?? cornerRadius,
+        cornerRadiusBottomLeft ?? cornerRadius,
+        cornerRadiusTopLeft ?? cornerRadius,
       ]
       return [
         x,
         y,
         width,
         height,
-        fillCol.r,
-        fillCol.g,
-        fillCol.b,
-        fillOpacity1,
-        strokeCol.r,
-        strokeCol.g,
-        strokeCol.b,
-        stropacity,
-        strokeWidth1,
+        ...col.rgba,
+        ...scol.rgba,
+        swidth,
         ...cornerRadii,
       ];
     }),

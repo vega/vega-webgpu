@@ -135,6 +135,7 @@ inherits(WebGPURenderer, Renderer, {
         this._ctx.configure({
           device,
           format: presentationFormat,
+          usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
           alphaMode: 'premultiplied',
         });
         this.draw(device, this._ctx, scene, vb);
@@ -218,6 +219,7 @@ inherits(WebGPURenderer, Renderer, {
     this._depthTexture = this.device().createTexture({
       size: [this.canvas().width, this.canvas().height, 1],
       format: 'depth24plus',
+      dimension: '2d',
       usage: GPUTextureUsage.RENDER_ATTACHMENT,
     } as GPUTextureDescriptor);
     this._depthTexture.device = this._device;

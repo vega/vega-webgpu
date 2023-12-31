@@ -1,4 +1,4 @@
-import color from '../util/color';
+import { Color } from '../util/color';
 import { Bounds } from 'vega-scenegraph';
 import { SceneSymbol, SceneItem } from 'vega-typings';
 import { GPUScene } from '../types/gpuscene.js'
@@ -27,7 +27,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   const shader = device.createShaderModule({ code: shaderSource, label: drawName + ' Shader' });
   const vertextBufferManager = new VertexBufferManager(
     ['float32x2'], // position
-    ['float32x2', 'float32x4', 'float32'] // center, color, radius
+    ['float32x2', 'float32', 'float32x4', 'float32x4', 'float32'] // center, radius, color, stroke color, stroke width
   );
   const pipeline = createRenderPipeline(drawName, device, shader, scene._format, vertextBufferManager.getBuffers());
 
@@ -37,7 +37,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   const attributes = createAttributes(items);
   const instanceBuffer = bufferManager.createInstanceBuffer(attributes);
   const frameBuffer = bufferManager.createFrameBuffer(attributes.byteLength);
-  
+
   (async () => {
     await frameBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
       const frameData = new Float32Array(frameBuffer.getMappedRange());
@@ -71,10 +71,12 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 function createAttributes(items: SceneItem[]): Float32Array {
   return Float32Array.from(
     (items as unknown as SceneSymbol[]).flatMap((item: SceneSymbol) => {
-      const { x = 0, y = 0, size, fill, opacity = 1, fillOpacity = 1 } = item;
-      const col = color(fill);
+      const { x = 0, y = 0, size, fill, stroke, strokeWidth, opacity = 1, fillOpacity = 1, strokeOpacity = 1 } = item;
+      const col = Color.from(fill, opacity, fillOpacity);
+      const scol = Color.from(stroke, opacity, strokeOpacity);
+      const swidth = stroke ? strokeWidth ?? 1 : 0;
       const rad = Math.sqrt(size) / 2;
-      return [x, y, col.r, col.g, col.b, opacity * fillOpacity, rad];
+      return [x, y, rad, ...col.rgba, ...scol.rgba, swidth];
     }),
   );
 }

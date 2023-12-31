@@ -1,4 +1,4 @@
-import color from '../util/color';
+import { Color } from '../util/color';
 import extrude from 'extrude-polyline';
 
 export default function (context, item, shapeGeom) {
@@ -46,7 +46,7 @@ export default function (context, item, shapeGeom) {
   var colors = new Float32Array(n * 3 * 4);
 
   if (fill) {
-    c = color(item.fill);
+    c = Color.from(item.fill);
     for (i = 0, len = st.length; i < len; i += 3) {
       triangles[i] = st[i];
       triangles[i + 1] = st[i + 1];
@@ -62,7 +62,7 @@ export default function (context, item, shapeGeom) {
 
   if (stroke) {
     z = -0.1;
-    c = color(item.stroke);
+    c = Color.from(item.stroke);
     i = fill ? st.length / 3 : 0;
     for (li = 0; li < strokeMeshes.length; li++) {
       mesh = strokeMeshes[li],

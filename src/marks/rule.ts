@@ -1,4 +1,4 @@
-import color from '../util/color';
+import { Color } from '../util/color';
 import { Bounds } from 'vega-scenegraph';
 import {
   SceneItem, SceneLine
@@ -74,22 +74,18 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 function createAttributes(items: SceneItem[]): Float32Array {
   return Float32Array.from(
     items.flatMap((item: SceneLine) => {
-      let { x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, opacity = 1 } = item;
+      let { x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, opacity = 1, strokeOpacity = 1 } = item;
       x2 ??= x;
       y2 ??= y;
       const ax = Math.abs(x2 - x);
       const ay = Math.abs(y2 - y);
-
-      const col = color(stroke);
+      const col = Color.from(stroke, opacity, strokeOpacity);
       return [
         Math.min(x, x2),
         Math.min(y, y2),
         ax ? ax : strokeWidth,
         ay ? ay : strokeWidth,
-        col.r,
-        col.g,
-        col.b,
-        opacity,
+        ...col.rgba
       ];
     }),
   );
