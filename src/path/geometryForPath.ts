@@ -20,6 +20,10 @@ export default function (ctx: GPUCanvasContext, path: string, threshold?: number
   if (!path) {
     return { lines: new Float32Array(), triangles: new Float32Array(), closed: false, z: 0 };
   }
+  var cache_entry = context._pathCache[key];
+  if (cache_entry !== undefined) {
+    return cache_entry;
+  }
 
   // get a list of polylines/contours from svg contents
   var lines = contours(parse(path)), tri;

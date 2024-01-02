@@ -5,6 +5,10 @@ export class Renderer {
 
   private static _queue: QueueElement[] = [];
 
+  static startFrame() {
+    Renderer._queue = [];
+  }
+
   static render2(
     device: GPUDevice,
     pipeline: GPURenderPipeline,

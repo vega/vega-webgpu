@@ -11,9 +11,12 @@ export class Color {
     this.values[3] = a;
   }
 
-  static from(value: string | ColorSpaceObject | ColorCommonInstance, opacity = 1.0, fsOpacity = 1.0): Color | null {
+  static from(value: string | ColorSpaceObject | ColorCommonInstance | Color, opacity = 1.0, fsOpacity = 1.0): Color | null {
     if (!value) {
       return new Color(0, 0, 0, 0);
+    }
+    if (value instanceof Color) {
+      return value;
     }
     if (value === 'transparent') {
       return new Color(0, 0, 0, 0);
@@ -21,9 +24,6 @@ export class Color {
     if ((value as any).id) {
       // TODO: support gradients
       return new Color(0.5, 1.0, 1.0, 1.0 * opacity * fsOpacity);
-    }
-    if (Color.cache[value as any]) {
-      return Color.cache[value as any];
     }
     let rgba = { r: 255, g: 255, b: 255, a: 255 };
     if (typeof value === 'string') {
@@ -34,7 +34,6 @@ export class Color {
       rgba = { r: c.r, g: c.g, b: c.b, a: c.opacity, };
     }
     let colorValue = new Color(rgba.r / 255, rgba.g / 255, rgba.b / 255, rgba.a * opacity * fsOpacity);
-    Color.cache[value as any] = colorValue;
     return colorValue;
   }
   

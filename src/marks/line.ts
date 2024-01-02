@@ -25,11 +25,8 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   const bufferManager = new BufferManager(device, drawName, this._uniforms.resolution, [vb.x1, vb.y1]);
 
   const shader = device.createShaderModule({ code: shaderSource, label: drawName + ' Shader' });
-  const vertextBufferManager = new VertexBufferManager(
-    [],
-    [],);
 
-  const pipeline = Renderer.createRenderPipeline(drawName, device, shader, scene._format, vertextBufferManager.getBuffers());
+  const pipeline = Renderer.createRenderPipeline(drawName, device, shader, scene._format, []);
 
   const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, pipeline, bufferManager.createUniformBuffer());
   const pointDatas = createPointDatas(items);
@@ -41,7 +38,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
   renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 
-  Renderer.render2(device, pipeline, renderPassDescriptor, [6, items.length - 1], [], [uniformBindGroup, pointBindGroup]);
+  Renderer.queue2(device, pipeline, renderPassDescriptor, [6, items.length - 1], [], [uniformBindGroup, pointBindGroup]);
   
 }
 

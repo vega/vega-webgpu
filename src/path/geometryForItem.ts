@@ -2,6 +2,11 @@ import { Color } from '../util/color';
 import extrude from 'extrude-polyline';
 
 export default function (context, item, shapeGeom) {
+  var cache_entry = context._geometryCache[shapeGeom.key];
+  if (cache_entry !== undefined) {
+    return cache_entry;
+  }
+
   var lw = (lw = item.strokeWidth) != null ? lw : 1,
     lc = (lc = item.strokeCap) != null ? lc : 'butt';
   var strokeMeshes = [];
@@ -26,6 +31,7 @@ export default function (context, item, shapeGeom) {
   if (item.stroke === 'transparent') {
     strokeOpacity = 0;
   }
+
   if (lw > 0 && item.stroke && strokeOpacity > 0) {
     stroke = true;
     strokeExtrude = extrude({
@@ -108,6 +114,13 @@ export default function (context, item, shapeGeom) {
     colors: colors,
     numTriangles: n
   };
+
+  context._geometryCache[item.path] = val;
+  context._geometryCacheSize++;
+  if (context._geometryCacheSize > 10000) {
+    context._geometryCache = {};
+    context._geometryCacheSize = 0;
+  }
 
   return val;
 }

@@ -1,9 +1,10 @@
-import { color } from 'd3-color';
+import { Color } from './util/color';
 import { Bounds, Renderer, domClear as clear } from 'vega-scenegraph';
 import resize from './util/resize';
 import marks from './marks/index';
-import { error, inherits } from 'vega-util';
+import { inherits } from 'vega-util';
 import { drawCanvas } from './util/image';
+import { Renderer as RendererFunctions } from './util/renderer';
 import { GPUScene } from './types/gpuscene.js';
 
 
@@ -46,6 +47,9 @@ inherits(WebGPURenderer, Renderer, {
     };
 
     this._ctx._pathCache = {};
+    this._ctx._pathCacheSize = 0;
+    this._ctx._geometryCache = {};
+    this._ctx._geometryCacheSize = 0;
 
     // this method will invoke resize to size the canvas appropriately
     return base.initialize.call(this, el, width, height, origin);
@@ -103,6 +107,7 @@ inherits(WebGPURenderer, Renderer, {
   },
 
   _render(scene: GPUScene) {
+    RendererFunctions.clearQueue();
     let o = this._origin,
       w = this._width,
       h = this._height,
@@ -120,8 +125,10 @@ inherits(WebGPURenderer, Renderer, {
     this._textContext.clearRect(0, 0, this._textCanvas.width + 300, this._textCanvas.height + 300);
     this._textContext.restore();
     if (device && ctx) {
+      this.clear();
       this.draw(device, ctx, scene, vb);
       // await drawCanvas(device, this.context(), this.textCanvas(), this.prefferedFormat());
+      RendererFunctions.submitQueue(device);
     } else {
       (async () => {
         const adapter = await navigator.gpu.requestAdapter();
@@ -138,8 +145,11 @@ inherits(WebGPURenderer, Renderer, {
           usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
           alphaMode: 'premultiplied',
         });
+        this.clear();
         this.draw(device, this._ctx, scene, vb);
+        RendererFunctions.submitQueue();
         //await drawCanvas(device, this.context(), this.textCanvas(), this.prefferedFormat());
+
       })();
     }
 
@@ -165,48 +175,31 @@ inherits(WebGPURenderer, Renderer, {
   },
 
   clear() {
-    return;
-    const device = this.device();
-    const depthTexture = device.createTexture({
-      size: { width: this._canvas.width, height: this._canvas.height, depthOrArrayLayers: 1 },
-      format: "depth24plus",
-      usage: GPUTextureUsage.RENDER_ATTACHMENT,
-    });
-    const commandEncoder = device.createCommandEncoder();
-    //@ts-ignore
-    const textureView = this._ctx.getCurrentTexture().createView();
+    const device = this.device() as GPUDevice;
+    const context = this.context() as GPUCanvasContext;
+    const textureView = context.getCurrentTexture().createView();
     const renderPassDescriptor = {
       label: 'Background',
       colorAttachments: [
         {
           view: textureView,
-          loadValue: this.clearColor(),
-          storeOp: 'store',
           loadOp: 'clear',
+          storeOp: 'store',
           clearValue: this.clearColor(),
         },
-      ],
-      depthStencilAttachment: {
-        view: depthTexture.createView(),
-        depthLoadValue: 1.0,
-        depthClearValue: 1.0,
-        depthStoreOp: 'store',
-        depthLoadOp: 'clear',
-        stencilLoadValue: 0,
-        stencilStoreOp: 'store',
-        stencilLoadOp: 'clear',
-        depthReadOnly: false,
-      },
-    };
+      ]
+    } as GPURenderPassDescriptor;
+
+    const commandEncoder = device.createCommandEncoder();
+    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+    passEncoder.end();
+    device.queue.submit([commandEncoder.finish()]);
+
     const textContext = this.textContext();
     textContext.save();
     textContext.setTransform(1, 0, 0, 1, 0, 0);
     textContext.clearRect(0, 0, this.textCanvas().width, this.textCanvas().height);
     textContext.restore();
-
-    const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-    passEncoder.end();
-    device.queue.submit([commandEncoder.finish()]);
   },
 
   depthTexture(): GPUTexture {
@@ -227,7 +220,7 @@ inherits(WebGPURenderer, Renderer, {
   },
 
   clearColor(): GPUColor {
-    return (this._bgcolor ? color(this._bgcolor) : { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }) as GPUColor;
+    return (this._bgcolor ? Color.from(this._bgcolor) : { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }) as GPUColor;
   },
 
   prefferedFormat(): GPUTextureFormat {
