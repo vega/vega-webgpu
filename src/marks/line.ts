@@ -5,11 +5,7 @@ import { SceneLine, SceneItem } from 'vega-typings';
 import { GPUScene } from '../types/gpuscene.js'
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { BufferManager } from '../util/bufferManager.js';
-import {
-  createRenderPipeline, createBindGroup, createBindGroupLayout,
-  createRenderPassDescriptor, createUniformBindGroup, BindGroupLayoutEntry,
-  createUniformBindGroupLayout, createPipelineLayout
-} from '../util/render.js';
+import { Renderer } from '../util/renderer.js';
 
 import shaderSource from '../shaders/line.wgsl';
 
@@ -42,14 +38,14 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     [],
     [],);
 
-  const pipeline = createRenderPipeline(drawName, device, shader, scene._format, vertextBufferManager.getBuffers());
+  const pipeline = Renderer.createRenderPipeline(drawName, device, shader, scene._format, vertextBufferManager.getBuffers());
 
-  const uniformBindGroup = createUniformBindGroup(drawName, device, pipeline, bufferManager.createUniformBuffer());
+  const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, pipeline, bufferManager.createUniformBuffer());
   const pointDatas = createPointDatas(items);
   const pointPositionBuffer = bufferManager.createBuffer(drawName + ' Point Position Buffer', pointDatas.pos, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
   const pointColorBuffer = bufferManager.createBuffer(drawName + ' Point Color Buffer', pointDatas.colors, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
   const pointWidthBuffer = bufferManager.createBuffer(drawName + ' Point Width Buffer', pointDatas.widths, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
-  const pointBindGroup = createBindGroup(drawName, device, pipeline, [pointPositionBuffer, pointColorBuffer, pointWidthBuffer], null, 1);
+  const pointBindGroup = Renderer.createBindGroup(drawName, device, pipeline, [pointPositionBuffer, pointColorBuffer, pointWidthBuffer], null, 1);
   // const attributes = Uint32Array.from(Array.from({ length: items.length - 1 }, (_, index) => index));
   const attributes = Uint32Array.from([]);
   const instanceBuffer = bufferManager.createInstanceBuffer(attributes);
@@ -68,7 +64,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
         attributes.byteLength,
       );
       const commandEncoder = device.createCommandEncoder();
-      const renderPassDescriptor = createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
+      const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
       renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 
       const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);

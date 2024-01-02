@@ -4,7 +4,7 @@ import { SceneSymbol, SceneItem } from 'vega-typings';
 import { GPUScene } from '../types/gpuscene.js'
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { BufferManager } from '../util/bufferManager.js';
-import { createRenderPipeline, createUniformBindGroup, createRenderPassDescriptor } from '../util/render.js';
+import { Renderer } from '../util/renderer.js';
 
 import shaderSource from '../shaders/symbol.wgsl';
 
@@ -29,43 +29,18 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     ['float32x2'], // position
     ['float32x2', 'float32', 'float32x4', 'float32x4', 'float32'] // center, radius, color, stroke color, stroke width
   );
-  const pipeline = createRenderPipeline(drawName, device, shader, scene._format, vertextBufferManager.getBuffers());
+  const pipeline = Renderer.createRenderPipeline(drawName, device, shader, scene._format, vertextBufferManager.getBuffers());
 
   const geometryBuffer = bufferManager.createGeometryBuffer(createGeometry());
   const uniformBuffer = bufferManager.createUniformBuffer();
-  const uniformBindGroup = createUniformBindGroup(drawName, device, pipeline, uniformBuffer);
+  const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, pipeline, uniformBuffer);
   const attributes = createAttributes(items);
   const instanceBuffer = bufferManager.createInstanceBuffer(attributes);
-  const frameBuffer = bufferManager.createFrameBuffer(attributes.byteLength);
 
-  (async () => {
-    await frameBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
-      const frameData = new Float32Array(frameBuffer.getMappedRange());
-      frameData.set(attributes);
+  const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView());
+  renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 
-      const copyEncoder = device.createCommandEncoder();
-      copyEncoder.copyBufferToBuffer(
-        frameBuffer,
-        frameData.byteOffset,
-        instanceBuffer,
-        attributes.byteOffset,
-        attributes.byteLength,
-      );
-      const commandEncoder = device.createCommandEncoder();
-      const renderPassDescriptor = createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView());
-      renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
-
-      const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-      passEncoder.setPipeline(pipeline);
-      passEncoder.setVertexBuffer(0, geometryBuffer);
-      passEncoder.setVertexBuffer(1, instanceBuffer);
-      passEncoder.setBindGroup(0, uniformBindGroup);
-      passEncoder.draw(segments * 3, items.length, 0, 0);
-      passEncoder.end();
-      frameBuffer.unmap();
-      device.queue.submit([copyEncoder.finish(), commandEncoder.finish()]);
-    });
-  })();
+  Renderer.render2(device, pipeline, renderPassDescriptor, [segments * 3, items.length], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
 }
 
 function createAttributes(items: SceneItem[]): Float32Array {

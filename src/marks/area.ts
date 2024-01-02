@@ -4,7 +4,7 @@ import { SceneItem } from 'vega-typings';
 import { GPUScene } from '../types/gpuscene.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { BufferManager } from '../util/bufferManager.js';
-import { createRenderPipeline, createUniformBindGroup, createRenderPassDescriptor } from '../util/render.js';
+import { createRenderPipeline, createUniformBindGroup, createRenderPassDescriptor } from '../util/renderer.js';
 
 import { area } from '../path/shapes';
 import geometryForItem from '../path/geometryForItem';
