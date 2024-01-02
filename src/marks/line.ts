@@ -17,15 +17,6 @@ export default {
   pick: () => null,
 };
 
-
-interface Line {
-  x: number;
-  y: number;
-  stroke: string;
-  strokeWidth: number;
-  strokeOpacity: number;
-}
-
 function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bounds) {
   const items = scene.items;
   if (!items?.length) {
@@ -46,39 +37,12 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   const pointColorBuffer = bufferManager.createBuffer(drawName + ' Point Color Buffer', pointDatas.colors, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
   const pointWidthBuffer = bufferManager.createBuffer(drawName + ' Point Width Buffer', pointDatas.widths, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
   const pointBindGroup = Renderer.createBindGroup(drawName, device, pipeline, [pointPositionBuffer, pointColorBuffer, pointWidthBuffer], null, 1);
-  // const attributes = Uint32Array.from(Array.from({ length: items.length - 1 }, (_, index) => index));
-  const attributes = Uint32Array.from([]);
-  const instanceBuffer = bufferManager.createInstanceBuffer(attributes);
-  const frameBuffer = bufferManager.createFrameBuffer(attributes.byteLength);
-  (async () => {
-    await frameBuffer.mapAsync(GPUMapMode.WRITE).then(() => {
-      const frameData = new Float32Array(frameBuffer.getMappedRange());
-      frameData.set(attributes);
 
-      const copyEncoder = device.createCommandEncoder();
-      copyEncoder.copyBufferToBuffer(
-        frameBuffer,
-        frameData.byteOffset,
-        instanceBuffer,
-        attributes.byteOffset,
-        attributes.byteLength,
-      );
-      const commandEncoder = device.createCommandEncoder();
-      const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
-      renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+  const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
+  renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 
-      const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-      passEncoder.setPipeline(pipeline);
-      passEncoder.setBindGroup(0, uniformBindGroup);
-      passEncoder.setBindGroup(1, pointBindGroup);
-      // passEncoder.setVertexBuffer(0, instanceBuffer);
-      // 6 because we are drawing two triangles
-      passEncoder.draw(6, items.length - 1);
-      passEncoder.end();
-      frameBuffer.unmap();
-      device.queue.submit([copyEncoder.finish(), commandEncoder.finish()]);
-    });
-  })();
+  Renderer.render2(device, pipeline, renderPassDescriptor, [6, items.length - 1], [], [uniformBindGroup, pointBindGroup]);
+  
 }
 
 function createPointDatas(items: SceneItem[]): { pos: Float32Array, colors: Float32Array, widths: Float32Array } {

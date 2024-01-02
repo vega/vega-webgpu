@@ -44,7 +44,7 @@ export class Renderer {
       passEncoder.setBindGroup(i, q.bindGroups[i]);
     }
     if (q.drawCounts instanceof Array) {
-      passEncoder.draw(q.drawCounts[0], q.drawCounts[0] ?? 1, q.drawCounts[0] ?? 0, q.drawCounts[0] ?? 0);
+      passEncoder.draw(q.drawCounts[0], q.drawCounts[1] ?? 1, q.drawCounts[2] ?? 0, q.drawCounts[3] ?? 0);
     } else {
       passEncoder.draw(q.drawCounts.vertexCount, q.drawCounts.instanceCount ?? 1, q.drawCounts.firstVertex ?? 0, q.drawCounts.firstInstance ?? 0);
     }

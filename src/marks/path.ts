@@ -48,7 +48,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
     renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 
-    Renderer.render2(device, pipeline, renderPassDescriptor, [geometryCount, items.length], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
+    Renderer.render2(device, pipeline, renderPassDescriptor, [geometryCount], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
 
     // @ts-ignore
     ctx._tx -= item.x || 0;
