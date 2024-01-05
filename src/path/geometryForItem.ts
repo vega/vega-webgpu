@@ -1,3 +1,4 @@
+import { color } from 'd3-color';
 import { Color } from '../util/color';
 import extrude from 'extrude-polyline';
 
@@ -11,7 +12,7 @@ export default function (context, item, shapeGeom) {
     lc = (lc = item.strokeCap) != null ? lc : 'butt';
   var strokeMeshes = [];
   var i, len, c, li, ci, mesh, cell, p1, p2, p3, mp, mc, mcl,
-  n = 0, fill = false, stroke = false;
+    n = 0, fill = false, stroke = false;
   var opacity = item.opacity == null ? 1 : item.opacity;
   var fillOpacity = opacity * (item.fillOpacity == null ? 1 : item.fillOpacity);
   var strokeOpacity = opacity * (item.strokeOpacity == null ? 1 : item.strokeOpacity),
@@ -109,10 +110,50 @@ export default function (context, item, shapeGeom) {
       }
     }
   }
+
+  var strokeTriangles = [];
+  var strokeColors = [];
+  var col = Color.from(item.fill);
+  var scol = Color.from(item.stroke);
+  if (col != scol) {
+    var trianglesNew = [];
+    var colorsNew = [];
+    for (let i = 0; i < colors.length; i+=4) {
+      const t = i / 4 * 3;
+      if (colors[i] == scol[0]
+        && colors[i + 1] == scol[1]
+        && colors[i + 2] == scol[2]
+        && colors[i + 3] == scol[3]
+      ) {
+        strokeTriangles[t] = triangles[t];
+        strokeTriangles[t + 1] = triangles[t + 1];
+        strokeTriangles[t + 2] = triangles[t + 2];
+        strokeColors[i] = colors[i];
+        strokeColors[i + 1] = colors[i + 1];
+        strokeColors[i + 2] = colors[i + 2];
+        strokeColors[i + 3] = colors[i + 3];
+      } else {
+        trianglesNew[t] = triangles[t];
+        trianglesNew[t + 1] = triangles[t + 1];
+        trianglesNew[t + 2] = triangles[t + 2];
+        colorsNew[i] = colors[i];
+        colorsNew[i + 1] = colors[i + 1];
+        colorsNew[i + 2] = colors[i + 2];
+        colorsNew[i + 3] = colors[i + 3];
+      }
+    }
+    triangles = Float32Array.from(trianglesNew);
+    colors = Float32Array.from(colorsNew);
+  }
+
+
   val = {
     triangles: triangles,
     colors: colors,
-    numTriangles: n
+    strokeTriangles: Float32Array.from(strokeTriangles),
+    strokeColors: Float32Array.from(strokeColors),
+    numTriangles: triangles.length / 3,
+    numStrokeTriangles: strokeTriangles.length / 3,
   };
 
   context._geometryCache[item.path] = val;
