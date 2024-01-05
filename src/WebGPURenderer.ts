@@ -12,6 +12,7 @@ import symbolShader from './shaders/symbol.wgsl';
 import lineShader from './shaders/line.wgsl';
 import triangleShader from './shaders/triangles.wgsl';
 import rectShader from './shaders/rect.wgsl';
+import arcShader from './shaders/arc.wgsl';
 
 
 export default function WebGPURenderer(loader: unknown) {
@@ -249,5 +250,6 @@ inherits(WebGPURenderer, Renderer, {
     context._shaderCache["Line"] = device.createShaderModule({ code: lineShader, label: 'Line Shader' });
     context._shaderCache["Path"] = device.createShaderModule({ code: triangleShader, label: 'Triangle Shader' });
     context._shaderCache["Rect"] = device.createShaderModule({ code: rectShader, label: 'Rect Shader' });
+    context._shaderCache["Arc"] = device.createShaderModule({ code: arcShader, label: 'Arc Shader' });
   },
 });

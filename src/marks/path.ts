@@ -1,4 +1,3 @@
-import { color } from 'd3-color';
 import { Bounds } from 'vega-scenegraph';
 import { SceneItem } from 'vega-typings';
 import { GPUScene } from '../types/gpuscene.js';
@@ -8,8 +7,6 @@ import { Renderer } from '../util/renderer.js';
 
 import geometryForItem from '../path/geometryForItem';
 import geometryForPath from '../path/geometryForPath';
-
-import shaderSource from '../shaders/triangles.wgsl';
 
 const drawName = 'Path';
 export default {
@@ -49,6 +46,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   }
 
   initialize(device, ctx, scene, vb);
+  _bufferManager.setResolution((ctx as any)._uniforms.resolution);
   _bufferManager.setOffset([vb.x1, vb.y1]);
 
   for (var itemStr in items) {
@@ -58,18 +56,18 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     // @ts-ignore
     ctx._ty += item.y || 0;
 
-
     const geometryData = createGeometryData(ctx, item);
     const uniformBuffer = _bufferManager.createUniformBuffer();
     const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, _pipeline, uniformBuffer);
+
+    const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
+    renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+    
     for (let i = 0; i < geometryData.length; i++) {
       const geometryCount = geometryData[i].length / _vertextBufferManager.getVertexLength();
       if (geometryCount == 0)
         continue;
       const geometryBuffer = _bufferManager.createGeometryBuffer(geometryData[i]);
-
-      const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
-      renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 
       Renderer.queue2(device, _pipeline, renderPassDescriptor, [geometryCount], [geometryBuffer], [uniformBindGroup]);
     }
