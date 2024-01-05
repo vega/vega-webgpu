@@ -8,6 +8,12 @@ import { Renderer as RendererFunctions } from './util/renderer';
 import { GPUScene } from './types/gpuscene.js';
 
 
+import symbolShader from './shaders/symbol.wgsl';
+import lineShader from './shaders/line.wgsl';
+import triangleShader from './shaders/triangles.wgsl';
+import rectShader from './shaders/rect.wgsl';
+
+
 export default function WebGPURenderer(loader: unknown) {
   Renderer.call(this, loader);
   this._options = {};
@@ -45,6 +51,7 @@ inherits(WebGPURenderer, Renderer, {
       origin: origin,
       dpi: window.devicePixelRatio || 1,
     };
+    this._ctx._uniforms = this._uniforms;
 
     this._ctx._pathCache = {};
     this._ctx._pathCacheSize = 0;
@@ -70,6 +77,7 @@ inherits(WebGPURenderer, Renderer, {
       origin: origin,
       dpi: window.devicePixelRatio || 1,
     };
+    this._ctx._uniforms = this._uniforms;
 
     return this._redraw = true, this;
   },
@@ -107,6 +115,7 @@ inherits(WebGPURenderer, Renderer, {
   },
 
   _render(scene: GPUScene) {
+    this._ctx._lineTime = 0;
     RendererFunctions.clearQueue();
     let o = this._origin,
       w = this._width,
@@ -114,21 +123,24 @@ inherits(WebGPURenderer, Renderer, {
       // db = this._dirty,
       vb = viewBounds(o, w, h);
 
+    const device = this.device();
     const ctx = this.context();
     ctx._tx = 0;
     ctx._ty = 0;
 
-    const device = this.device();
 
-    this._textContext.save();
-    this._textContext.setTransform(1, 0, 0, 1, 0, 0);
-    this._textContext.clearRect(0, 0, this._textCanvas.width + 300, this._textCanvas.height + 300);
-    this._textContext.restore();
     if (device && ctx) {
       this.clear();
+      const startTime = performance.now();
       this.draw(device, ctx, scene, vb);
+      const endTime = performance.now();
+      const totalTime = endTime - startTime;
+
+      console.log(`Total Frame Time: ${totalTime} milliseconds`);
       // await drawCanvas(device, this.context(), this.textCanvas(), this.prefferedFormat());
+
       RendererFunctions.submitQueue(device);
+      console.log(`Total Line Time: ${this._ctx._lineTime} milliseconds`);
     } else {
       (async () => {
         const adapter = await navigator.gpu.requestAdapter();
@@ -146,8 +158,9 @@ inherits(WebGPURenderer, Renderer, {
           alphaMode: 'premultiplied',
         });
         this.clear();
+        this.cacheShaders();
         this.draw(device, this._ctx, scene, vb);
-        RendererFunctions.submitQueue();
+        RendererFunctions.submitQueue(device);
         //await drawCanvas(device, this.context(), this.textCanvas(), this.prefferedFormat());
 
       })();
@@ -225,5 +238,16 @@ inherits(WebGPURenderer, Renderer, {
 
   prefferedFormat(): GPUTextureFormat {
     return this._prefferedFormat != null ? this._prefferedFormat : null;
+  },
+
+
+  cacheShaders() {
+    const device: GPUDevice = this.device();
+    const context = this.context();
+    context._shaderCache = {};
+    context._shaderCache["Symbol"] = device.createShaderModule({ code: symbolShader, label: 'Symbol Shader' });
+    context._shaderCache["Line"] = device.createShaderModule({ code: lineShader, label: 'Line Shader' });
+    context._shaderCache["Path"] = device.createShaderModule({ code: triangleShader, label: 'Triangle Shader' });
+    context._shaderCache["Rect"] = device.createShaderModule({ code: rectShader, label: 'Rect Shader' });
   },
 });

@@ -35,11 +35,11 @@
     let runtime, spec, view, renderer, specname;
     const urlParams = new URLSearchParams(window.location.search);
     const speced = urlParams.get('spec');
-    const rendered = urlParams.get('renderer');
+    const rendered = urlParams.get('renderer') ?? 'webgpu';
 
     const options = {
       container: '#vis',
-      renderer: 'webgpu',
+      renderer: rendered,
       logLevel: vega.Warn,
       hover: true,
     };
@@ -95,6 +95,13 @@
         for (let i = 0, n = select.options.length; i < n; ++i) {
           if (select.options[i].value === name) {
             select.selectedIndex = i;
+            break;
+          }
+        }
+        render.selectedIndex = 0;
+        for (let i = 0, n = render.options.length; i < n; ++i) {
+          if (render.options[i].value === options.renderer) {
+            render.selectedIndex = i;
             break;
           }
         }
