@@ -2,17 +2,28 @@ import { color } from 'd3-color';
 import { Color } from '../util/color';
 import extrude from 'extrude-polyline';
 
-export default function (context, item, shapeGeom) {
-  var cache_entry = context._geometryCache[shapeGeom.key];
-  if (cache_entry !== undefined) {
-    return cache_entry;
+
+interface ItemGeometry {
+  fillTriangles: Float32Array,
+  strokeTriangles: Float32Array,
+  fill: Float32Array,
+  stroke: Float32Array,
+  fillCount: number,
+  strokeCount: number,
+}
+
+export default function (context, item, shapeGeom, cache: boolean = false): ItemGeometry {
+  if (cache && shapeGeom.key) {
+    var entry = context._geometryCache[shapeGeom.key];
+    if (entry)
+      return entry;
   }
 
   var lw = (lw = item.strokeWidth) != null ? lw : 1,
     lc = (lc = item.strokeCap) != null ? lc : 'butt';
   var strokeMeshes = [];
   var i, len, c, li, ci, mesh, cell, p1, p2, p3, mp, mc, mcl,
-    n = 0, fill = false, stroke = false;
+    n = 0, ns = 0, fill = false, stroke = false;
   var opacity = item.opacity == null ? 1 : item.opacity;
   var fillOpacity = opacity * (item.fillOpacity == null ? 1 : item.fillOpacity);
   var strokeOpacity = opacity * (item.strokeOpacity == null ? 1 : item.strokeOpacity),
@@ -45,12 +56,14 @@ export default function (context, item, shapeGeom) {
     for (li = 0; li < shapeGeom.lines.length; li++) {
       mesh = strokeExtrude.build(shapeGeom.lines[li]);
       strokeMeshes.push(mesh);
-      n += mesh.cells.length;
+      ns += mesh.cells.length;
     }
   }
 
   var triangles = new Float32Array(n * 3 * 3);
+  var sTriangles = new Float32Array(ns * 3 * 3);
   var colors = new Float32Array(n * 3 * 4);
+  var sColors = new Float32Array(ns * 3 * 4);
 
   if (fill) {
     c = Color.from(item.fill);
@@ -70,7 +83,7 @@ export default function (context, item, shapeGeom) {
   if (stroke) {
     z = -0.1;
     c = Color.from(item.stroke);
-    i = fill ? st.length / 3 : 0;
+    i = 0;
     for (li = 0; li < strokeMeshes.length; li++) {
       mesh = strokeMeshes[li],
         mp = mesh.positions,
@@ -81,82 +94,46 @@ export default function (context, item, shapeGeom) {
         p1 = mp[cell[0]];
         p2 = mp[cell[1]];
         p3 = mp[cell[2]];
-        triangles[i * 3] = p1[0];
-        triangles[i * 3 + 1] = p1[1];
-        triangles[i * 3 + 2] = z;
-        colors[i * 4] = c[0];
-        colors[i * 4 + 1] = c[1];
-        colors[i * 4 + 2] = c[2];
-        colors[i * 4 + 3] = strokeOpacity;
+        sTriangles[i * 3] = p1[0];
+        sTriangles[i * 3 + 1] = p1[1];
+        sTriangles[i * 3 + 2] = z;
+        sColors[i * 4] = c[0];
+        sColors[i * 4 + 1] = c[1];
+        sColors[i * 4 + 2] = c[2];
+        sColors[i * 4 + 3] = strokeOpacity;
         i++;
 
-        triangles[i * 3] = p2[0];
-        triangles[i * 3 + 1] = p2[1];
-        triangles[i * 3 + 2] = z;
-        colors[i * 4] = c[0];
-        colors[i * 4 + 1] = c[1];
-        colors[i * 4 + 2] = c[2];
-        colors[i * 4 + 3] = strokeOpacity;
+        sTriangles[i * 3] = p2[0];
+        sTriangles[i * 3 + 1] = p2[1];
+        sTriangles[i * 3 + 2] = z;
+        sColors[i * 4] = c[0];
+        sColors[i * 4 + 1] = c[1];
+        sColors[i * 4 + 2] = c[2];
+        sColors[i * 4 + 3] = strokeOpacity;
         i++;
 
-        triangles[i * 3] = p3[0];
-        triangles[i * 3 + 1] = p3[1];
-        triangles[i * 3 + 2] = z;
-        colors[i * 4] = c[0];
-        colors[i * 4 + 1] = c[1];
-        colors[i * 4 + 2] = c[2];
-        colors[i * 4 + 3] = strokeOpacity;
+        sTriangles[i * 3] = p3[0];
+        sTriangles[i * 3 + 1] = p3[1];
+        sTriangles[i * 3 + 2] = z;
+        sColors[i * 4] = c[0];
+        sColors[i * 4 + 1] = c[1];
+        sColors[i * 4 + 2] = c[2];
+        sColors[i * 4 + 3] = strokeOpacity;
         i++;
       }
     }
   }
-
-  var strokeTriangles = [];
-  var strokeColors = [];
-  var col = Color.from(item.fill);
-  var scol = Color.from(item.stroke);
-  if (col != scol) {
-    var trianglesNew = [];
-    var colorsNew = [];
-    for (let i = 0; i < colors.length; i+=4) {
-      const t = i / 4 * 3;
-      if (colors[i] == scol[0]
-        && colors[i + 1] == scol[1]
-        && colors[i + 2] == scol[2]
-        && colors[i + 3] == scol[3]
-      ) {
-        strokeTriangles[t] = triangles[t];
-        strokeTriangles[t + 1] = triangles[t + 1];
-        strokeTriangles[t + 2] = triangles[t + 2];
-        strokeColors[i] = colors[i];
-        strokeColors[i + 1] = colors[i + 1];
-        strokeColors[i + 2] = colors[i + 2];
-        strokeColors[i + 3] = colors[i + 3];
-      } else {
-        trianglesNew[t] = triangles[t];
-        trianglesNew[t + 1] = triangles[t + 1];
-        trianglesNew[t + 2] = triangles[t + 2];
-        colorsNew[i] = colors[i];
-        colorsNew[i + 1] = colors[i + 1];
-        colorsNew[i + 2] = colors[i + 2];
-        colorsNew[i + 3] = colors[i + 3];
-      }
-    }
-    triangles = Float32Array.from(trianglesNew);
-    colors = Float32Array.from(colorsNew);
-  }
-
 
   val = {
-    triangles: triangles,
-    colors: colors,
-    strokeTriangles: Float32Array.from(strokeTriangles),
-    strokeColors: Float32Array.from(strokeColors),
-    numTriangles: triangles.length / 3,
-    numStrokeTriangles: strokeTriangles.length / 3,
-  };
+    fillTriangles: triangles,
+    strokeTriangles: sTriangles,
+    fill: colors,
+    stroke: sColors,
+    fillCount: n * 3,
+    strokeCount: ns * 3,
+  } as ItemGeometry;
 
-  context._geometryCache[item.path] = val;
+  context._geometryCache[shapeGeom.key] = val;
   context._geometryCacheSize++;
   if (context._geometryCacheSize > 10000) {
     context._geometryCache = {};

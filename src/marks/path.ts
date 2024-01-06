@@ -1,5 +1,6 @@
 import { Bounds } from 'vega-scenegraph';
-import { SceneItem } from 'vega-typings';
+import { Color } from '../util/color.js';
+import { SceneItem, SceneGroup } from 'vega-typings';
 import { GPUScene } from '../types/gpuscene.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { BufferManager } from '../util/bufferManager.js';
@@ -7,6 +8,14 @@ import { Renderer } from '../util/renderer.js';
 
 import geometryForItem from '../path/geometryForItem';
 import geometryForPath from '../path/geometryForPath';
+
+type ScenePath = SceneItem & SceneGroup & {
+  fill: string;
+  fillOpacity?: number;
+  stroke?: string;
+  strokeWidth?: number;
+  strokeOpacity?: number;
+}
 
 const drawName = 'Path';
 export default {
@@ -40,7 +49,7 @@ function initialize(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, v
 }
 
 function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bounds) {
-  const items = scene.items;
+  const items = scene.items as ScenePath[];
   if (!items?.length) {
     return;
   }
@@ -62,7 +71,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 
     const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
     renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
-    
+
     for (let i = 0; i < geometryData.length; i++) {
       const geometryCount = geometryData[i].length / _vertextBufferManager.getVertexLength();
       if (geometryCount == 0)
@@ -79,44 +88,36 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   }
 }
 
-
-interface ColoredGeometry {
-  triangles: Float32Array,
-  strokeTriangles: Float32Array,
-  colors: Float32Array,
-  strokeColors: Float32Array,
-  numTriangles: number
-  numStrokeTriangles: number
-}
-
 function createGeometryData(
   context: GPUCanvasContext,
-  item: SceneItem
+  item: ScenePath
 ): [geometryData: Float32Array, strokeGeometryData: Float32Array] {
   // @ts-ignore
   const path = item.path;
   const shapeGeom = geometryForPath(context, path);
-  const geometry = geometryForItem(context, item, shapeGeom) as ColoredGeometry;
-  const geometryData = new Float32Array(geometry.numTriangles * 7);
-  const strokeGeometryData = new Float32Array(geometry.numStrokeTriangles * 7);
-  for (var i = 0; i < geometry.numTriangles; i++) {
+  const geometry = geometryForItem(context, item, shapeGeom);
 
-    geometryData[i * 7] = geometry.triangles[i * 3];
-    geometryData[i * 7 + 1] = geometry.triangles[i * 3 + 1];
-    geometryData[i * 7 + 2] = geometry.triangles[i * 3 + 2] * -1;
-    geometryData[i * 7 + 3] = geometry.colors[i * 4];
-    geometryData[i * 7 + 4] = geometry.colors[i * 4 + 1];
-    geometryData[i * 7 + 5] = geometry.colors[i * 4 + 2];
-    geometryData[i * 7 + 6] = geometry.colors[i * 4 + 3];
+  const geometryData = new Float32Array(geometry.fillCount * 7);
+  const strokeGeometryData = new Float32Array(geometry.strokeCount * 7);
+  const fill = Color.from(item.fill, item.opacity, item.fillOpacity);
+  const stroke = Color.from(item.stroke, item.opacity, item.strokeOpacity);
+  for (var i = 0; i < geometry.fillCount; i++) {
+    geometryData[i * 7] = geometry.fillTriangles[i * 3];
+    geometryData[i * 7 + 1] = geometry.fillTriangles[i * 3 + 1];
+    geometryData[i * 7 + 2] = geometry.fillTriangles[i * 3 + 2] * -1;
+    geometryData[i * 7 + 3] = fill.r;
+    geometryData[i * 7 + 4] = fill.g;
+    geometryData[i * 7 + 5] = fill.b;
+    geometryData[i * 7 + 6] = fill.a;
   }
-  for (var i = 0; i < geometry.numStrokeTriangles; i++) {
+  for (var i = 0; i < geometry.strokeCount; i++) {
     strokeGeometryData[i * 7] = geometry.strokeTriangles[i * 3];
     strokeGeometryData[i * 7 + 1] = geometry.strokeTriangles[i * 3 + 1];
     strokeGeometryData[i * 7 + 2] = geometry.strokeTriangles[i * 3 + 2] * -1;
-    strokeGeometryData[i * 7 + 3] = geometry.strokeColors[i * 4];
-    strokeGeometryData[i * 7 + 4] = geometry.strokeColors[i * 4 + 1];
-    strokeGeometryData[i * 7 + 5] = geometry.strokeColors[i * 4 + 2];
-    strokeGeometryData[i * 7 + 6] = geometry.strokeColors[i * 4 + 3];
+    strokeGeometryData[i * 7 + 3] = stroke.r;
+    strokeGeometryData[i * 7 + 4] = stroke.g;
+    strokeGeometryData[i * 7 + 5] = stroke.b;
+    strokeGeometryData[i * 7 + 6] = stroke.a;
   }
   return [geometryData, strokeGeometryData];
 }

@@ -35,7 +35,7 @@ fn main_vertex(
     var output: VertexOutput;
     var stroke_width = instance.stroke_width / 2.0;
     var radius_with_stroke = instance.radius + stroke_width;
-    var smooth_adjusted_radius = radius_with_stroke * 2.0 / (2.0 - smooth_width);
+    var smooth_adjusted_radius = radius_with_stroke * 2.0 / (2.0 - smooth_width * 2.0);
     var pos = vec2<f32>(model.position * smooth_adjusted_radius) + instance.center - uniforms.offset;
     pos = pos / uniforms.resolution;
     pos.y = 1.0 - pos.y;

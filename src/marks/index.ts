@@ -8,6 +8,7 @@ import rule from './rule';
 import symbol from './symbol';
 import text from './text';
 import path from './path';
+import shape from './shape';
 
 export default {
   arc,
@@ -18,5 +19,6 @@ export default {
   rule,
   symbol,
   text,
-  path
+  path,
+  shape
 };

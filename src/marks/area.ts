@@ -1,6 +1,6 @@
-import { color } from 'd3-color';
 import { Bounds } from 'vega-scenegraph';
-import { SceneItem } from 'vega-typings';
+import { Color } from '../util/color.js';
+import { SceneGroup, SceneItem } from 'vega-typings';
 import { GPUScene } from '../types/gpuscene.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { BufferManager } from '../util/bufferManager.js';
@@ -9,7 +9,13 @@ import { Renderer } from '../util/renderer.js';
 import { area } from '../path/shapes';
 import geometryForItem from '../path/geometryForItem';
 
-import shaderSource from '../shaders/triangles.wgsl';
+type SceneArea = SceneItem & SceneGroup & {
+  fill: string;
+  fillOpacity?: number;
+  stroke?: string;
+  strokeWidth?: number;
+  strokeOpacity?: number;
+}
 
 const drawName = 'Area';
 export default {
@@ -17,64 +23,88 @@ export default {
   draw: draw
 };
 
+let _device: GPUDevice = null;
+let _bufferManager: BufferManager = null;
+let _shader: GPUShaderModule = null;
+let _vertextBufferManager: VertexBufferManager = null;
+let _pipeline: GPURenderPipeline = null;
+let isInitialized: boolean = false;
+
+function initialize(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bounds) {
+  if (_device != device) {
+    _device = device;
+    isInitialized = false;
+  }
+
+  if (!isInitialized) {
+    _bufferManager = new BufferManager(device, drawName, (ctx as any)._uniforms.resolution, [vb.x1, vb.y1]);
+    _shader = (ctx as any)._shaderCache["Area"] as GPUShaderModule;
+    _vertextBufferManager = new VertexBufferManager(
+      ['float32x3', 'float32x4'], // position, color
+      [] // center
+    );
+    _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, scene._format, _vertextBufferManager.getBuffers());
+    isInitialized = true;
+  }
+}
+
 function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bounds) {
-  const items = scene.items;
+  const items = scene.items as SceneArea[];
   if (!items?.length) {
     return;
   }
-  for (var itemStr in items) {
-    const item = items[itemStr];
-    // @ts-ignore
-    item.stroke = '#fff';
-    const bufferManager = new BufferManager(device, drawName, this._uniforms.resolution, [vb.x1, vb.y1]);
 
-    const shader = device.createShaderModule({ code: shaderSource, label: drawName + ' Shader' });
-    const vertextBufferManager = new VertexBufferManager(
-      ['float32x3', 'float32x4'], // position, color
-      ['float32x2'] // center
-    );
-    const pipeline = Renderer.createRenderPipeline(drawName, device, shader, scene._format, vertextBufferManager.getBuffers());
+  initialize(device, ctx, scene, vb);
+  _bufferManager.setResolution((ctx as any)._uniforms.resolution);
+  _bufferManager.setOffset([vb.x1, vb.y1]);
 
-    const geometryData = createGeometryData(ctx, item, items);
-    const geometryCount = geometryData.length / vertextBufferManager.getVertexLength();
-    const geometryBuffer = bufferManager.createGeometryBuffer(geometryData);
-    const uniformBuffer = bufferManager.createUniformBuffer();
-    const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, pipeline, uniformBuffer);
-    const attributes = Float32Array.from([0.0, 0.0]);
-    const instanceBuffer = bufferManager.createInstanceBuffer(attributes);
-    
-    const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
-    renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+  const item = items[0];
+  const geometryData = createGeometryData(ctx, item, items);
+  const uniformBuffer = _bufferManager.createUniformBuffer();
+  const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, _pipeline, uniformBuffer);
 
-    Renderer.queue2(device, pipeline, renderPassDescriptor, [geometryCount], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
+  const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
+  renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+
+  for (let i = 0; i < geometryData.length; i++) {
+    const geometryCount = geometryData[i].length / _vertextBufferManager.getVertexLength();
+    if (geometryCount == 0)
+      continue;
+    const geometryBuffer = _bufferManager.createGeometryBuffer(geometryData[i]);
+    Renderer.queue2(device, _pipeline, renderPassDescriptor, [geometryCount], [geometryBuffer], [uniformBindGroup]);
   }
 }
 
-interface ColoredGeometry {
-  triangles: Float32Array,
-  colors: Float32Array,
-  numTriangles: number
-}
 function createGeometryData(
   context: GPUCanvasContext,
-  item: SceneItem,
-  items: SceneItem[]
-): Float32Array {
+  item: SceneArea,
+  items: SceneArea[]
+): [geometryData: Float32Array, strokeGeometryData: Float32Array] {
+  // @ts-ignore
   const shapeGeom = area(context, items);
-  const geometry = geometryForItem(context, item, shapeGeom) as ColoredGeometry;
-  const geometryData = [];
-  for (var i = 0; i < geometry.numTriangles; i++) {
-    geometryData.push(
-      geometry.triangles[i * 3],
-      geometry.triangles[i * 3 + 1],
-      geometry.triangles[i * 3 + 2]
-    );
-    geometryData.push(
-      geometry.colors[i * 4],
-      geometry.colors[i * 4 + 1],
-      geometry.colors[i * 4 + 2],
-      geometry.colors[i * 4 + 3]
-    );
+  const geometry = geometryForItem(context, item, shapeGeom);
+  
+  const geometryData = new Float32Array(geometry.fillCount * 7);
+  const strokeGeometryData = new Float32Array(geometry.strokeCount * 7);
+  const fill = Color.from(item.fill, item.opacity, item.fillOpacity);
+  const stroke = Color.from(item.stroke, item.opacity, item.strokeOpacity);
+  for (var i = 0; i < geometry.fillCount; i++) {
+    geometryData[i * 7] = geometry.fillTriangles[i * 3];
+    geometryData[i * 7 + 1] = geometry.fillTriangles[i * 3 + 1];
+    geometryData[i * 7 + 2] = geometry.fillTriangles[i * 3 + 2] * -1;
+    geometryData[i * 7 + 3] = fill.r;
+    geometryData[i * 7 + 4] = fill.g;
+    geometryData[i * 7 + 5] = fill.b;
+    geometryData[i * 7 + 6] = fill.a;
   }
-  return Float32Array.from(geometryData);
+  for (var i = 0; i < geometry.strokeCount; i++) {
+    strokeGeometryData[i * 7] = geometry.strokeTriangles[i * 3];
+    strokeGeometryData[i * 7 + 1] = geometry.strokeTriangles[i * 3 + 1];
+    strokeGeometryData[i * 7 + 2] = geometry.strokeTriangles[i * 3 + 2] * -1;
+    strokeGeometryData[i * 7 + 3] = stroke.r;
+    strokeGeometryData[i * 7 + 4] = stroke.g;
+    strokeGeometryData[i * 7 + 5] = stroke.b;
+    strokeGeometryData[i * 7 + 6] = stroke.a;
+  }
+  return [geometryData, strokeGeometryData];
 }

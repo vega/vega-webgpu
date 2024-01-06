@@ -21,8 +21,9 @@ export class Color {
     if (value === 'transparent') {
       return new Color(0, 0, 0, 0);
     }
-    if ((value as any).id) {
+    if ((value as any).id || (value as any).gradient) {
       // TODO: support gradients
+      console.warn("Gradient not supported yet!")
       return new Color(0.5, 1.0, 1.0, 1.0 * opacity * fsOpacity);
     }
     let rgba = { r: 255, g: 255, b: 255, a: 255 };
