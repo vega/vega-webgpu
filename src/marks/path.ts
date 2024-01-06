@@ -41,7 +41,7 @@ function initialize(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, v
     _shader = (ctx as any)._shaderCache["Path"] as GPUShaderModule;
     _vertextBufferManager = new VertexBufferManager(
       ['float32x3', 'float32x4'], // position, color
-      []
+      ['float32x2']
     );
     _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, scene._format, _vertextBufferManager.getBuffers());
     isInitialized = true;
@@ -77,8 +77,9 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
       if (geometryCount == 0)
         continue;
       const geometryBuffer = _bufferManager.createGeometryBuffer(geometryData[i]);
+      const instanceBuffer = _bufferManager.createInstanceBuffer(createPosition(item));
 
-      Renderer.queue2(device, _pipeline, renderPassDescriptor, [geometryCount], [geometryBuffer], [uniformBindGroup]);
+      Renderer.queue2(device, _pipeline, renderPassDescriptor, [geometryCount], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
     }
 
     // @ts-ignore
@@ -86,6 +87,15 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     // @ts-ignore
     ctx._ty -= item.y || 0;
   }
+}
+
+function createPosition(item: SceneItem): Float32Array {
+  const {
+    x = 0,
+    y = 0
+  } = item;
+  return Float32Array.from([x, y]);
+
 }
 
 function createGeometryData(

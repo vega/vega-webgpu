@@ -69,7 +69,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
   for (var itemStr in items) {
     const item = items[itemStr];
-    const geometryData = createGeometryData(ctx, item);
+    const geometryData = createGeometryData(ctx, item, (ctx as any)._cacheShapes ?? false);
 
     for (let i = 0; i < geometryData.length; i++) {
       const geometryCount = geometryData[i].length / _vertextBufferManager.getVertexLength();
@@ -84,12 +84,16 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 
 function createGeometryData(
   context: GPUCanvasContext,
-  item: SceneShape
+  item: SceneShape,
+  useCache: boolean,
 ): [geometryData: Float32Array, strokeGeometryData: Float32Array] {
   // @ts-ignore
   const key = item.datum.id ?? item.id ?? item[Object.getOwnPropertySymbols(item)[0]];
   const cacheEntry = _cache[key];
-  if (cacheEntry && item.strokeWidth == cacheEntry.strokeWidth) {
+  if (useCache && cacheEntry && item.strokeWidth == cacheEntry.strokeWidth
+    && item.x == cacheEntry.x && item.y == cacheEntry.y
+    && item.bounds == cacheEntry.bounds
+  ) {
     const fill = Color.from(item.fill, item.opacity, item.fillOpacity);
     const stroke = Color.from(item.stroke, item.opacity, item.strokeOpacity);
     if (cacheEntry.fill == fill && cacheEntry.stroke == stroke)
@@ -143,6 +147,6 @@ function createGeometryData(
     strokeGeometryData[i * 7 + 5] = stroke.b;
     strokeGeometryData[i * 7 + 6] = stroke.a;
   }
-  _cache[key] = { file: fill, stroke: stroke, strokeWidth: item.strokeWidth, data: [geometryData, strokeGeometryData] };
+  _cache[key] = { file: fill, stroke: stroke, x: item.x, y: item.y, bounds: item.bounds, strokeWidth: item.strokeWidth, data: [geometryData, strokeGeometryData] };
   return [geometryData, strokeGeometryData];
 }
