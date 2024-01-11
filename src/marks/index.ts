@@ -9,6 +9,7 @@ import symbol from './symbol';
 import text from './text';
 import path from './path';
 import shape from './shape';
+import image from './image';
 
 export default {
   arc,
@@ -20,5 +21,6 @@ export default {
   symbol,
   text,
   path,
-  shape
+  shape,
+  image,
 };

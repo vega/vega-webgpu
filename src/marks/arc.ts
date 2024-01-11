@@ -9,7 +9,7 @@ import { Renderer } from '../util/renderer.js';
 import { arc } from '../path/shapes';
 import geometryForItem from '../path/geometryForItem';
 
-type SceneArea = SceneItem & SceneGroup & {
+type SceneArc = SceneItem & SceneGroup & {
   fill: string;
   fillOpacity?: number;
   stroke?: string;
@@ -50,7 +50,7 @@ function initialize(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, v
 }
 
 function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bounds) {
-  const items = scene.items as SceneArea[];
+  const items = scene.items as SceneArc[];
   if (!items?.length) {
     return;
   }
@@ -58,15 +58,15 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   initialize(device, ctx, scene, vb);
   _bufferManager.setResolution((ctx as any)._uniforms.resolution);
   _bufferManager.setOffset([vb.x1, vb.y1]);
+  const uniformBuffer = _bufferManager.createUniformBuffer();
+  const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, _pipeline, uniformBuffer);
+
+  const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
+  renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 
   for (var itemStr in items) {
     const item = items[itemStr];
     const geometryData = createGeometryData(ctx, item);
-    const uniformBuffer = _bufferManager.createUniformBuffer();
-    const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, _pipeline, uniformBuffer);
-
-    const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
-    renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
     
     for (let i = 0; i < geometryData.length; i++) {
       const geometryCount = geometryData[i].length / _vertextBufferManager.getVertexLength();
@@ -92,7 +92,7 @@ function createPosition(item: SceneItem): Float32Array {
 
 function createGeometryData(
   context: GPUCanvasContext,
-  item: SceneArea
+  item: SceneArc
 ): [geometryData: Float32Array, strokeGeometryData: Float32Array] {
   // @ts-ignore
   const shapeGeom = arc(context, item);

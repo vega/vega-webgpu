@@ -10,6 +10,7 @@ import { GPUScene } from './types/gpuscene.js';
 
 import symbolShader from './shaders/symbol.wgsl';
 import lineShader from './shaders/line.wgsl';
+import slineShader from './shaders/sline.wgsl';
 import triangleShader from './shaders/triangles.wgsl';
 import rectShader from './shaders/rect.wgsl';
 import arcShader from './shaders/arc.wgsl';
@@ -60,6 +61,7 @@ inherits(WebGPURenderer, Renderer, {
     this._ctx._pathCacheSize = 0;
     this._ctx._geometryCache = {};
     this._ctx._geometryCacheSize = 0;
+    this._ctx.simpleLine = false;
 
     // this method will invoke resize to size the canvas appropriately
     return base.initialize.call(this, el, width, height, origin);
@@ -250,6 +252,7 @@ inherits(WebGPURenderer, Renderer, {
     context._shaderCache = {};
     context._shaderCache["Symbol"] = device.createShaderModule({ code: symbolShader, label: 'Symbol Shader' });
     context._shaderCache["Line"] = device.createShaderModule({ code: lineShader, label: 'Line Shader' });
+    context._shaderCache["SLine"] = device.createShaderModule({ code: slineShader, label: 'SLine Shader' });
     context._shaderCache["Path"] = device.createShaderModule({ code: triangleShader, label: 'Triangle Shader' });
     context._shaderCache["Rect"] = device.createShaderModule({ code: rectShader, label: 'Rect Shader' });
     context._shaderCache["Arc"] = device.createShaderModule({ code: arcShader, label: 'Arc Shader' });

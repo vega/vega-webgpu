@@ -15,9 +15,12 @@ struct VertexInput {
 
 struct VertexOutput {
     @builtin(position) pos: vec4<f32>,
-    @location(0)  uv: vec2<f32>,
+    @location(0) uv: vec2<f32>,
     @location(1) fill: vec4<f32>,
+    @location(2) smooth_width: f32,
 };
+
+const smooth_step = 1.5;
 
 @vertex
 fn main_vertex(@builtin(instance_index) index: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
@@ -34,7 +37,10 @@ fn main_vertex(@builtin(instance_index) index: u32, @builtin(vertex_index) verte
     let normal = normalize(vec2<f32>(-direction.y, direction.x));
 
     // Calculate the offset for width
-    let offset = normal * ((stroke_width) * 0.5);
+    let adjusted_width = stroke_width + smooth_step;
+    let offset = normal * ((adjusted_width) * 0.5);
+    let width = stroke_width + smooth_step * 2.0;
+    let length = length(end - start);
 
     // Calculate the four points of the line
     var p1 = start - offset;
@@ -42,7 +48,15 @@ fn main_vertex(@builtin(instance_index) index: u32, @builtin(vertex_index) verte
     var p3 = end - offset;
     var p4 = end + offset;
 
-    var vertices = array(p1, p2, p3, p4, p2, p3);
+    var vertices = array(p1, p2, p3, p2, p4, p3);
+    var uvs = array(
+        vec2<f32>(0.0, 0.0),
+        vec2<f32>(1.0, 0.0),
+        vec2<f32>(0.0, 1.0),
+        vec2<f32>(1.0, 0.0),
+        vec2<f32>(1.0, 1.0),
+        vec2<f32>(0.0, 1.0)
+    );
     var pos = vertices[vertexIndex];
     pos = (pos - uniforms.offset) / uniforms.resolution;
     pos.y = 1.0 - pos.y;
@@ -50,16 +64,19 @@ fn main_vertex(@builtin(instance_index) index: u32, @builtin(vertex_index) verte
 
     var out: VertexOutput;
     out.pos = vec4<f32>(pos, 0.0, 1.0);
-    let rotatedUV = vertices[vertexIndex] + uniforms.offset;
-    var len = length(pos.xy);
-    out.uv = vec2<f32>(- pos.x / len, pos.y / len);
+    out.uv = uvs[vertexIndex];
     out.fill = color;
+    out.smooth_width = adjusted_width / stroke_width - 1.0;
     return out;
 }
 
 @fragment
 fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    return in.fill;
+    let sx = abs(in.uv.x - 0.5) * 2.0;
+    let sy = abs(in.uv.y - 0.5) * 2.0;
+    let aax: f32 = 1.0 - smoothstep(1.0 - in.smooth_width, 1.0, sx);
+    // let aay: f32 = 1.0 - smoothstep(1.0 - in.smooth_length, 1.0, sy);
+    return vec4<f32>(in.fill.rgb, in.fill.a * aax);
 }
 
 fn pos_length() -> u32 {
