@@ -49,13 +49,12 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     return;
   }
 
-  const startTime = performance.now();
   initialize(device, ctx, scene, vb);
   _bufferManager.setResolution((ctx as any)._uniforms.resolution);
   _bufferManager.setOffset([vb.x1, vb.y1]);
 
 
-  if((ctx as any)?._simpleLine === true) {
+  if(this._simpleLine === true) {
     const renderPassDescriptor = Renderer.createRenderPassDescriptor("S" + drawName, this.clearColor(), this.depthTexture().createView())
     renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
     const uniformBindGroup = Renderer.createUniformBindGroup("S" + drawName, device, _pipeline2, _bufferManager.createUniformBuffer())
@@ -63,10 +62,6 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     const instanceBuffer = _bufferManager.createInstanceBuffer(attributes);
 
     Renderer.queue2(device, _pipeline2, renderPassDescriptor, [6, items.length - 1], [instanceBuffer], [uniformBindGroup]);  
-    
-    const endTime = performance.now();
-    const totalTime = endTime - startTime;
-    (ctx as any)._lineTime += totalTime;  
   } else {
     const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
     renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
@@ -78,17 +73,10 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     const pointBindGroup = Renderer.createBindGroup(drawName, device, _pipeline, [pointPositionBuffer, pointColorBuffer, pointWidthBuffer], null, 1);
 
     Renderer.queue2(device, _pipeline, renderPassDescriptor, [6, items.length - 1], [], [uniformBindGroup, pointBindGroup]);
-    
-    const endTime = performance.now();
-    const totalTime = endTime - startTime;
-    (ctx as any)._lineTime += totalTime;
   }
 
 }
-// Mapping performance
-// Papers: Multiple Views
-// Vega svg time vs Webgpu time
-// Reasoning/Motivation: SVG Crashes
+
 function createAttributes(items: SceneItem[]) {
   const lines = items as SceneLine[];
   const result = new Float32Array((items.length - 1) * 9);
@@ -97,17 +85,17 @@ function createAttributes(items: SceneItem[]) {
     const { x = 0, y = 0, stroke, strokeOpacity = 1, strokeWidth = 1, opacity = 1 } = lines[i]
     const x2 = lines[i + 1].x;
     const y2 = lines[i + 1].y;
-    const col = Color.from(stroke, opacity, strokeOpacity);
+    const col = Color.from2(stroke, opacity, strokeOpacity);
 
     const index = i * 9;
     result[index] = x;
     result[index + 1] = y;
     result[index + 2] = x2;
     result[index + 3] = y2;
-    result[index+ 4] = col.r;
-    result[index + 5] = col.g;
-    result[index + 6] = col.b;
-    result[index + 7] = col.a;
+    result[index+ 4] = col[0];
+    result[index + 5] = col[1];
+    result[index + 6] = col[2];
+    result[index + 7] = col[3];
     result[index + 8] = strokeWidth;
   }
 
@@ -123,7 +111,7 @@ function createPointDatas(items: SceneItem[]): { pos: Float32Array, colors: Floa
   for (let i = 0; i < lines.length; i++) {
     // @ts-ignore
     const { x = 0, y = 0, stroke, strokeOpacity = 1, strokeWidth = 1, opacity = 1 } = lines[i]
-    const col = Color.from(stroke, opacity, strokeOpacity);
+    const col = Color.from2(stroke, opacity, strokeOpacity);
 
     const posIndex = i * 2;
     const colorsIndex = i * 4;
@@ -131,10 +119,10 @@ function createPointDatas(items: SceneItem[]): { pos: Float32Array, colors: Floa
     pos[posIndex] = x;
     pos[posIndex + 1] = y;
 
-    colors[colorsIndex] = col.r;
-    colors[colorsIndex + 1] = col.g;
-    colors[colorsIndex + 2] = col.b;
-    colors[colorsIndex + 3] = col.a;
+    colors[colorsIndex] = col[0];
+    colors[colorsIndex + 1] = col[1];
+    colors[colorsIndex + 2] = col[2];
+    colors[colorsIndex + 3] = col[3];
 
     widths[i] = strokeWidth;
   }

@@ -1,7 +1,19 @@
-import { Bounds } from 'vega-scenegraph';
 import { visit } from '../util/visit';
-import { Scene, SceneItem } from 'vega-typings';
+import { Color } from '../util/color';
+import { Bounds } from 'vega-scenegraph';
+import { SceneItem, SceneRect } from 'vega-typings';
 import { GPUScene, GPUSceneGroup } from '../types/gpuscene.js'
+import { quadVertex } from '../util/arrays';
+import { VertexBufferManager } from '../util/vertexManager.js';
+import { BufferManager } from '../util/bufferManager.js';
+import { Renderer } from '../util/renderer.js';
+
+
+const drawName = 'Group';
+export default {
+  type: 'group',
+  draw: draw,
+};
 
 
 interface GroupGPUCanvasContext extends GPUCanvasContext {
@@ -12,7 +24,32 @@ interface GroupGPUCanvasContext extends GPUCanvasContext {
   _textContext: CanvasRenderingContext2D,
 }
 
-function draw(device: GPUDevice, ctx: GroupGPUCanvasContext, scene: Scene, vb: Bounds) {
+function draw(device: GPUDevice, ctx: GroupGPUCanvasContext, scene: GPUScene, vb: Bounds) {
+  const items = scene.items;
+  if (!items?.length) {
+    return;
+  }
+
+  const bufferManager = new BufferManager(device, drawName, this._uniforms.resolution, [vb.x1, vb.y1]);
+  const shader = (ctx as any)._shaderCache["Rect"] as GPUShaderModule;
+  const vertextBufferManager = new VertexBufferManager(
+    ['float32x2'], // position
+    // center, dimensions, fill color, stroke color, stroke width, corner radii
+    ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4']
+  );
+  const pipeline = Renderer.createRenderPipeline(drawName, device, shader, scene._format, vertextBufferManager.getBuffers());
+
+  const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
+  const uniformBuffer = bufferManager.createUniformBuffer();
+  const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, pipeline, uniformBuffer);
+  const attributes = createAttributes(items);
+  const instanceBuffer = bufferManager.createInstanceBuffer(attributes);
+
+  const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
+  renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+
+  Renderer.queue2(device, pipeline, renderPassDescriptor, [6, items.length], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
+
   visit(scene, (group: GPUSceneGroup) => {
     var gx = group.x || 0,
       gy = group.y || 0,
@@ -52,7 +89,49 @@ function draw(device: GPUDevice, ctx: GroupGPUCanvasContext, scene: Scene, vb: B
   });
 }
 
-export default {
-  type: 'group',
-  draw: draw,
-};
+function createAttributes(items: SceneItem[]): Float32Array {
+  return Float32Array.from(
+    (items).flatMap((item: SceneRect) => {
+      const {
+        x = 0,
+        y = 0,
+        width = 0,
+        height = 0,
+        opacity = 1,
+        fill,
+        fillOpacity = 1,
+        stroke = null,
+        strokeOpacity = 1,
+        strokeWidth = null,
+        cornerRadius = 0,
+        // @ts-ignore
+        cornerRadiusBottomLeft = null,
+        // @ts-ignore
+        cornerRadiusBottomRight = null,
+        // @ts-ignore
+        cornerRadiusTopRight = null,
+        // @ts-ignore
+        cornerRadiusTopLeft = null,
+      } = item;
+      const col = Color.from(fill, opacity, fillOpacity);
+      const scol = Color.from(stroke, opacity, strokeOpacity);
+      const swidth = stroke ? strokeWidth ?? 1 : strokeWidth ?? 0;
+      const cornerRadii = [
+        cornerRadiusTopRight ?? cornerRadius,
+        cornerRadiusBottomRight ?? cornerRadius,
+        cornerRadiusBottomLeft ?? cornerRadius,
+        cornerRadiusTopLeft ?? cornerRadius,
+      ]
+      return [
+        x,
+        y,
+        width,
+        height,
+        ...col.rgba,
+        ...scol.rgba,
+        swidth,
+        ...cornerRadii,
+      ];
+    }),
+  );
+}

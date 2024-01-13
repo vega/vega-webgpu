@@ -37,7 +37,40 @@ export class Color {
     let colorValue = new Color(rgba.r / 255, rgba.g / 255, rgba.b / 255, rgba.a * opacity * fsOpacity);
     return colorValue;
   }
-  
+
+  static _cache = {}
+  static from2(value: string | ColorSpaceObject | ColorCommonInstance | Color, opacity = 1.0, fsOpacity = 1.0): [r: number, g: number, b: number, a: number] {
+    if (!value) {
+      return [0, 0, 0, 0];
+    }
+    const entry = Color._cache[value as any];
+    if(entry) {
+      return [entry[0], entry[1], entry[2], entry[3] * opacity * fsOpacity];
+    }
+    if (value instanceof Color) {
+      return [value.r, value.g, value.b, value.a];
+    }
+    if (value === 'transparent') {
+      return [0, 0, 0, 0];
+    }
+    if ((value as any).id || (value as any).gradient) {
+      // TODO: support gradients
+      console.warn("Gradient not supported yet!")
+      return [0.5, 1.0, 1.0, 1.0 * opacity * fsOpacity];
+    }
+    if (typeof value === 'string') {
+      const c = color(value).rgb();
+      const ret = [c.r / 255, c.g / 255, c.b / 255, c.opacity * opacity * fsOpacity];
+      Color._cache[value as any] = [ret[0], ret[1], ret[2], c.opacity];
+      return ret as any;
+    } else {
+      const c = color(value).rgb();
+      const ret = [c.r / 255, c.g / 255, c.b / 255, c.opacity * opacity * fsOpacity];
+      Color._cache[value as any] = [ret[0], ret[1], ret[2], c.opacity];
+      return ret as any;
+    }
+  }
+
   *[Symbol.iterator](): Generator<number> {
     for (const value of this.values) {
       yield value;

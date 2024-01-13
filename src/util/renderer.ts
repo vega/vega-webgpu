@@ -93,7 +93,7 @@ export class Renderer {
     Renderer._queue = [];
   }
 
-  static submitQueue(device?: GPUDevice) {
+  static async submitQueue(device?: GPUDevice) {
     const commands: GPUCommandBuffer[] = [];
     for (let i = 0; i < Renderer._queue.length; i++) {
       const q = Renderer._queue[i];
@@ -103,7 +103,7 @@ export class Renderer {
         Renderer.render(q);
       }
     }
-    if (device) {
+    if (device && commands.length > 0) {
       device.queue.submit(commands);
     }
   }

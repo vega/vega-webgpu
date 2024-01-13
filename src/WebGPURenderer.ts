@@ -61,7 +61,9 @@ inherits(WebGPURenderer, Renderer, {
     this._ctx._pathCacheSize = 0;
     this._ctx._geometryCache = {};
     this._ctx._geometryCacheSize = 0;
-    this._ctx.simpleLine = false;
+    this._ctx.simpleLine = true;
+
+    this._renderCount = 0;
 
     // this method will invoke resize to size the canvas appropriately
     return base.initialize.call(this, el, width, height, origin);
@@ -119,57 +121,54 @@ inherits(WebGPURenderer, Renderer, {
     this._dirty.union(b);
   },
 
-  _render(scene: GPUScene) {
-    this._ctx._lineTime = 0;
-    RendererFunctions.clearQueue();
-    let o = this._origin,
-      w = this._width,
-      h = this._height,
-      // db = this._dirty,
-      vb = viewBounds(o, w, h);
-
-    const device = this.device();
-    const ctx = this.context();
-    ctx._tx = 0;
-    ctx._ty = 0;
-
-
-    if (device && ctx) {
-      this.clear();
-      const startTime = performance.now();
-      this.draw(device, ctx, scene, vb);
-      const endTime = performance.now();
-      const totalTime = endTime - startTime;
-
-      console.log(`Total Frame Time: ${totalTime} milliseconds`);
-      // await drawCanvas(device, this.context(), this.textCanvas(), this.prefferedFormat());
-
-      RendererFunctions.submitQueue(device);
-      console.log(`Total Line Time: ${this._ctx._lineTime} milliseconds`);
-    } else {
-      (async () => {
-        const adapter = await navigator.gpu.requestAdapter();
-        const device = await adapter.requestDevice();
-        this._adapter = adapter;
-        this._device = device;
-        this._ctx = this._canvas.getContext('webgpu');
-        // @ts-ignore
-        const presentationFormat = navigator.gpu.getPreferredCanvasFormat() as GPUTextureFormat;
-        this._prefferedFormat = presentationFormat;
-        this._ctx.configure({
-          device,
-          format: presentationFormat,
-          usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
-          alphaMode: 'premultiplied',
-        });
-        this.clear();
-        this.cacheShaders();
-        this.draw(device, this._ctx, scene, vb);
-        RendererFunctions.submitQueue(device);
-        //await drawCanvas(device, this.context(), this.textCanvas(), this.prefferedFormat());
-
-      })();
+  async _reinit() {
+    let device = this.device();
+    let ctx = this.context();
+    if (!device || !ctx) {
+      const adapter = await navigator.gpu.requestAdapter();
+      device = await adapter.requestDevice();
+      this._adapter = adapter;
+      this._device = device;
+      const presentationFormat = navigator.gpu.getPreferredCanvasFormat() as GPUTextureFormat;
+      this._prefferedFormat = presentationFormat;
+      ctx = this._canvas.getContext('webgpu');
+      this._ctx.configure({
+        device,
+        format: presentationFormat,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
+        alphaMode: 'premultiplied',
+      });
+      this._ctx = ctx;
+      this.cacheShaders();
     }
+    return {device, ctx};
+  },
+
+  _render(scene: GPUScene) {
+    (async () => {
+      let { device, ctx } = await this._reinit();
+      RendererFunctions.clearQueue();
+      let o = this._origin,
+        w = this._width,
+        h = this._height,
+        // db = this._dirty,
+        vb = viewBounds(o, w, h);
+
+      ctx._tx = 0;
+      ctx._ty = 0;
+      
+      this.clear();
+      const t1 = performance.now();
+      this.draw(device, ctx, scene, vb);
+      const t2 = performance.now();
+      RendererFunctions.submitQueue(device);
+      device.queue.onSubmittedWorkDone().then(() => {
+        if (this._debugLog == true) {
+          const t3 = performance.now();
+          console.log(`Render Time (${this._renderCount++}): ${((t3 - t1) / 1).toFixed(3)}ms (Draw: ${((t2 - t1) / 1).toFixed(3)}ms, WebGPU: ${((t3 - t2) / 1).toFixed(3)}ms)`);
+        }
+      });
+    })();
 
     return this;
   },

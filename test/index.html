@@ -55,7 +55,12 @@
         renderer = render.options[render.selectedIndex].value;
         options.renderer = renderer;
         updateUrl();
-        if (view) view.renderer(options.renderer).runAsync();
+        if (view) {
+          view.renderer(options.renderer);
+          view.runAsync();
+          view._renderer._debugLog = true;
+          view._renderer._simpleLine = true;
+        }
       });
 
       function updateUrl() {
@@ -117,6 +122,9 @@
             .initialize(document.querySelector('#vis')) // set parent DOM element
             .renderer(options.renderer) // set render type (defaults to 'canvas')
             .hover();
+
+          view._renderer._debugLog = true;
+          view._renderer._simpleLine = true;
 
           view.runAsync();
           console.log('INIT', name);

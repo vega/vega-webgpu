@@ -68,26 +68,27 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 function createAttributes(items: SceneItem[]): Float32Array {
   const result = new Float32Array(items.length * 12);
 
-  for (let i = 0; i < items.length; i++) {
+  let sum = 0;
+  var len = items.length;
+  for (let i = 0; i < len; i++) {
     const { x = 0, y = 0, size, fill, stroke, strokeWidth, opacity = 1, fillOpacity = 1, strokeOpacity = 1 } = items[i] as SceneSymbol;
-    const col = Color.from(fill, opacity, fillOpacity);
-    const scol = Color.from(stroke, opacity, strokeOpacity);
-    const swidth = stroke ? strokeWidth ?? 1 : 0;
+    const col = Color.from2(fill, opacity, fillOpacity);
+    const scol = Color.from2(stroke, opacity, strokeOpacity);
     const rad = Math.sqrt(size) / 2;
 
     const startIndex = i * 12;
     result[startIndex] = x;
     result[startIndex + 1] = y
     result[startIndex + 2] = rad;
-    result[startIndex + 3] = col.r;
-    result[startIndex + 4] = col.g;
-    result[startIndex + 5] = col.b;
-    result[startIndex + 6] = col.a;
-    result[startIndex + 7] = scol.r;
-    result[startIndex + 8] = scol.g;
-    result[startIndex + 9] = scol.b;
-    result[startIndex + 10] = scol.a;
-    result[startIndex + 11] = swidth;
+    result[startIndex + 3] = col[0];
+    result[startIndex + 4] = col[1];
+    result[startIndex + 5] = col[2];
+    result[startIndex + 6] = col[3];
+    result[startIndex + 7] = scol[0];
+    result[startIndex + 8] = scol[1];
+    result[startIndex + 9] = scol[2];
+    result[startIndex + 10] = scol[3];
+    result[startIndex + 11] = stroke ? (strokeWidth ?? 1) : 0;
   }
   return result;
 }
