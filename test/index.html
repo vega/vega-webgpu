@@ -6,6 +6,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="./index.css" />
+  <script src="https://d3js.org/d3.v4.min.js" charset="utf-8"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.js"></script>
+  <script src="../build/vega-webgpu-renderer.js"></script>
+  <!-- <script src="https://kanadaat.github.io/vega-webgpu/release/vega-webgpu-renderer.js"></script>-->
 </head>
 
 <body>
@@ -26,118 +30,7 @@
     <div id="vis"></div>
   </div>
   <div id="external"></div>
-
-  <script src="https://d3js.org/d3.v4.min.js" charset="utf-8"></script>
-  <script src="https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.js"></script>
-  <script src="../build/vega-webgpu-renderer.js"></script>
-  <script>
-
-    let runtime, spec, view, renderer, specname;
-    const urlParams = new URLSearchParams(window.location.search);
-    const speced = urlParams.get('spec');
-    const rendered = urlParams.get('renderer') ?? 'webgpu';
-
-    const options = {
-      container: '#vis',
-      renderer: rendered,
-      logLevel: vega.Warn,
-      hover: true,
-    };
-
-    (async () => {
-      const select = document.querySelector('#specs');
-      select.addEventListener('change', function () {
-        load(select.options[select.selectedIndex].value);
-      });
-
-      const render = document.querySelector('#render');
-      render.addEventListener('change', function () {
-        renderer = render.options[render.selectedIndex].value;
-        options.renderer = renderer;
-        updateUrl();
-        if (view) {
-          view.renderer(options.renderer);
-          view.runAsync();
-          view._renderer._debugLog = true;
-          view._renderer._simpleLine = true;
-        }
-      });
-
-      function updateUrl() {
-        window.history.replaceState({}, '', `?spec=${specname}&renderer=${options.renderer}`);
-      }
-
-      async function init() {
-        try {
-          const data = await fetch('specs-valid.json').then(r => r.json());
-
-          // load manifest of test specifications
-          data.forEach(function (name) {
-            const opt = document.createElement('option');
-            opt.setAttribute('value', name);
-            opt.textContent = name;
-            select.appendChild(opt);
-          });
-
-          if (rendered) {
-            options.renderer = rendered;
-          }
-          if (speced) {
-            load(speced);
-          }
-        } catch (err) {
-          console.error(err, err.stack);
-        }
-      }
-      async function load(name) {
-        if (!name) {
-          if (view) view.finalize().container().innerHTML = '';
-          return;
-        }
-
-        // update select widget state
-        select.selectedIndex = 0;
-        for (let i = 0, n = select.options.length; i < n; ++i) {
-          if (select.options[i].value === name) {
-            select.selectedIndex = i;
-            break;
-          }
-        }
-        render.selectedIndex = 0;
-        for (let i = 0, n = render.options.length; i < n; ++i) {
-          if (render.options[i].value === options.renderer) {
-            render.selectedIndex = i;
-            break;
-          }
-        }
-
-        // load vega spec, then visualize it
-        try {
-          spec = await fetch(`specs-valid/${name}.vg.json`).then(r => r.json());
-          console.log('LOAD', name);
-
-          runtime = vega.parse(spec)
-          view = new vega.View(runtime)
-            .logLevel(vega.Warn) // set view logging level
-            .initialize(document.querySelector('#vis')) // set parent DOM element
-            .renderer(options.renderer) // set render type (defaults to 'canvas')
-            .hover();
-
-          view._renderer._debugLog = true;
-          view._renderer._simpleLine = true;
-
-          view.runAsync();
-          console.log('INIT', name);
-          specname = name;
-          updateUrl();
-        } catch (err) {
-          console.error(err, err.stack);
-        }
-      }
-
-      init();
-    })();
-  </script>
+  <script src="./index.js"></script>
 </body>
 
 </html>
