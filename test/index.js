@@ -18,8 +18,8 @@ selectRenderer.addEventListener('change', function () {
   if (view) {
     view.renderer(selectedRenderer);
     view.runAsync();
-    view._renderer._debugLog = true;
-    view._renderer._simpleLine = true;
+    view._renderer.debugLog = true;
+    view._renderer.simpleLine = true;
   }
 });
 
@@ -92,8 +92,8 @@ async function load(name) {
       .renderer(selectedRenderer) // set render type (defaults to 'canvas')
       .hover();
 
-    view._renderer._debugLog = true;
-    view._renderer._simpleLine = true;
+    view._renderer.debugLog = true;
+    view._renderer.simpleLine = true;
 
     view.runAsync();
     console.log('INIT', name);

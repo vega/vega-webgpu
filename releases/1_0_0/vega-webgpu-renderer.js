@@ -6649,7 +6649,7 @@
         initialize$3(device, ctx, scene, vb);
         _bufferManager$3.setResolution(ctx._uniforms.resolution);
         _bufferManager$3.setOffset([vb.x1, vb.y1]);
-        if (this._simpleLine === true) {
+        if (this.simpleLine === true) {
             var renderPassDescriptor = Renderer.createRenderPassDescriptor("S" + drawName$6, this.clearColor(), this.depthTexture().createView());
             renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
             var uniformBindGroup = Renderer.createUniformBindGroup("S" + drawName$6, device, _pipeline2, _bufferManager$3.createUniformBuffer());
@@ -7303,6 +7303,11 @@
                 el.setAttribute('style', 'position: relative;');
                 this._canvas.setAttribute('class', 'marks');
                 this._textCanvas.setAttribute('class', 'textCanvas');
+                this.textCanvas.style.position = 'absolute';
+                this.textCanvas.style.top = '0';
+                this.textCanvas.style.left = '0';
+                this.textCanvas.style.zIndex = '10';
+                this.textCanvas.style.pointerEvents = 'none';
                 vegaScenegraph.domClear(el, 0);
                 el.appendChild(this._canvas);
                 el.appendChild(this._textCanvas);
@@ -7321,7 +7326,8 @@
             this._ctx._pathCacheSize = 0;
             this._ctx._geometryCache = {};
             this._ctx._geometryCacheSize = 0;
-            this._ctx.simpleLine = true;
+            this.simpleLine = true;
+            this.debugLog = false;
             this._renderCount = 0;
             // this method will invoke resize to size the canvas appropriately
             return base.initialize.call(this, el, width, height, origin);
@@ -7422,7 +7428,7 @@
                             t2 = performance.now();
                             Renderer.submitQueue(device);
                             device.queue.onSubmittedWorkDone().then(function () {
-                                if (_this._debugLog == true) {
+                                if (_this.debugLog == true) {
                                     var t3 = performance.now();
                                     console.log("Render Time (".concat(_this._renderCount++, "): ").concat(((t3 - t1) / 1).toFixed(3), "ms (Draw: ").concat(((t2 - t1) / 1).toFixed(3), "ms, WebGPU: ").concat(((t3 - t2) / 1).toFixed(3), "ms)"));
                                 }

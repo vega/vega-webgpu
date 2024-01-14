@@ -54,7 +54,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   _bufferManager.setOffset([vb.x1, vb.y1]);
 
 
-  if(this._simpleLine === true) {
+  if(this.simpleLine === true) {
     const renderPassDescriptor = Renderer.createRenderPassDescriptor("S" + drawName, this.clearColor(), this.depthTexture().createView())
     renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
     const uniformBindGroup = Renderer.createUniformBindGroup("S" + drawName, device, _pipeline2, _bufferManager.createUniformBuffer())

@@ -41,6 +41,11 @@ inherits(WebGPURenderer, Renderer, {
       el.setAttribute('style', 'position: relative;');
       this._canvas.setAttribute('class', 'marks');
       this._textCanvas.setAttribute('class', 'textCanvas');
+      this.textCanvas.style.position = 'absolute';
+      this.textCanvas.style.top = '0';
+      this.textCanvas.style.left = '0';
+      this.textCanvas.style.zIndex = '10';
+      this.textCanvas.style.pointerEvents = 'none';
       clear(el, 0);
       el.appendChild(this._canvas);
       el.appendChild(this._textCanvas);
@@ -61,7 +66,9 @@ inherits(WebGPURenderer, Renderer, {
     this._ctx._pathCacheSize = 0;
     this._ctx._geometryCache = {};
     this._ctx._geometryCacheSize = 0;
-    this._ctx.simpleLine = true;
+
+    this.simpleLine = true;
+    this.debugLog = false;
 
     this._renderCount = 0;
 
@@ -141,7 +148,7 @@ inherits(WebGPURenderer, Renderer, {
       this._ctx = ctx;
       this.cacheShaders();
     }
-    return {device, ctx};
+    return { device, ctx };
   },
 
   _render(scene: GPUScene) {
@@ -156,14 +163,14 @@ inherits(WebGPURenderer, Renderer, {
 
       ctx._tx = 0;
       ctx._ty = 0;
-      
+
       this.clear();
       const t1 = performance.now();
       this.draw(device, ctx, scene, vb);
       const t2 = performance.now();
       RendererFunctions.submitQueue(device);
       device.queue.onSubmittedWorkDone().then(() => {
-        if (this._debugLog == true) {
+        if (this.debugLog == true) {
           const t3 = performance.now();
           console.log(`Render Time (${this._renderCount++}): ${((t3 - t1) / 1).toFixed(3)}ms (Draw: ${((t2 - t1) / 1).toFixed(3)}ms, WebGPU: ${((t3 - t2) / 1).toFixed(3)}ms)`);
         }
