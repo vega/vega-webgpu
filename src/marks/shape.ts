@@ -64,9 +64,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 
   const uniformBuffer = _bufferManager.createUniformBuffer();
   const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, _pipeline, uniformBuffer);
-
-  const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
-  renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+  
   for (var itemStr in items) {
     const item = items[itemStr];
     const geometryData = createGeometryData(ctx, item, (ctx as any)._cacheShapes ?? false);
@@ -77,7 +75,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
         continue;
       const geometryBuffer = _bufferManager.createGeometryBuffer(geometryData[i]);
 
-      Renderer.queue2(device, _pipeline, renderPassDescriptor, [geometryCount], [geometryBuffer], [uniformBindGroup]);
+      Renderer.bundle2(device, _pipeline,  [geometryCount], [geometryBuffer], [uniformBindGroup]);
     }
   }
 }

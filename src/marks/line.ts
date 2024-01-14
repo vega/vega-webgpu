@@ -55,16 +55,12 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
 
 
   if(this.simpleLine === true) {
-    const renderPassDescriptor = Renderer.createRenderPassDescriptor("S" + drawName, this.clearColor(), this.depthTexture().createView())
-    renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
     const uniformBindGroup = Renderer.createUniformBindGroup("S" + drawName, device, _pipeline2, _bufferManager.createUniformBuffer())
     const attributes = createAttributes(items);
     const instanceBuffer = _bufferManager.createInstanceBuffer(attributes);
 
-    Renderer.queue2(device, _pipeline2, renderPassDescriptor, [6, items.length - 1], [instanceBuffer], [uniformBindGroup]);  
+    Renderer.bundle2(device, _pipeline2, [6, items.length - 1], [instanceBuffer], [uniformBindGroup]);  
   } else {
-    const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
-    renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
     const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, _pipeline, _bufferManager.createUniformBuffer())
     const pointDatas = createPointDatas(items);
     const pointPositionBuffer = _bufferManager.createBuffer(drawName + ' Point Position Buffer', pointDatas.pos, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
@@ -72,7 +68,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     const pointWidthBuffer = _bufferManager.createBuffer(drawName + ' Point Width Buffer', pointDatas.widths, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
     const pointBindGroup = Renderer.createBindGroup(drawName, device, _pipeline, [pointPositionBuffer, pointColorBuffer, pointWidthBuffer], null, 1);
 
-    Renderer.queue2(device, _pipeline, renderPassDescriptor, [6, items.length - 1], [], [uniformBindGroup, pointBindGroup]);
+    Renderer.bundle2(device, _pipeline,  [6, items.length - 1], [], [uniformBindGroup, pointBindGroup]);
   }
 
 }

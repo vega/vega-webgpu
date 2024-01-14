@@ -22,7 +22,7 @@ Use this scaffolding to get started using the WebGPU renderer. Instead of being 
 
 Therefor all that needs to be done is to link the Vega WebGPU Renderer
 ```html
-<script src="https://kanadaat.github.io/vega-webgpu/releases/1_0_0/vega-webgpu-renderer.js"></script>
+<script src="https://kanadaat.github.io/vega-webgpu/releases/1_1_0/vega-webgpu-renderer.js"></script>
 ```
 
 The WebGPU renderer was developed for Vega 5.19.1. Other Versions may work as well.
@@ -30,7 +30,7 @@ The WebGPU renderer was developed for Vega 5.19.1. Other Versions may work as we
 <body>
   <script src="https://d3js.org/d3.v4.min.js" charset="utf-8"></script>
   <script src="https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.js"></script>
-  <script src="https://kanadaat.github.io/vega-webgpu/releases/1_0_0/vega-webgpu-renderer.js"></script>
+  <script src="https://kanadaat.github.io/vega-webgpu/releases/1_1_0/vega-webgpu-renderer.js"></script>
   <div id="vis"></div>
   <script>
     // Load in your own Vega spec here.
@@ -63,9 +63,10 @@ To develop the WebGPU renderer locally, follow these steps:
 
 ## Hosted Versions
 
-| Version | Hosted Renderer Link                                                                                     |
-| ------- | -------------------------------------------------------------------------------------------------------- |
-| 1.0.0   | [vega-webgpu-renderer](https://kanadaat.github.io/vega-webgpu/releases/1_0_0/vega-webgpu-renderer.js) |
+| Version | Hosted Renderer Link                                                                                     | Changes |
+| ------- | -------------------------------------------------------------------------------------------------------- | ------- |
+| 1.0.0   | [vega-webgpu-renderer](https://kanadaat.github.io/vega-webgpu/releases/1_0_0/vega-webgpu-renderer.js) | First WebGPU Implementation |
+| 1.1.0   | [vega-webgpu-renderer](https://kanadaat.github.io/vega-webgpu/releases/1_1_0/vega-webgpu-renderer.js) | Using Render Bundles for Performance |
 
 ## WebGPU Renderer Specific Options
 

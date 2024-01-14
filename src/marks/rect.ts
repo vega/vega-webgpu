@@ -36,10 +36,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   const attributes = createAttributes(items);
   const instanceBuffer = bufferManager.createInstanceBuffer(attributes);
 
-  const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
-  renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
-
-  Renderer.queue2(device, pipeline, renderPassDescriptor, [6, items.length], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
+  Renderer.bundle2(device, pipeline,  [6, items.length], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
 }
 
 function createAttributes(items: SceneItem[]): Float32Array {

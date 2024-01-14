@@ -71,7 +71,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     if (geometryCount == 0)
       continue;
     const geometryBuffer = _bufferManager.createGeometryBuffer(geometryData[i]);
-    Renderer.queue2(device, _pipeline, renderPassDescriptor, [geometryCount], [geometryBuffer], [uniformBindGroup]);
+    Renderer.bundle2(device, _pipeline,  [geometryCount], [geometryBuffer], [uniformBindGroup]);
   }
 }
 

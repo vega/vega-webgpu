@@ -48,7 +48,7 @@ function draw(device: GPUDevice, ctx: GroupGPUCanvasContext, scene: GPUScene, vb
   const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
   renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 
-  Renderer.queue2(device, pipeline, renderPassDescriptor, [6, items.length], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
+  Renderer.bundle2(device, pipeline,  [6, items.length], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
 
   visit(scene, (group: GPUSceneGroup) => {
     var gx = group.x || 0,

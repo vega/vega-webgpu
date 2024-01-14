@@ -137,6 +137,7 @@ inherits(WebGPURenderer, Renderer, {
       this._adapter = adapter;
       this._device = device;
       const presentationFormat = navigator.gpu.getPreferredCanvasFormat() as GPUTextureFormat;
+	  RendererFunctions.colorFormat = presentationFormat;
       this._prefferedFormat = presentationFormat;
       ctx = this._canvas.getContext('webgpu');
       this._ctx.configure({
@@ -153,8 +154,8 @@ inherits(WebGPURenderer, Renderer, {
 
   _render(scene: GPUScene) {
     (async () => {
-      let { device, ctx } = await this._reinit();
-      RendererFunctions.clearQueue();
+      let { device, ctx } = (await this._reinit()) as { device: GPUDevice, ctx: any};
+      RendererFunctions.startFrame();
       let o = this._origin,
         w = this._width,
         h = this._height,
@@ -168,13 +169,15 @@ inherits(WebGPURenderer, Renderer, {
       const t1 = performance.now();
       this.draw(device, ctx, scene, vb);
       const t2 = performance.now();
-      RendererFunctions.submitQueue(device);
       device.queue.onSubmittedWorkDone().then(() => {
         if (this.debugLog == true) {
           const t3 = performance.now();
           console.log(`Render Time (${this._renderCount++}): ${((t3 - t1) / 1).toFixed(3)}ms (Draw: ${((t2 - t1) / 1).toFixed(3)}ms, WebGPU: ${((t3 - t2) / 1).toFixed(3)}ms)`);
         }
       });
+	  const renderPassDescriptor = RendererFunctions.createRenderPassDescriptor("Bundler", this.clearColor(), this.depthTexture().createView())
+	  renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+      RendererFunctions.submitBundles(device, renderPassDescriptor);
     })();
 
     return this;
@@ -235,7 +238,7 @@ inherits(WebGPURenderer, Renderer, {
     }
     this._depthTexture = this.device().createTexture({
       size: [this.canvas().width, this.canvas().height, 1],
-      format: 'depth24plus',
+      format: RendererFunctions.depthFormat,
       dimension: '2d',
       usage: GPUTextureUsage.RENDER_ATTACHMENT,
     } as GPUTextureDescriptor);

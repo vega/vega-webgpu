@@ -75,7 +75,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
       const geometryBuffer = _bufferManager.createGeometryBuffer(geometryData[i]);
       const instanceBuffer = _bufferManager.createInstanceBuffer(createPosition(item));
 
-      Renderer.queue2(device, _pipeline, renderPassDescriptor, [geometryCount], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
+      Renderer.bundle2(device, _pipeline, [geometryCount], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
     }
   }
 }
