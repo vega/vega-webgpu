@@ -7303,11 +7303,11 @@
                 el.setAttribute('style', 'position: relative;');
                 this._canvas.setAttribute('class', 'marks');
                 this._textCanvas.setAttribute('class', 'textCanvas');
-                this.textCanvas.style.position = 'absolute';
-                this.textCanvas.style.top = '0';
-                this.textCanvas.style.left = '0';
-                this.textCanvas.style.zIndex = '10';
-                this.textCanvas.style.pointerEvents = 'none';
+                this._textCanvas.style.position = 'absolute';
+                this._textCanvas.style.top = '0';
+                this._textCanvas.style.left = '0';
+                this._textCanvas.style.zIndex = '10';
+                this._textCanvas.style.pointerEvents = 'none';
                 vegaScenegraph.domClear(el, 0);
                 el.appendChild(this._canvas);
                 el.appendChild(this._textCanvas);
