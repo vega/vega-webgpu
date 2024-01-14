@@ -63,9 +63,6 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   const uniformBuffer = _bufferManager.createUniformBuffer();
   const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, _pipeline, uniformBuffer);
 
-  const renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, this.clearColor(), this.depthTexture().createView())
-  renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
-
   for (let i = 0; i < geometryData.length; i++) {
     const geometryCount = geometryData[i].length / _vertextBufferManager.getVertexLength();
     if (geometryCount == 0)

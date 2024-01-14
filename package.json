@@ -17,7 +17,8 @@
     "build": "rollup -c",
     "postbuild": "uglifyjs build/vega-webgpu-renderer.js -c -m -o build/vega-webgpu-renderer.min.js",
     "dev": "rollup -c --watch",
-    "serve": "live-server --open=test"
+    "serve": "live-server --open=test",
+    "release": "node release.cjs"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.7",
@@ -27,10 +28,12 @@
     "@webgpu/types": "^0.1.7",
     "d3-color": "^3.0.1",
     "eslint": "^8.55.0",
+    "fs-extra": "^11.2.0",
     "nodemon": "^3.0.1",
     "prettier": "^3.1.1",
     "rollup": "^4.9.0",
     "rollup-plugin-string": "^3.0.0",
+    "ts-node": "^10.9.2",
     "tslib": "^2.3.1",
     "typescript": "^5.3.3",
     "vega-canvas": "^1.2.6",

@@ -2,6 +2,8 @@
 
 [Demo](https://kanadaat.github.io/vega-webgpu/test/)
 
+A specific Vega WebGPU Extension can be used by calling http://localhost:5500/test?spec=bar&renderer=webgpu&version=1_0_0 otherwise the latest will be used.
+
 The Vega WebGPU Extension is created by [KaNaDaAT](https://github.com/KaNaDaAT) based on the already existing efforts of [lsh](https://github.com/lsh).
 
 ## Basics
@@ -61,12 +63,22 @@ To develop the WebGPU renderer locally, follow these steps:
 2. Build the renderer in dev mode: `npm run dev`
 3. Go live using something as the Visual Studio Code "Live Server" Extenstion and open the test website.
 
+Call: http://localhost:5500/test?spec=bar&renderer=webgpu&version=dev in order to use the local file.
+
+New Versions can be simply released by using the npm run release script.
+`npm run release 1.1.0 "Using Render Bundles for Performance"`
+
+Readme has to be changed manually yet.
+
 ## Hosted Versions
 
 | Version | Hosted Renderer Link                                                                                     | Changes |
 | ------- | -------------------------------------------------------------------------------------------------------- | ------- |
 | 1.0.0   | [vega-webgpu-renderer](https://kanadaat.github.io/vega-webgpu/releases/1_0_0/vega-webgpu-renderer.js) | First WebGPU Implementation |
 | 1.1.0   | [vega-webgpu-renderer](https://kanadaat.github.io/vega-webgpu/releases/1_1_0/vega-webgpu-renderer.js) | Using Render Bundles for Performance |
+
+Have a look at all versions [here](https://kanadaat.github.io/vega-webgpu/releases).
+
 
 ## WebGPU Renderer Specific Options
 
