@@ -1,6 +1,6 @@
 # WebGPU Renderer for [Vega](https://vega.github.io/vega)
 
-[Demo](https://kanadaat.github.io/vega-webgpu/test/)
+[Demo](https://kanadaat.github.io/vega-webgpu/test?version=1_0_0)
 
 A specific Vega WebGPU Extension can be used by calling http://localhost:5500/test?spec=bar&renderer=webgpu&version=1_0_0 otherwise the latest will be used.
 
@@ -75,7 +75,6 @@ Readme has to be changed manually yet.
 | Version | Hosted Renderer Link                                                                                     | Changes |
 | ------- | -------------------------------------------------------------------------------------------------------- | ------- |
 | 1.0.0   | [vega-webgpu-renderer](https://kanadaat.github.io/vega-webgpu/releases/1_0_0/vega-webgpu-renderer.js) | First WebGPU Implementation |
-| 1.1.0   | [vega-webgpu-renderer](https://kanadaat.github.io/vega-webgpu/releases/1_1_0/vega-webgpu-renderer.js) | Using Render Bundles for Performance |
 
 Have a look at all versions [here](https://kanadaat.github.io/vega-webgpu/releases).
 
