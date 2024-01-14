@@ -44,7 +44,7 @@ The WebGPU renderer was developed for Vega 5.19.1. Other Versions may work as we
 </body>
 ```
 
-For more infos look at (Hosted Versions)[#Hosted_Versions].
+For more infos look at [Hosted Versions](#hosted-versions).
 
 ## Building Locally
 To build the WebGPU renderer locally, follow these steps:
@@ -65,7 +65,7 @@ To develop the WebGPU renderer locally, follow these steps:
 
 | Version | Hosted Renderer Link                                                                                     |
 | ------- | -------------------------------------------------------------------------------------------------------- |
-| 1.0.0   | (vega-webgpu-renderer.js)[https://kanadaat.github.io/vega-webgpu/releases/1_0_0/vega-webgpu-renderer.js] |
+| 1.0.0   | [vega-webgpu-renderer](https://kanadaat.github.io/vega-webgpu/releases/1_0_0/vega-webgpu-renderer.js) |
 
 ## WebGPU Renderer Specific Options
 
@@ -100,3 +100,4 @@ Contributions are welcome as this project is very complex. The small amount of W
 - Gradiants do not work. May do that via hybrid version or shaders.
 - Symbols only support circles yet.
 - Lines dont support dashes nor joins (miter join, bevel join, ...)
+- Rects do not support rounded edges yet.
