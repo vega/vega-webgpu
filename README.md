@@ -2,7 +2,7 @@
 
 [Demo](https://kanadaat.github.io/vega-webgpu/test?version=1_0_0)
 
-A specific Vega WebGPU Extension can be used by calling http://localhost:5500/test?spec=bar&renderer=webgpu&version=1_0_0 otherwise the latest will be used.
+A specific Vega WebGPU Extension can be used by using the queryparameter `version=1_0_0` otherwise the latest will be used.
 
 The Vega WebGPU Extension is created by [KaNaDaAT](https://github.com/KaNaDaAT) based on the already existing efforts of [lsh](https://github.com/lsh).
 
