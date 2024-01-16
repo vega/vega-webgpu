@@ -25,7 +25,7 @@
 			return urlSearchParams.get(param);
 		}
 
-		const latestVersion = vegaWevGPURendererVersions[vegaWevGPURendererVersions.length - 1];
+		const latestVersion = vegaWevGPURendererVersions[0];
 		const version = (getQueryParam('version') || latestVersion).replaceAll('.', '_');
 		console.log(`Vega WebGPU Renderer ${version}`)
 		let vegaWebGPURendererUrl = `https://kanadaat.github.io/vega-webgpu/releases/${version}/vega-webgpu-renderer.js`;

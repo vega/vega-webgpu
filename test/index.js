@@ -2,7 +2,7 @@
 const urlParams = new URLSearchParams(window.location.search);
 const urlSpec = urlParams.get('spec');
 const urlRenderer = urlParams.get('renderer') ?? 'webgpu';
-const urlVersion = urlParams.get('version') ?? 'dev';
+const urlVersion = urlParams.get('version') ?? vegaWevGPURendererVersions[0] ?? 'dev';
 
 let runtime, view, selectedSpec, selectedRenderer, selectedVersion;
 
@@ -38,16 +38,10 @@ function updateUrl() {
 
   const urlSearchParams = new URLSearchParams(window.location.search);
 
-  if (selectedVersion) {
-    // If version parameter exists, set it as the first tag
-    urlSearchParams.set('spec', selectedSpec);
-    urlSearchParams.set('renderer', selectedRenderer);
-    urlSearchParams.set('version', selectedVersion);
-  } else {
-    urlSearchParams.set('spec', selectedSpec);
-    urlSearchParams.set('renderer', selectedRenderer);
-    urlSearchParams.set('version', vegaWevGPURendererVersions[vegaWevGPURendererVersions.length - 1]);
-  }
+  // If version parameter exists, set it as the first tag
+  urlSearchParams.set('spec', selectedSpec);
+  urlSearchParams.set('renderer', selectedRenderer);
+  urlSearchParams.set('version', selectedVersion);
 
   window.history.replaceState({}, '', `?${urlSearchParams.toString()}`);
 }
@@ -85,6 +79,13 @@ async function init() {
   }
 }
 async function load(name) {
+  selectVersion.selectedIndex = 0;
+  for (let i = 0, n = selectVersion.options.length; i < n; ++i) {
+    if (selectVersion.options[i].value === selectedVersion) {
+      selectVersion.selectedIndex = i;
+      break;
+    }
+  }
   if (view) view.finalize().container().innerHTML = '';
   if (!name || name == undefined || name == 'undefined') {
     return;
@@ -105,13 +106,6 @@ async function load(name) {
   for (let i = 0, n = selectRenderer.options.length; i < n; ++i) {
     if (selectRenderer.options[i].value === selectedRenderer) {
       selectRenderer.selectedIndex = i;
-      break;
-    }
-  }
-  selectVersion.selectedIndex = 0;
-  for (let i = 0, n = selectVersion.options.length; i < n; ++i) {
-    if (selectVersion.options[i].value === selectedVersion) {
-      selectVersion.selectedIndex = i;
       break;
     }
   }

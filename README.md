@@ -1,8 +1,8 @@
 # WebGPU Renderer for [Vega](https://vega.github.io/vega)
 
-[Demo](https://kanadaat.github.io/vega-webgpu/test?version=1_0_0)
+[Demo](https://kanadaat.github.io/vega-webgpu/test)
 
-A specific Vega WebGPU Extension can be used by using the queryparameter (as for example `version=1_0_0`) otherwise the latest will be used.
+**Warning:** The splom examples of the demo use a set of 50.000 data points. Thus canvas and svg will take very long for it to render or simply crash.
 
 The Vega WebGPU Extension is created by [KaNaDaAT](https://github.com/KaNaDaAT) based on the already existing efforts of [lsh](https://github.com/lsh).
 
@@ -63,7 +63,7 @@ To develop the WebGPU renderer locally, follow these steps:
 
 1. Install dependencies: `npm install`
 2. Build the renderer in dev mode: `npm run dev`
-3. Go live using something as the Visual Studio Code "Live Server" Extenstion and open the test website.
+3. Go live using something as the Visual Studio Code "Live Server" Extension and open the test website.
 
 Call: http://localhost:5500/test?spec=bar&renderer=webgpu&version=dev in order to use the local file.
 
@@ -77,6 +77,7 @@ Readme has to be changed manually yet.
 | Version | Hosted Renderer Link                                                                                     | Changes |
 | ------- | -------------------------------------------------------------------------------------------------------- | ------- |
 | 1.0.0   | [vega-webgpu-renderer](https://kanadaat.github.io/vega-webgpu/releases/1_0_0/vega-webgpu-renderer.js) | First WebGPU Implementation |
+| 1.1.0   | [vega-webgpu-renderer](https://kanadaat.github.io/vega-webgpu/releases/1_1_0/vega-webgpu-renderer.js) | Over all improvements in terms of performance and structure.  |
 
 Have a look at all versions [here](https://kanadaat.github.io/vega-webgpu/releases).
 
@@ -99,7 +100,7 @@ function render(spec) {
 }
 view._renderer.wgOptions.debugLog = true;
 // For Version 1.0.0 it is:
-// view._renderer.wgOptions.debugLog = true;
+// view._renderer.debugLog = true;
 ```
 | Option     | Description                                                                                                                                                 | Default | Version |   |
 |------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|---------|---|

@@ -697,10 +697,10 @@
                 depthStencilFormat: Renderer.depthFormat
             });
             encoder.setPipeline(b.pipeline);
-            for (var i = 0; i < b.vertexBuffers.length; i++) {
+            for (var i = 0, length_1 = b.vertexBuffers.length; i < length_1; i++) {
                 encoder.setVertexBuffer(i, b.vertexBuffers[i]);
             }
-            for (var i = 0; i < b.bindGroups.length; i++) {
+            for (var i = 0, length_2 = b.bindGroups.length; i < length_2; i++) {
                 encoder.setBindGroup(i, b.bindGroups[i]);
             }
             if (b.drawCounts instanceof Array) {
@@ -710,6 +710,7 @@
                 encoder.draw(b.drawCounts.vertexCount, (_d = b.drawCounts.instanceCount) !== null && _d !== void 0 ? _d : 1, (_e = b.drawCounts.firstVertex) !== null && _e !== void 0 ? _e : 0, (_f = b.drawCounts.firstInstance) !== null && _f !== void 0 ? _f : 0);
             }
             var bundle = encoder.finish();
+            bundle.label = bundleElement.pipeline.label + " Bundler";
             Renderer._bundles.push(bundle);
             return bundle;
         };
@@ -750,6 +751,7 @@
                         passEncoder.executeBundles(Renderer._bundles);
                         passEncoder.end();
                         device.queue.submit([commandEncoder.finish()]);
+                        Renderer._bundles = [];
                     }
                     return [2 /*return*/];
                 });
@@ -6376,49 +6378,50 @@
         type: 'arc',
         draw: draw$a
     };
-    var _device$5 = null;
-    var _bufferManager$5 = null;
-    var _shader$5 = null;
-    var _vertextBufferManager$5 = null;
-    var _pipeline$5 = null;
-    var isInitialized$5 = false;
-    function initialize$5(device, ctx, scene, vb) {
-        if (_device$5 != device) {
-            _device$5 = device;
-            isInitialized$5 = false;
+    var _device$8 = null;
+    var _bufferManager$8 = null;
+    var _shader$8 = null;
+    var _vertextBufferManager$8 = null;
+    var _pipeline$8 = null;
+    var _renderPassDescriptor$8 = null;
+    var isInitialized$8 = false;
+    function initialize$8(device, ctx, vb) {
+        if (_device$8 != device) {
+            _device$8 = device;
+            isInitialized$8 = false;
         }
-        if (!isInitialized$5) {
-            _bufferManager$5 = new BufferManager(device, drawName$9, ctx._uniforms.resolution, [vb.x1, vb.y1]);
-            _shader$5 = ctx._shaderCache["Arc"];
-            _vertextBufferManager$5 = new VertexBufferManager(['float32x3', 'float32x4'], // position, color
+        if (!isInitialized$8 || true) {
+            _bufferManager$8 = new BufferManager(device, drawName$9, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+            _shader$8 = ctx._shaderCache["Arc"];
+            _vertextBufferManager$8 = new VertexBufferManager(['float32x3', 'float32x4'], // position, color
             ['float32x2'] // center
             );
-            _pipeline$5 = Renderer.createRenderPipeline(drawName$9, device, _shader$5, scene._format, _vertextBufferManager$5.getBuffers());
-            isInitialized$5 = true;
+            _pipeline$8 = Renderer.createRenderPipeline(drawName$9, device, _shader$8, Renderer.colorFormat, _vertextBufferManager$8.getBuffers());
+            _renderPassDescriptor$8 = Renderer.createRenderPassDescriptor(drawName$9, ctx.background, ctx.depthTexture.createView());
+            isInitialized$8 = true;
         }
+        _renderPassDescriptor$8.colorAttachments[0].view = ctx.getCurrentTexture().createView();
     }
     function draw$a(device, ctx, scene, vb) {
         var items = scene.items;
         if (!(items === null || items === void 0 ? void 0 : items.length)) {
             return;
         }
-        initialize$5(device, ctx, scene, vb);
-        _bufferManager$5.setResolution(ctx._uniforms.resolution);
-        _bufferManager$5.setOffset([vb.x1, vb.y1]);
-        var uniformBuffer = _bufferManager$5.createUniformBuffer();
-        var uniformBindGroup = Renderer.createUniformBindGroup(drawName$9, device, _pipeline$5, uniformBuffer);
-        var renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName$9, this.clearColor(), this.depthTexture().createView());
-        renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+        initialize$8(device, ctx, vb);
+        _bufferManager$8.setResolution(ctx._uniforms.resolution);
+        _bufferManager$8.setOffset([vb.x1, vb.y1]);
+        var uniformBuffer = _bufferManager$8.createUniformBuffer();
+        var uniformBindGroup = Renderer.createUniformBindGroup(drawName$9, device, _pipeline$8, uniformBuffer);
         for (var itemStr in items) {
             var item = items[itemStr];
             var geometryData = createGeometryData$3(ctx, item);
             for (var i = 0; i < geometryData.length; i++) {
-                var geometryCount = geometryData[i].length / _vertextBufferManager$5.getVertexLength();
+                var geometryCount = geometryData[i].length / _vertextBufferManager$8.getVertexLength();
                 if (geometryCount == 0)
                     continue;
-                var geometryBuffer = _bufferManager$5.createGeometryBuffer(geometryData[i]);
-                var instanceBuffer = _bufferManager$5.createInstanceBuffer(createPosition$1(item));
-                Renderer.bundle2(device, _pipeline$5, [geometryCount], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
+                var geometryBuffer = _bufferManager$8.createGeometryBuffer(geometryData[i]);
+                var instanceBuffer = _bufferManager$8.createInstanceBuffer(createPosition$1(item));
+                Renderer.queue2(device, _pipeline$8, _renderPassDescriptor$8, [geometryCount], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
             }
         }
     }
@@ -6460,47 +6463,49 @@
         type: 'area',
         draw: draw$9
     };
-    var _device$4 = null;
-    var _bufferManager$4 = null;
-    var _shader$4 = null;
-    var _vertextBufferManager$4 = null;
-    var _pipeline$4 = null;
-    var isInitialized$4 = false;
-    function initialize$4(device, ctx, scene, vb) {
-        if (_device$4 != device) {
-            _device$4 = device;
-            isInitialized$4 = false;
+    var _device$7 = null;
+    var _bufferManager$7 = null;
+    var _shader$7 = null;
+    var _vertextBufferManager$7 = null;
+    var _pipeline$7 = null;
+    var _renderPassDescriptor$7 = null;
+    var isInitialized$7 = false;
+    function initialize$7(device, ctx, vb) {
+        if (_device$7 != device) {
+            _device$7 = device;
+            isInitialized$7 = false;
         }
-        if (!isInitialized$4) {
-            _bufferManager$4 = new BufferManager(device, drawName$8, ctx._uniforms.resolution, [vb.x1, vb.y1]);
-            _shader$4 = ctx._shaderCache["Area"];
-            _vertextBufferManager$4 = new VertexBufferManager(['float32x3', 'float32x4'], // position, color
+        if (!isInitialized$7) {
+            _bufferManager$7 = new BufferManager(device, drawName$8, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+            _shader$7 = ctx._shaderCache["Area"];
+            _vertextBufferManager$7 = new VertexBufferManager(['float32x3', 'float32x4'], // position, color
             [] // center
             );
-            _pipeline$4 = Renderer.createRenderPipeline(drawName$8, device, _shader$4, scene._format, _vertextBufferManager$4.getBuffers());
-            isInitialized$4 = true;
+            _pipeline$7 = Renderer.createRenderPipeline(drawName$8, device, _shader$7, Renderer.colorFormat, _vertextBufferManager$7.getBuffers());
+            _renderPassDescriptor$7 = Renderer.createRenderPassDescriptor(drawName$8, ctx.background, ctx.depthTexture.createView());
+            isInitialized$7 = true;
         }
+        _renderPassDescriptor$7.colorAttachments[0].view = ctx.getCurrentTexture().createView();
     }
     function draw$9(device, ctx, scene, vb) {
         var items = scene.items;
         if (!(items === null || items === void 0 ? void 0 : items.length)) {
             return;
         }
-        initialize$4(device, ctx, scene, vb);
-        _bufferManager$4.setResolution(ctx._uniforms.resolution);
-        _bufferManager$4.setOffset([vb.x1, vb.y1]);
+        initialize$7(device, ctx, vb);
+        _bufferManager$7.setResolution(ctx._uniforms.resolution);
+        _bufferManager$7.setOffset([vb.x1, vb.y1]);
         var item = items[0];
         var geometryData = createGeometryData$2(ctx, item, items);
-        var uniformBuffer = _bufferManager$4.createUniformBuffer();
-        var uniformBindGroup = Renderer.createUniformBindGroup(drawName$8, device, _pipeline$4, uniformBuffer);
-        var renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName$8, this.clearColor(), this.depthTexture().createView());
-        renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+        var uniformBuffer = _bufferManager$7.createUniformBuffer();
+        var uniformBindGroup = Renderer.createUniformBindGroup(drawName$8, device, _pipeline$7, uniformBuffer);
         for (var i = 0; i < geometryData.length; i++) {
-            var geometryCount = geometryData[i].length / _vertextBufferManager$4.getVertexLength();
+            var geometryCount = geometryData[i].length / _vertextBufferManager$7.getVertexLength();
             if (geometryCount == 0)
                 continue;
-            var geometryBuffer = _bufferManager$4.createGeometryBuffer(geometryData[i]);
-            Renderer.bundle2(device, _pipeline$4, [geometryCount], [geometryBuffer], [uniformBindGroup]);
+            var geometryBuffer = _bufferManager$7.createGeometryBuffer(geometryData[i]);
+            // Renderer.queue2(device, _pipeline, [geometryCount], [geometryBuffer], [uniformBindGroup]);
+            Renderer.queue2(device, _pipeline$7, _renderPassDescriptor$7, [geometryCount], [geometryBuffer], [uniformBindGroup]);
         }
     }
     function createGeometryData$2(context, item, items) {
@@ -6574,26 +6579,46 @@
         type: 'group',
         draw: draw$8,
     };
+    var _device$6 = null;
+    var _bufferManager$6 = null;
+    var _shader$6 = null;
+    var _vertextBufferManager$6 = null;
+    var _pipeline$6 = null;
+    var _renderPassDescriptor$6 = null;
+    var _geometryBuffer$3 = null;
+    var isInitialized$6 = false;
+    function initialize$6(device, ctx, vb) {
+        if (_device$6 != device) {
+            _device$6 = device;
+            isInitialized$6 = false;
+        }
+        if (!isInitialized$6) {
+            _bufferManager$6 = new BufferManager(device, drawName$7, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+            _shader$6 = ctx._shaderCache[drawName$7];
+            _vertextBufferManager$6 = new VertexBufferManager(['float32x2'], // position
+            // center, dimensions, fill color, stroke color, stroke width, corner radii
+            ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4']);
+            _pipeline$6 = Renderer.createRenderPipeline(drawName$7, device, _shader$6, Renderer.colorFormat, _vertextBufferManager$6.getBuffers());
+            _renderPassDescriptor$6 = Renderer.createRenderPassDescriptor(drawName$7, ctx.background, ctx.depthTexture.createView());
+            _geometryBuffer$3 = _bufferManager$6.createGeometryBuffer(quadVertex);
+            isInitialized$6 = true;
+        }
+        _renderPassDescriptor$6.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+    }
     function draw$8(device, ctx, scene, vb) {
         var _this = this;
         var items = scene.items;
         if (!(items === null || items === void 0 ? void 0 : items.length)) {
             return;
         }
-        var bufferManager = new BufferManager(device, drawName$7, this._uniforms.resolution, [vb.x1, vb.y1]);
-        var shader = ctx._shaderCache["Rect"];
-        var vertextBufferManager = new VertexBufferManager(['float32x2'], // position
-        // center, dimensions, fill color, stroke color, stroke width, corner radii
-        ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4']);
-        var pipeline = Renderer.createRenderPipeline(drawName$7, device, shader, scene._format, vertextBufferManager.getBuffers());
-        var geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
-        var uniformBuffer = bufferManager.createUniformBuffer();
-        var uniformBindGroup = Renderer.createUniformBindGroup(drawName$7, device, pipeline, uniformBuffer);
+        initialize$6(device, ctx, vb);
+        _bufferManager$6.setResolution(ctx._uniforms.resolution);
+        _bufferManager$6.setOffset([vb.x1, vb.y1]);
+        var uniformBuffer = _bufferManager$6.createUniformBuffer();
+        var uniformBindGroup = Renderer.createUniformBindGroup(drawName$7, device, _pipeline$6, uniformBuffer);
         var attributes = createAttributes$4(items);
-        var instanceBuffer = bufferManager.createInstanceBuffer(attributes);
-        var renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName$7, this.clearColor(), this.depthTexture().createView());
-        renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
-        Renderer.bundle2(device, pipeline, [6, items.length], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
+        var instanceBuffer = _bufferManager$6.createInstanceBuffer(attributes);
+        Renderer.queue2(device, _pipeline$6, _renderPassDescriptor$6, [6, items.length], [_geometryBuffer$3, instanceBuffer], [uniformBindGroup]);
         visit(scene, function (group) {
             var gx = group.x || 0, gy = group.y || 0, w = group.width || 0, h = group.height || 0, oldClip;
             // setup graphics context
@@ -6671,52 +6696,55 @@
         draw: draw$7,
         pick: function () { return null; },
     };
-    var _device$3 = null;
-    var _bufferManager$3 = null;
-    var _vertextBufferManager$3 = null;
-    var _shader$3 = null;
+    var _device$5 = null;
+    var _bufferManager$5 = null;
+    var _vertextBufferManager$5 = null;
+    var _shader$5 = null;
     var _shader2 = null;
-    var _pipeline$3 = null;
+    var _pipeline$5 = null;
     var _pipeline2 = null;
-    var isInitialized$3 = false;
-    function initialize$3(device, ctx, scene, vb) {
-        if (_device$3 != device) {
-            _device$3 = device;
-            isInitialized$3 = false;
+    var _renderPassDescriptor$5 = null;
+    var isInitialized$5 = false;
+    function initialize$5(device, ctx, vb) {
+        if (_device$5 != device) {
+            _device$5 = device;
+            isInitialized$5 = false;
         }
-        if (!isInitialized$3) {
-            _bufferManager$3 = new BufferManager(device, drawName$6, ctx._uniforms.resolution, [vb.x1, vb.y1]);
-            _vertextBufferManager$3 = new VertexBufferManager([], ['float32x2', 'float32x2', 'float32x4', 'float32'] // start, end, color, width
+        if (!isInitialized$5) {
+            _bufferManager$5 = new BufferManager(device, drawName$6, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+            _vertextBufferManager$5 = new VertexBufferManager([], ['float32x2', 'float32x2', 'float32x4', 'float32'] // start, end, color, width
             );
-            _shader$3 = ctx._shaderCache["Line"];
+            _shader$5 = ctx._shaderCache["Line"];
             _shader2 = ctx._shaderCache["SLine"];
-            _pipeline$3 = Renderer.createRenderPipeline(drawName$6, device, _shader$3, scene._format, []);
-            _pipeline2 = Renderer.createRenderPipeline("S" + drawName$6, device, _shader2, scene._format, _vertextBufferManager$3.getBuffers());
-            isInitialized$3 = true;
+            _pipeline$5 = Renderer.createRenderPipeline(drawName$6, device, _shader$5, Renderer.colorFormat, []);
+            _pipeline2 = Renderer.createRenderPipeline("S" + drawName$6, device, _shader2, Renderer.colorFormat, _vertextBufferManager$5.getBuffers());
+            _renderPassDescriptor$5 = Renderer.createRenderPassDescriptor(drawName$6, ctx.background, ctx.depthTexture.createView());
+            isInitialized$5 = true;
         }
+        _renderPassDescriptor$5.colorAttachments[0].view = ctx.getCurrentTexture().createView();
     }
     function draw$7(device, ctx, scene, vb) {
         var items = scene.items;
         if (!(items === null || items === void 0 ? void 0 : items.length)) {
             return;
         }
-        initialize$3(device, ctx, scene, vb);
-        _bufferManager$3.setResolution(ctx._uniforms.resolution);
-        _bufferManager$3.setOffset([vb.x1, vb.y1]);
-        if (this.simpleLine === true) {
-            var uniformBindGroup = Renderer.createUniformBindGroup("S" + drawName$6, device, _pipeline2, _bufferManager$3.createUniformBuffer());
+        initialize$5(device, ctx, vb);
+        _bufferManager$5.setResolution(ctx._uniforms.resolution);
+        _bufferManager$5.setOffset([vb.x1, vb.y1]);
+        if (ctx._renderer.wgOptions.simpleLine === true) {
+            var uniformBindGroup = Renderer.createUniformBindGroup("S" + drawName$6, device, _pipeline2, _bufferManager$5.createUniformBuffer());
             var attributes = createAttributes$3(items);
-            var instanceBuffer = _bufferManager$3.createInstanceBuffer(attributes);
-            Renderer.bundle2(device, _pipeline2, [6, items.length - 1], [instanceBuffer], [uniformBindGroup]);
+            var instanceBuffer = _bufferManager$5.createInstanceBuffer(attributes);
+            Renderer.queue2(device, _pipeline2, _renderPassDescriptor$5, [6, items.length - 1], [instanceBuffer], [uniformBindGroup]);
         }
         else {
-            var uniformBindGroup = Renderer.createUniformBindGroup(drawName$6, device, _pipeline$3, _bufferManager$3.createUniformBuffer());
+            var uniformBindGroup = Renderer.createUniformBindGroup(drawName$6, device, _pipeline$5, _bufferManager$5.createUniformBuffer());
             var pointDatas = createPointDatas(items);
-            var pointPositionBuffer = _bufferManager$3.createBuffer(drawName$6 + ' Point Position Buffer', pointDatas.pos, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
-            var pointColorBuffer = _bufferManager$3.createBuffer(drawName$6 + ' Point Color Buffer', pointDatas.colors, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
-            var pointWidthBuffer = _bufferManager$3.createBuffer(drawName$6 + ' Point Width Buffer', pointDatas.widths, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
-            var pointBindGroup = Renderer.createBindGroup(drawName$6, device, _pipeline$3, [pointPositionBuffer, pointColorBuffer, pointWidthBuffer], null, 1);
-            Renderer.bundle2(device, _pipeline$3, [6, items.length - 1], [], [uniformBindGroup, pointBindGroup]);
+            var pointPositionBuffer = _bufferManager$5.createBuffer(drawName$6 + ' Point Position Buffer', pointDatas.pos, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
+            var pointColorBuffer = _bufferManager$5.createBuffer(drawName$6 + ' Point Color Buffer', pointDatas.colors, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
+            var pointWidthBuffer = _bufferManager$5.createBuffer(drawName$6 + ' Point Width Buffer', pointDatas.widths, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
+            var pointBindGroup = Renderer.createBindGroup(drawName$6, device, _pipeline$5, [pointPositionBuffer, pointColorBuffer, pointWidthBuffer], null, 1);
+            Renderer.queue2(device, _pipeline$5, _renderPassDescriptor$5, [6, items.length - 1], [], [uniformBindGroup, pointBindGroup]);
         }
     }
     function createAttributes$3(items) {
@@ -6764,30 +6792,50 @@
         return { pos: pos, colors: colors, widths: widths };
     }
 
-    var rectShader = "struct Uniforms {\n  resolution: vec2<f32>,\n  offset: vec2<f32>,\n};\n\n@group(0) @binding(0) var<uniform> uniforms : Uniforms;\n\nstruct VertexInput {\n  @location(0) position: vec2<f32>,\n}\n\nstruct InstanceInput {\n  @location(1) center: vec2<f32>,\n  @location(2) scale: vec2<f32>,\n  @location(3) fill_color: vec4<f32>,\n  @location(4) stroke_color: vec4<f32>,\n  @location(5) strokewidth: f32,\n  @location(6) corner_radii: vec4<f32>,\n}\n\nstruct VertexOutput {\n  @builtin(position) pos: vec4<f32>,\n  @location(0) uv: vec2<f32>,\n  @location(1) fill: vec4<f32>,\n  @location(2) stroke: vec4<f32>,\n  @location(3) strokewidth: f32,\n  @location(4) corner_radii: vec4<f32>,\n  @location(5) scale: vec2<f32>,\n}\n\n@vertex\nfn main_vertex(\n    model: VertexInput,\n    instance: InstanceInput\n) -> VertexOutput {\n    var output: VertexOutput;\n    var u = uniforms.resolution;\n    var scale = instance.scale + vec2<f32>(instance.strokewidth, instance.strokewidth);\n    var pos = model.position * scale + instance.center - uniforms.offset - vec2<f32>(instance.strokewidth, instance.strokewidth) / 2.0;\n    pos = pos / u;\n    pos.y = 1.0 - pos.y;\n    pos = pos * 2.0 - 1.0;\n    output.pos = vec4<f32>(pos, 0.0, 1.0);\n    output.uv = vec2<f32>(model.position.x, 1.0 - model.position.y);\n    output.fill = instance.fill_color;\n    output.stroke = instance.stroke_color;\n    output.strokewidth = instance.strokewidth;\n    output.corner_radii = instance.corner_radii;\n    output.scale = instance.scale;\n    return output;\n}\n\n@fragment\nfn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {\n    var col: vec4<f32> = in.fill;\n    let sw: vec2<f32> = vec2<f32>(in.strokewidth, in.strokewidth) / in.scale;\n    if in.uv.x < sw.x || in.uv.x > 1.0 - sw.x {\n        col = in.stroke;\n    }\n    if in.uv.y < sw.y || in.uv.y > 1.0 - sw.y {\n        col = in.stroke;\n    }\n    return col;\n}\n\nfn roundedBox(center: vec2<f32>, size: vec2<f32>, radius: vec4<f32>) -> f32 {\n    var rad = radius;\n    if center.x > 0.0 {\n        rad.x = radius.x;\n        rad.y = radius.y;\n    } else {\n        rad.x = radius.z;\n        rad.y = radius.w;\n    }\n    if center.y > 0.0 {\n        rad.x = rad.y;\n    }\n    var q = abs(center) - size + rad.x;\n    return min(max(q.x, q.y), 0.0) + length(max(q, vec2<f32>(0.0))) - rad.x;\n}\n";
-
     var drawName$5 = 'Rect';
     var rect = {
         type: 'rect',
         draw: draw$6,
     };
+    var _device$4 = null;
+    var _bufferManager$4 = null;
+    var _shader$4 = null;
+    var _vertextBufferManager$4 = null;
+    var _pipeline$4 = null;
+    var _renderPassDescriptor$4 = null;
+    var _geometryBuffer$2 = null;
+    var isInitialized$4 = false;
+    function initialize$4(device, ctx, vb) {
+        if (_device$4 != device) {
+            _device$4 = device;
+            isInitialized$4 = false;
+        }
+        if (!isInitialized$4) {
+            _bufferManager$4 = new BufferManager(device, drawName$5, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+            _shader$4 = ctx._shaderCache[drawName$5];
+            _vertextBufferManager$4 = new VertexBufferManager(['float32x2'], // position
+            // center, dimensions, fill color, stroke color, stroke width, corner radii
+            ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4']);
+            _pipeline$4 = Renderer.createRenderPipeline(drawName$5, device, _shader$4, Renderer.colorFormat, _vertextBufferManager$4.getBuffers());
+            _renderPassDescriptor$4 = Renderer.createRenderPassDescriptor(drawName$5, ctx.background, ctx.depthTexture.createView());
+            _geometryBuffer$2 = _bufferManager$4.createGeometryBuffer(quadVertex);
+            isInitialized$4 = true;
+        }
+        _renderPassDescriptor$4.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+    }
     function draw$6(device, ctx, scene, vb) {
         var items = scene.items;
         if (!(items === null || items === void 0 ? void 0 : items.length)) {
             return;
         }
-        var bufferManager = new BufferManager(device, drawName$5, this._uniforms.resolution, [vb.x1, vb.y1]);
-        var shader = device.createShaderModule({ code: rectShader, label: drawName$5 + ' Shader' });
-        var vertextBufferManager = new VertexBufferManager(['float32x2'], // position
-        // center, dimensions, fill color, stroke color, stroke width, corner radii
-        ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4']);
-        var pipeline = Renderer.createRenderPipeline(drawName$5, device, shader, scene._format, vertextBufferManager.getBuffers());
-        var geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
-        var uniformBuffer = bufferManager.createUniformBuffer();
-        var uniformBindGroup = Renderer.createUniformBindGroup(drawName$5, device, pipeline, uniformBuffer);
+        initialize$4(device, ctx, vb);
+        _bufferManager$4.setResolution(ctx._uniforms.resolution);
+        _bufferManager$4.setOffset([vb.x1, vb.y1]);
+        var uniformBuffer = _bufferManager$4.createUniformBuffer();
+        var uniformBindGroup = Renderer.createUniformBindGroup(drawName$5, device, _pipeline$4, uniformBuffer);
         var attributes = createAttributes$2(items);
-        var instanceBuffer = bufferManager.createInstanceBuffer(attributes);
-        Renderer.bundle2(device, pipeline, [6, items.length], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
+        var instanceBuffer = _bufferManager$4.createInstanceBuffer(attributes);
+        Renderer.queue2(device, _pipeline$4, _renderPassDescriptor$4, [6, items.length], [_geometryBuffer$2, instanceBuffer], [uniformBindGroup]);
     }
     function createAttributes$2(items) {
         return Float32Array.from((items).flatMap(function (item) {
@@ -6828,31 +6876,50 @@
         }));
     }
 
-    var shaderSource = "struct Uniforms {\n    resolution: vec2<f32>,\n    offset: vec2<f32>,\n}\n\n@group(0) @binding(0) var<uniform> uniforms: Uniforms;\n\nstruct VertexInput {\n    @location(0) position: vec2<f32>,\n    @location(1) center: vec2<f32>,\n    @location(2) scale: vec2<f32>,\n    @location(3) stroke_color: vec4<f32>,\n}\n\nstruct VertexOutput {\n    @builtin(position) pos: vec4<f32>,\n    @location(1) stroke: vec4<f32>,\n}\n\n@vertex\nfn main_vertex(in: VertexInput) -> VertexOutput {\n    var output : VertexOutput;\n    var u = uniforms.resolution;\n    var axis_offsets = calculateAxisWidthOffsets(in.scale);\n    var pos = in.position * in.scale  + in.center - uniforms.offset - axis_offsets;\n    pos = pos / uniforms.resolution;\n    pos.y = 1.0 - pos.y;\n    pos = pos * 2.0 - 1.0;\n    output.pos = vec4<f32>(pos, 0.0, 1.0);\n    output.stroke = in.stroke_color;\n    return output;\n}\n\n@fragment\nfn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {\n    return in.stroke;\n}\n\nfn calculateAxisWidthOffsets(inScale: vec2<f32>) -> vec2<f32> {\n    var x_width_offset = inScale.x;\n    var y_width_offset = inScale.y;\n\n    // one of them should be exactly 1.0 as its either a y or a x axis.\n    if (x_width_offset > 1.0) {\n        x_width_offset = 0.0;\n    }\n    if (y_width_offset > 1.0) {\n        y_width_offset = 0.0;\n    }\n    return vec2<f32>(x_width_offset / 2.0, y_width_offset / 2.0);\n}";
-
     var drawName$4 = 'Rule';
     var rule = {
         type: 'rule',
         draw: draw$5
     };
+    var _device$3 = null;
+    var _bufferManager$3 = null;
+    var _shader$3 = null;
+    var _vertextBufferManager$3 = null;
+    var _pipeline$3 = null;
+    var _renderPassDescriptor$3 = null;
+    var _geometryBuffer$1 = null;
+    var isInitialized$3 = false;
+    function initialize$3(device, ctx, vb) {
+        if (_device$3 != device) {
+            _device$3 = device;
+            isInitialized$3 = false;
+        }
+        if (!isInitialized$3) {
+            _bufferManager$3 = new BufferManager(device, drawName$4, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+            _shader$3 = ctx._shaderCache[drawName$4];
+            _vertextBufferManager$3 = new VertexBufferManager(['float32x2'], // position
+            // center, scale, color
+            ['float32x2', 'float32x2', 'float32x4']);
+            _pipeline$3 = Renderer.createRenderPipeline(drawName$4, device, _shader$3, Renderer.colorFormat, _vertextBufferManager$3.getBuffers());
+            _renderPassDescriptor$3 = Renderer.createRenderPassDescriptor(drawName$4, ctx.background, ctx.depthTexture.createView());
+            _geometryBuffer$1 = _bufferManager$3.createGeometryBuffer(quadVertex);
+            isInitialized$3 = true;
+        }
+        _renderPassDescriptor$3.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+    }
     function draw$5(device, ctx, scene, vb) {
         var items = scene.items;
         if (!(items === null || items === void 0 ? void 0 : items.length)) {
             return;
         }
-        var resolution = [this._uniforms.resolution[0], this._uniforms.resolution[1]];
-        var bufferManager = new BufferManager(device, drawName$4, resolution, [vb.x1, vb.y1]);
-        var shader = device.createShaderModule({ code: shaderSource, label: drawName$4 + ' Shader' });
-        var vertextBufferManager = new VertexBufferManager(['float32x2'], // position
-        // center, scale, color
-        ['float32x2', 'float32x2', 'float32x4']);
-        var pipeline = Renderer.createRenderPipeline(drawName$4, device, shader, scene._format, vertextBufferManager.getBuffers());
-        var geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
-        var uniformBuffer = bufferManager.createUniformBuffer();
-        var uniformBindGroup = Renderer.createUniformBindGroup(drawName$4, device, pipeline, uniformBuffer);
+        initialize$3(device, ctx, vb);
+        _bufferManager$3.setResolution(ctx._uniforms.resolution);
+        _bufferManager$3.setOffset([vb.x1, vb.y1]);
+        var uniformBuffer = _bufferManager$3.createUniformBuffer();
+        var uniformBindGroup = Renderer.createUniformBindGroup(drawName$4, device, _pipeline$3, uniformBuffer);
         var attributes = createAttributes$1(items);
-        var instanceBuffer = bufferManager.createInstanceBuffer(attributes);
-        Renderer.bundle2(device, pipeline, [6, items.length], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
+        var instanceBuffer = _bufferManager$3.createInstanceBuffer(attributes);
+        Renderer.queue2(device, _pipeline$3, _renderPassDescriptor$3, [6, items.length], [_geometryBuffer$1, instanceBuffer], [uniformBindGroup]);
     }
     function createAttributes$1(items) {
         return Float32Array.from(items.flatMap(function (item) {
@@ -6883,9 +6950,10 @@
     var _shader$2 = null;
     var _vertextBufferManager$2 = null;
     var _pipeline$2 = null;
+    var _renderPassDescriptor$2 = null;
     var _geometryBuffer = null;
     var isInitialized$2 = false;
-    function initialize$2(device, ctx, scene, vb) {
+    function initialize$2(device, ctx, vb) {
         if (_device$2 != device) {
             _device$2 = device;
             isInitialized$2 = false;
@@ -6896,24 +6964,26 @@
             _vertextBufferManager$2 = new VertexBufferManager(['float32x2'], // position
             ['float32x2', 'float32', 'float32x4', 'float32x4', 'float32'] // center, radius, color, stroke color, stroke width
             );
-            _pipeline$2 = Renderer.createRenderPipeline(drawName$3, device, _shader$2, scene._format, _vertextBufferManager$2.getBuffers());
+            _pipeline$2 = Renderer.createRenderPipeline(drawName$3, device, _shader$2, Renderer.colorFormat, _vertextBufferManager$2.getBuffers());
+            _renderPassDescriptor$2 = Renderer.createRenderPassDescriptor(drawName$3, ctx.background, ctx.depthTexture.createView());
             _geometryBuffer = _bufferManager$2.createGeometryBuffer(createGeometry());
             isInitialized$2 = true;
         }
+        _renderPassDescriptor$2.colorAttachments[0].view = ctx.getCurrentTexture().createView();
     }
     function draw$4(device, ctx, scene, vb) {
         var items = scene.items;
         if (!(items === null || items === void 0 ? void 0 : items.length)) {
             return;
         }
-        initialize$2(device, ctx, scene, vb);
+        initialize$2(device, ctx, vb);
         _bufferManager$2.setResolution(ctx._uniforms.resolution);
         _bufferManager$2.setOffset([vb.x1, vb.y1]);
         var uniformBuffer = _bufferManager$2.createUniformBuffer();
         var uniformBindGroup = Renderer.createUniformBindGroup(drawName$3, device, _pipeline$2, uniformBuffer);
         var attributes = createAttributes(items);
         var instanceBuffer = _bufferManager$2.createInstanceBuffer(attributes);
-        Renderer.bundle2(device, _pipeline$2, [segments * 3, items.length], [_geometryBuffer, instanceBuffer], [uniformBindGroup]);
+        Renderer.queue2(device, _pipeline$2, _renderPassDescriptor$2, [segments * 3, items.length], [_geometryBuffer, instanceBuffer], [uniformBindGroup]);
     }
     function createAttributes(items) {
         var result = new Float32Array(items.length * 12);
@@ -6970,8 +7040,9 @@
     var _shader$1 = null;
     var _vertextBufferManager$1 = null;
     var _pipeline$1 = null;
+    var _renderPassDescriptor$1 = null;
     var isInitialized$1 = false;
-    function initialize$1(device, ctx, scene, vb) {
+    function initialize$1(device, ctx, vb) {
         if (_device$1 != device) {
             _device$1 = device;
             isInitialized$1 = false;
@@ -6981,23 +7052,23 @@
             _shader$1 = ctx._shaderCache["Path"];
             _vertextBufferManager$1 = new VertexBufferManager(['float32x3', 'float32x4'], // position, color
             ['float32x2']);
-            _pipeline$1 = Renderer.createRenderPipeline(drawName$2, device, _shader$1, scene._format, _vertextBufferManager$1.getBuffers());
+            _pipeline$1 = Renderer.createRenderPipeline(drawName$2, device, _shader$1, Renderer.colorFormat, _vertextBufferManager$1.getBuffers());
+            _renderPassDescriptor$1 = Renderer.createRenderPassDescriptor(drawName$2, ctx.background, ctx.depthTexture.createView());
             isInitialized$1 = true;
         }
+        _renderPassDescriptor$1.colorAttachments[0].view = ctx.getCurrentTexture().createView();
     }
     function draw$2(device, ctx, scene, vb) {
         var items = scene.items;
         if (!(items === null || items === void 0 ? void 0 : items.length)) {
             return;
         }
-        initialize$1(device, ctx, scene, vb);
+        initialize$1(device, ctx, vb);
         _bufferManager$1.setResolution(ctx._uniforms.resolution);
         _bufferManager$1.setOffset([vb.x1, vb.y1]);
         for (var itemStr in items) {
             var item = items[itemStr];
-            // @ts-ignore
             ctx._tx += item.x || 0;
-            // @ts-ignore
             ctx._ty += item.y || 0;
             var geometryData = createGeometryData$1(ctx, item);
             var uniformBuffer = _bufferManager$1.createUniformBuffer();
@@ -7008,11 +7079,9 @@
                     continue;
                 var geometryBuffer = _bufferManager$1.createGeometryBuffer(geometryData[i]);
                 var instanceBuffer = _bufferManager$1.createInstanceBuffer(createPosition(item));
-                Renderer.bundle2(device, _pipeline$1, [geometryCount], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
+                Renderer.queue2(device, _pipeline$1, _renderPassDescriptor$1, [geometryCount], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
             }
-            // @ts-ignore
             ctx._tx -= item.x || 0;
-            // @ts-ignore
             ctx._ty -= item.y || 0;
         }
     }
@@ -7060,9 +7129,10 @@
     var _shader = null;
     var _vertextBufferManager = null;
     var _pipeline = null;
+    var _renderPassDescriptor = null;
     var isInitialized = false;
     var _cache = {};
-    function initialize(device, ctx, scene, vb) {
+    function initialize(device, ctx, vb) {
         if (_device != device) {
             _device = device;
             isInitialized = false;
@@ -7070,13 +7140,15 @@
         if (!isInitialized) {
             _cache = {};
             _bufferManager = new BufferManager(device, drawName$1, ctx._uniforms.resolution, [vb.x1, vb.y1]);
-            _shader = ctx._shaderCache["Shape"];
+            _shader = ctx._shaderCache[drawName$1];
             _vertextBufferManager = new VertexBufferManager(['float32x3', 'float32x4'], // position, color
             [] // center
             );
-            _pipeline = Renderer.createRenderPipeline(drawName$1, device, _shader, scene._format, _vertextBufferManager.getBuffers());
+            _pipeline = Renderer.createRenderPipeline(drawName$1, device, _shader, Renderer.colorFormat, _vertextBufferManager.getBuffers());
+            _renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName$1, ctx.background, ctx.depthTexture.createView());
             isInitialized = true;
         }
+        _renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
     }
     function draw$1(device, ctx, scene, vb) {
         var _a;
@@ -7084,20 +7156,20 @@
         if (!(items === null || items === void 0 ? void 0 : items.length)) {
             return;
         }
-        initialize(device, ctx, scene, vb);
+        initialize(device, ctx, vb);
         _bufferManager.setResolution(ctx._uniforms.resolution);
         _bufferManager.setOffset([vb.x1, vb.y1]);
         var uniformBuffer = _bufferManager.createUniformBuffer();
         var uniformBindGroup = Renderer.createUniformBindGroup(drawName$1, device, _pipeline, uniformBuffer);
         for (var itemStr in items) {
             var item = items[itemStr];
-            var geometryData = createGeometryData(ctx, item, (_a = ctx._cacheShapes) !== null && _a !== void 0 ? _a : false);
+            var geometryData = createGeometryData(ctx, item, (_a = ctx._renderer.wgOptions.cacheShapes) !== null && _a !== void 0 ? _a : false);
             for (var i = 0; i < geometryData.length; i++) {
                 var geometryCount = geometryData[i].length / _vertextBufferManager.getVertexLength();
                 if (geometryCount == 0)
                     continue;
                 var geometryBuffer = _bufferManager.createGeometryBuffer(geometryData[i]);
-                Renderer.bundle2(device, _pipeline, [geometryCount], [geometryBuffer], [uniformBindGroup]);
+                Renderer.queue2(device, _pipeline, _renderPassDescriptor, [geometryCount], [geometryBuffer], [uniformBindGroup]);
             }
         }
     }
@@ -7312,9 +7384,13 @@
 
     var lineShader = "struct Uniforms {\n    resolution: vec2<f32>,\n    offset: vec2<f32>,\n};\n\n@group(0) @binding(0) var<uniform> uniforms: Uniforms;\n@group(1) @binding(0) var<storage, read> pos: array<vec2<f32>>;\n@group(1) @binding(1) var<storage, read> colors: array<vec4<f32>>;\n@group(1) @binding(2) var<storage, read> widths: array<f32>;\n\nstruct VertexInput {\n    @location(0) index: u32,\n};\n\n\nstruct VertexOutput {\n    @builtin(position) pos: vec4<f32>,\n    @location(0) uv: vec2<f32>,\n    @location(1) fill: vec4<f32>,\n    @location(2) smooth_width: f32,\n};\n\nconst smooth_step = 1.5;\n\n@vertex\nfn main_vertex(@builtin(instance_index) index: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {\n    let start = pos[index];\n    let end = pos[index + 1];\n    let stroke_width = widths[index];\n    var color = colors[index];\n\n    // Calculate the direction vector of the line\n    let direction = normalize(end - start);\n    let angle = atan2(direction.y, direction.x);\n\n    // Calculate the normal vector\n    let normal = normalize(vec2<f32>(-direction.y, direction.x));\n\n    // Calculate the offset for width\n    let adjusted_width = stroke_width + smooth_step;\n    let offset = normal * ((adjusted_width) * 0.5);\n    let width = stroke_width + smooth_step * 2.0;\n    let length = length(end - start);\n\n    // Calculate the four points of the line\n    var p1 = start - offset;\n    var p2 = start + offset;\n    var p3 = end - offset;\n    var p4 = end + offset;\n\n    var vertices = array(p1, p2, p3, p2, p4, p3);\n    var uvs = array(\n        vec2<f32>(0.0, 0.0),\n        vec2<f32>(1.0, 0.0),\n        vec2<f32>(0.0, 1.0),\n        vec2<f32>(1.0, 0.0),\n        vec2<f32>(1.0, 1.0),\n        vec2<f32>(0.0, 1.0)\n    );\n    var pos = vertices[vertexIndex];\n    pos = (pos - uniforms.offset) / uniforms.resolution;\n    pos.y = 1.0 - pos.y;\n    pos = pos * 2.0 - 1.0;\n\n    var out: VertexOutput;\n    out.pos = vec4<f32>(pos, 0.0, 1.0);\n    out.uv = uvs[vertexIndex];\n    out.fill = color;\n    out.smooth_width = adjusted_width / stroke_width - 1.0;\n    return out;\n}\n\n@fragment\nfn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {\n    let sx = abs(in.uv.x - 0.5) * 2.0;\n    let sy = abs(in.uv.y - 0.5) * 2.0;\n    let aax: f32 = 1.0 - smoothstep(1.0 - in.smooth_width, 1.0, sx);\n    // let aay: f32 = 1.0 - smoothstep(1.0 - in.smooth_length, 1.0, sy);\n    return vec4<f32>(in.fill.rgb, in.fill.a * aax);\n}\n\nfn pos_length() -> u32 {\n    return arrayLength(&pos);\n}";
 
+    var ruleShader = "struct Uniforms {\n    resolution: vec2<f32>,\n    offset: vec2<f32>,\n}\n\n@group(0) @binding(0) var<uniform> uniforms: Uniforms;\n\nstruct VertexInput {\n    @location(0) position: vec2<f32>,\n    @location(1) center: vec2<f32>,\n    @location(2) scale: vec2<f32>,\n    @location(3) stroke_color: vec4<f32>,\n}\n\nstruct VertexOutput {\n    @builtin(position) pos: vec4<f32>,\n    @location(1) stroke: vec4<f32>,\n}\n\n@vertex\nfn main_vertex(in: VertexInput) -> VertexOutput {\n    var output : VertexOutput;\n    var u = uniforms.resolution;\n    var axis_offsets = calculateAxisWidthOffsets(in.scale);\n    var pos = in.position * in.scale  + in.center - uniforms.offset - axis_offsets;\n    pos = pos / uniforms.resolution;\n    pos.y = 1.0 - pos.y;\n    pos = pos * 2.0 - 1.0;\n    output.pos = vec4<f32>(pos, 0.0, 1.0);\n    output.stroke = in.stroke_color;\n    return output;\n}\n\n@fragment\nfn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {\n    return in.stroke;\n}\n\nfn calculateAxisWidthOffsets(inScale: vec2<f32>) -> vec2<f32> {\n    var x_width_offset = inScale.x;\n    var y_width_offset = inScale.y;\n\n    // one of them should be exactly 1.0 as its either a y or a x axis.\n    if (x_width_offset > 1.0) {\n        x_width_offset = 0.0;\n    }\n    if (y_width_offset > 1.0) {\n        y_width_offset = 0.0;\n    }\n    return vec2<f32>(x_width_offset / 2.0, y_width_offset / 2.0);\n}";
+
     var slineShader = "struct Uniforms {\n    resolution: vec2<f32>,\n    offset: vec2<f32>,\n};\n\n@group(0) @binding(0) var<uniform> uniforms: Uniforms;\n\nstruct VertexInput {\n    @location(0) start: vec2<f32>,\n    @location(1) end: vec2<f32>,\n    @location(2) color: vec4<f32>,\n    @location(3) stroke_width: f32,\n};\n\n\nstruct VertexOutput {\n    @builtin(position) pos: vec4<f32>,\n    @location(0)  uv: vec2<f32>,\n    @location(1) fill: vec4<f32>,\n};\n\n@vertex\nfn main_vertex(in: VertexInput, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {\n    let start = in.start;\n    let end = in.end;\n    let color = in.color;\n    let stroke_width = in.stroke_width;\n\n    // Calculate the direction vector of the line\n    let direction = normalize(end - start);\n    let angle = atan2(direction.y, direction.x);\n\n    // Calculate the normal vector\n    let normal = normalize(vec2<f32>(-direction.y, direction.x));\n\n    // Calculate the offset for width\n    let offset = normal * ((stroke_width) * 0.5);\n\n    // Calculate the four points of the line\n    var p1 = start - offset;\n    var p2 = start + offset;\n    var p3 = end - offset;\n    var p4 = end + offset;\n\n    var vertices = array(p1, p2, p3, p4, p2, p3);\n    var pos = vertices[vertexIndex];\n    pos = (pos - uniforms.offset) / uniforms.resolution;\n    pos.y = 1.0 - pos.y;\n    pos = pos * 2.0 - 1.0;\n\n    var out: VertexOutput;\n    out.pos = vec4<f32>(pos, 0.0, 1.0);\n    let rotatedUV = vertices[vertexIndex] + uniforms.offset;\n    var len = length(pos.xy);\n    out.uv = vec2<f32>(- pos.x / len, pos.y / len);\n    out.fill = color;\n    return out;\n}\n\n@fragment\nfn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {\n    return in.fill;\n}";
 
     var triangleShader = "struct Uniforms {\n  resolution: vec2<f32>,\n  offset: vec2<f32>,\n}\n\n@group(0) @binding(0) var<uniform> uniforms : Uniforms;\n\nstruct VertexInput {\n  @location(0) position: vec3<f32>,\n  @location(1) fill_color: vec4<f32>,\n}\n\nstruct InstanceInput {\n  @location(2) center: vec2<f32>,\n}\n\nstruct VertexOutput {\n  @builtin(position) pos: vec4<f32>,\n  @location(0) uv: vec2<f32>,\n  @location(1) fill: vec4<f32>,\n}\n\n@vertex\nfn main_vertex(\n    model: VertexInput,\n    instance: InstanceInput,\n) -> VertexOutput {\n    var output: VertexOutput;\n    var pos = model.position.xy + instance.center - uniforms.offset;\n    pos = pos / uniforms.resolution;\n    pos.y = 1.0 - pos.y;\n    pos = pos * 2.0 - 1.0;\n    output.pos = vec4<f32>(pos, model.position.z + 0.5, 1.0);\n    output.uv = pos;\n    output.fill = model.fill_color;\n    return output;\n}\n\n@fragment\nfn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {\n    return in.fill;\n}\n";
+
+    var rectShader = "struct Uniforms {\n  resolution: vec2<f32>,\n  offset: vec2<f32>,\n};\n\n@group(0) @binding(0) var<uniform> uniforms : Uniforms;\n\nstruct VertexInput {\n  @location(0) position: vec2<f32>,\n}\n\nstruct InstanceInput {\n  @location(1) center: vec2<f32>,\n  @location(2) scale: vec2<f32>,\n  @location(3) fill_color: vec4<f32>,\n  @location(4) stroke_color: vec4<f32>,\n  @location(5) strokewidth: f32,\n  @location(6) corner_radii: vec4<f32>,\n}\n\nstruct VertexOutput {\n  @builtin(position) pos: vec4<f32>,\n  @location(0) uv: vec2<f32>,\n  @location(1) fill: vec4<f32>,\n  @location(2) stroke: vec4<f32>,\n  @location(3) strokewidth: f32,\n  @location(4) corner_radii: vec4<f32>,\n  @location(5) scale: vec2<f32>,\n}\n\n@vertex\nfn main_vertex(\n    model: VertexInput,\n    instance: InstanceInput\n) -> VertexOutput {\n    var output: VertexOutput;\n    var u = uniforms.resolution;\n    var scale = instance.scale + vec2<f32>(instance.strokewidth, instance.strokewidth);\n    var pos = model.position * scale + instance.center - uniforms.offset - vec2<f32>(instance.strokewidth, instance.strokewidth) / 2.0;\n    pos = pos / u;\n    pos.y = 1.0 - pos.y;\n    pos = pos * 2.0 - 1.0;\n    output.pos = vec4<f32>(pos, 0.0, 1.0);\n    output.uv = vec2<f32>(model.position.x, 1.0 - model.position.y);\n    output.fill = instance.fill_color;\n    output.stroke = instance.stroke_color;\n    output.strokewidth = instance.strokewidth;\n    output.corner_radii = instance.corner_radii;\n    output.scale = instance.scale;\n    return output;\n}\n\n@fragment\nfn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {\n    var col: vec4<f32> = in.fill;\n    let sw: vec2<f32> = vec2<f32>(in.strokewidth, in.strokewidth) / in.scale;\n    if in.uv.x < sw.x || in.uv.x > 1.0 - sw.x {\n        col = in.stroke;\n    }\n    if in.uv.y < sw.y || in.uv.y > 1.0 - sw.y {\n        col = in.stroke;\n    }\n    return col;\n}\n\nfn roundedBox(center: vec2<f32>, size: vec2<f32>, radius: vec4<f32>) -> f32 {\n    var rad = radius;\n    if center.x > 0.0 {\n        rad.x = radius.x;\n        rad.y = radius.y;\n    } else {\n        rad.x = radius.z;\n        rad.y = radius.w;\n    }\n    if center.y > 0.0 {\n        rad.x = rad.y;\n    }\n    var q = abs(center) - size + rad.x;\n    return min(max(q.x, q.y), 0.0) + length(max(q, vec2<f32>(0.0))) - rad.x;\n}\n";
 
     var arcShader = "struct Uniforms {\r\n  resolution: vec2<f32>,\r\n  offset: vec2<f32>,\r\n}\r\n\r\n@group(0) @binding(0) var<uniform> uniforms : Uniforms;\r\n\r\nstruct VertexInput {\r\n  @location(0) position: vec3<f32>,\r\n  @location(1) fill_color: vec4<f32>,\r\n}\r\n\r\nstruct InstanceInput {\r\n  @location(2) center: vec2<f32>,\r\n}\r\n\r\nstruct VertexOutput {\r\n  @builtin(position) pos: vec4<f32>,\r\n  @location(0) uv: vec2<f32>,\r\n  @location(1) fill: vec4<f32>,\r\n}\r\n\r\n@vertex\r\nfn main_vertex(\r\n    model: VertexInput,\r\n    instance: InstanceInput\r\n) -> VertexOutput {\r\n    var output: VertexOutput;\r\n    var pos = model.position.xy + instance.center - uniforms.offset;\r\n    pos = pos / uniforms.resolution;\r\n    pos.y = 1.0 - pos.y;\r\n    pos = pos * 2.0 - 1.0;\r\n    output.pos = vec4<f32>(pos, model.position.z + 0.5, 1.0);\r\n    output.uv = pos;\r\n    output.fill = model.fill_color;\r\n    return output;\r\n}\r\n\r\n@fragment\r\nfn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {\r\n    return in.fill;\r\n}\r\n";
 
@@ -7336,7 +7412,7 @@
     inherits(WebGPURenderer, vegaScenegraph.Renderer, {
         initialize: function (el, width, height, origin) {
             this._canvas = document.createElement('canvas'); // instantiate a small canvas
-            this._ctx = this._canvas.getContext('webgpu');
+            var ctx = this._canvas.getContext('webgpu');
             this._textCanvas = document.createElement('canvas');
             this._textContext = this._textCanvas.getContext('2d');
             if (el) {
@@ -7353,21 +7429,25 @@
                 el.appendChild(this._textCanvas);
             }
             this._canvas._textCanvas = this._textCanvas;
-            this._ctx._textContext = this._textContext;
-            this._ctx._renderer = this;
+            ctx._textContext = this._textContext;
+            ctx._renderer = this;
             this._bgcolor = "#ffffff";
             this._uniforms = {
                 resolution: [width, height],
                 origin: origin,
                 dpi: window.devicePixelRatio || 1,
             };
-            this._ctx._uniforms = this._uniforms;
-            this._ctx._pathCache = {};
-            this._ctx._pathCacheSize = 0;
-            this._ctx._geometryCache = {};
-            this._ctx._geometryCacheSize = 0;
-            this.simpleLine = true;
-            this.debugLog = false;
+            ctx._uniforms = this._uniforms;
+            ctx._pathCache = {};
+            ctx._pathCacheSize = 0;
+            ctx._geometryCache = {};
+            ctx._geometryCacheSize = 0;
+            this._ctx = ctx;
+            var wgOptions = {};
+            wgOptions.simpleLine = true;
+            wgOptions.debugLog = false;
+            wgOptions.cacheShapes = false;
+            this.wgOptions = wgOptions;
             this._renderCount = 0;
             // this method will invoke resize to size the canvas appropriately
             return base.initialize.call(this, el, width, height, origin);
@@ -7421,7 +7501,7 @@
                             device = this.device();
                             ctx = this.context();
                             if (!(!device || !ctx)) return [3 /*break*/, 3];
-                            return [4 /*yield*/, navigator.gpu.requestAdapter()];
+                            return [4 /*yield*/, navigator.gpu.requestAdapter({ powerPreference: "high-performance" })];
                         case 1:
                             adapter = _a.sent();
                             return [4 /*yield*/, adapter.requestDevice()];
@@ -7431,9 +7511,8 @@
                             this._device = device;
                             presentationFormat = navigator.gpu.getPreferredCanvasFormat();
                             Renderer.colorFormat = presentationFormat;
-                            this._prefferedFormat = presentationFormat;
                             ctx = this._canvas.getContext('webgpu');
-                            this._ctx.configure({
+                            ctx.configure({
                                 device: device,
                                 format: presentationFormat,
                                 usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
@@ -7441,6 +7520,7 @@
                             });
                             this._ctx = ctx;
                             this.cacheShaders();
+                            this._renderPassDescriptor = Renderer.createRenderPassDescriptor("Bundler", this.clearColor(), this.depthTexture().createView());
                             _a.label = 3;
                         case 3: return [2 /*return*/, { device: device, ctx: ctx }];
                     }
@@ -7452,7 +7532,7 @@
             (function () { return __awaiter(_this, void 0, void 0, function () {
                 var _a, device, ctx, o, w, h, 
                 // db = this._dirty,
-                vb, t1, t2, renderPassDescriptor;
+                vb, t1, t2;
                 var _this = this;
                 return __generator(this, function (_b) {
                     switch (_b.label) {
@@ -7468,14 +7548,15 @@
                             this.draw(device, ctx, scene, vb);
                             t2 = performance.now();
                             device.queue.onSubmittedWorkDone().then(function () {
-                                if (_this.debugLog == true) {
+                                if (_this.wgOptions.debugLog === true) {
                                     var t3 = performance.now();
                                     console.log("Render Time (".concat(_this._renderCount++, "): ").concat(((t3 - t1) / 1).toFixed(3), "ms (Draw: ").concat(((t2 - t1) / 1).toFixed(3), "ms, WebGPU: ").concat(((t3 - t2) / 1).toFixed(3), "ms)"));
                                 }
                             });
-                            renderPassDescriptor = Renderer.createRenderPassDescriptor("Bundler", this.clearColor(), this.depthTexture().createView());
-                            renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
-                            Renderer.submitBundles(device, renderPassDescriptor);
+                            this._renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+                            return [4 /*yield*/, Renderer.submitQueue(device)];
+                        case 2:
+                            _b.sent();
                             return [2 /*return*/];
                     }
                 });
@@ -7495,7 +7576,8 @@
             }
             else {
                 // ToDo: Set Options
-                scene._format = this.prefferedFormat();
+                ctx.depthTexture = this.depthTexture();
+                ctx.background = this.clearColor();
                 mark.draw.call(this, device, ctx, scene, transform);
             }
         },
@@ -7538,13 +7620,11 @@
                 usage: GPUTextureUsage.RENDER_ATTACHMENT,
             });
             this._depthTexture.device = this._device;
+            this._renderPassDescriptor = Renderer.createRenderPassDescriptor("Bundler", this.clearColor(), this.depthTexture().createView());
             return this._depthTexture;
         },
         clearColor: function () {
             return (this._bgcolor ? Color.from(this._bgcolor) : { r: 1.0, g: 1.0, b: 1.0, a: 1.0 });
-        },
-        prefferedFormat: function () {
-            return this._prefferedFormat != null ? this._prefferedFormat : null;
         },
         cacheShaders: function () {
             var device = this.device();
@@ -7552,9 +7632,11 @@
             context._shaderCache = {};
             context._shaderCache["Symbol"] = device.createShaderModule({ code: symbolShader, label: 'Symbol Shader' });
             context._shaderCache["Line"] = device.createShaderModule({ code: lineShader, label: 'Line Shader' });
+            context._shaderCache["Rule"] = device.createShaderModule({ code: ruleShader, label: 'Rule Shader' });
             context._shaderCache["SLine"] = device.createShaderModule({ code: slineShader, label: 'SLine Shader' });
             context._shaderCache["Path"] = device.createShaderModule({ code: triangleShader, label: 'Triangle Shader' });
             context._shaderCache["Rect"] = device.createShaderModule({ code: rectShader, label: 'Rect Shader' });
+            context._shaderCache["Group"] = device.createShaderModule({ code: rectShader, label: 'Group Shader' });
             context._shaderCache["Arc"] = device.createShaderModule({ code: arcShader, label: 'Arc Shader' });
             context._shaderCache["Shape"] = device.createShaderModule({ code: shapeShader, label: 'Shape Shader' });
             context._shaderCache["Area"] = device.createShaderModule({ code: areaShader, label: 'Area Shader' });
