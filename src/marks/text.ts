@@ -1,6 +1,7 @@
 import { Bounds, Marks as marks } from 'vega-scenegraph';
+import { GPUVegaCanvasContext } from '../types/gpuVegaTypes.js';
 
-function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: { items: Array<Text>; bounds: Bounds }, bounds: Bounds) {
+function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: { items: Array<Text>; bounds: Bounds }, bounds: Bounds) {
   marks.text.draw(this._textContext, scene, bounds);
 }
 

@@ -1,7 +1,7 @@
 import { Bounds } from 'vega-scenegraph';
 import { Color } from '../util/color.js';
 import { SceneItem, SceneGroup } from 'vega-typings';
-import { GPUScene } from '../types/gpuscene.js';
+import { GPUVegaScene, GPUVegaCanvasContext } from '../types/gpuVegaTypes.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { Renderer } from '../util/renderer.js';
@@ -30,10 +30,11 @@ let _bufferManager: BufferManager = null;
 let _shader: GPUShaderModule = null;
 let _vertextBufferManager: VertexBufferManager = null;
 let _pipeline: GPURenderPipeline = null;
+let _renderPassDescriptor: GPURenderPassDescriptor = null;
 let isInitialized: boolean = false;
 let _cache = {};
 
-function initialize(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bounds) {
+function initialize(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds) {
   if (_device != device) {
     _device = device;
     isInitialized = false;
@@ -41,25 +42,27 @@ function initialize(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, v
 
   if (!isInitialized) {
     _cache = {};
-    _bufferManager = new BufferManager(device, drawName, (ctx as any)._uniforms.resolution, [vb.x1, vb.y1]);
-    _shader = (ctx as any)._shaderCache["Shape"] as GPUShaderModule;
+    _bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+    _shader = ctx._shaderCache[drawName] as GPUShaderModule;
     _vertextBufferManager = new VertexBufferManager(
       ['float32x3', 'float32x4'], // position, color
       [] // center
     );
-    _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, scene._format, _vertextBufferManager.getBuffers());
+    _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, Renderer.colorFormat, _vertextBufferManager.getBuffers());
+    _renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, ctx.background, ctx.depthTexture.createView());
     isInitialized = true;
   }
+  _renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 }
 
-function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bounds) {
+function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds) {
   const items = scene.items as SceneShape[];
   if (!items?.length) {
     return;
   }
 
-  initialize(device, ctx, scene, vb);
-  _bufferManager.setResolution((ctx as any)._uniforms.resolution);
+  initialize(device, ctx, vb);
+  _bufferManager.setResolution(ctx._uniforms.resolution);
   _bufferManager.setOffset([vb.x1, vb.y1]);
 
   const uniformBuffer = _bufferManager.createUniformBuffer();
@@ -67,7 +70,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
   
   for (var itemStr in items) {
     const item = items[itemStr];
-    const geometryData = createGeometryData(ctx, item, (ctx as any)._cacheShapes ?? false);
+    const geometryData = createGeometryData(ctx, item, ctx._renderer.wgOptions.cacheShapes ?? false);
 
     for (let i = 0; i < geometryData.length; i++) {
       const geometryCount = geometryData[i].length / _vertextBufferManager.getVertexLength();
@@ -75,13 +78,13 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
         continue;
       const geometryBuffer = _bufferManager.createGeometryBuffer(geometryData[i]);
 
-      Renderer.bundle2(device, _pipeline,  [geometryCount], [geometryBuffer], [uniformBindGroup]);
+      Renderer.queue2(device, _pipeline, _renderPassDescriptor, [geometryCount], [geometryBuffer], [uniformBindGroup]);
     }
   }
 }
 
 function createGeometryData(
-  context: GPUCanvasContext,
+  context: GPUVegaCanvasContext,
   item: SceneShape,
   useCache: boolean,
 ): [geometryData: Float32Array, strokeGeometryData: Float32Array] {

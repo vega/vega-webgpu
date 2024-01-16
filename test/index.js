@@ -19,8 +19,7 @@ selectRenderer.addEventListener('change', function () {
   if (view) {
     view.renderer(selectedRenderer);
     view.runAsync();
-    view._renderer.debugLog = true;
-    view._renderer.simpleLine = true;
+    configureWebGPU();
   }
 });
 const selectVersion = document.querySelector('#versions');
@@ -128,15 +127,26 @@ async function load(name) {
       .initialize(document.querySelector('#vis')) // set parent DOM element
       .renderer(selectedRenderer) // set render type (defaults to 'canvas')
       .hover();
-
-    view._renderer.debugLog = true;
-    view._renderer.simpleLine = true;
+    configureWebGPU();
 
     view.runAsync();
     console.log('INIT', name);
     specname = name;
   } catch (err) {
     console.error(err, err.stack);
+  }
+}
+
+function configureWebGPU() {
+  if (!selectedRenderer || selectedRenderer != 'webgpu')
+    return;
+  if (selectedVersion && selectedVersion.replaceAll('_', '.') == '1.0.0') {
+    view._renderer.debugLog = true;
+    view._renderer.simpleLine = true;
+  } else {
+    view._renderer.wgOptions.debugLog = true;
+    view._renderer.wgOptions.simpleLine = true;
+    view._renderer.wgOptions.shapeCache = false;
   }
 }
 

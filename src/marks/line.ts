@@ -1,7 +1,7 @@
 import { Color } from '../util/color';
 import { Bounds } from 'vega-scenegraph';
 import { SceneLine, SceneItem } from 'vega-typings';
-import { GPUScene } from '../types/gpuscene.js'
+import { GPUVegaScene, GPUVegaCanvasContext } from '../types/gpuVegaTypes.js'
 import { BufferManager } from '../util/bufferManager.js';
 import { Renderer } from '../util/renderer.js';
 import { VertexBufferManager } from '../util/vertexManager';
@@ -21,45 +21,48 @@ let _shader: GPUShaderModule = null;
 let _shader2: GPUShaderModule = null;
 let _pipeline: GPURenderPipeline = null;
 let _pipeline2: GPURenderPipeline = null;
+let _renderPassDescriptor: GPURenderPassDescriptor = null;
 let isInitialized: boolean = false;
 
-function initialize(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bounds) {
+function initialize(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds) {
   if (_device != device) {
     _device = device;
     isInitialized = false;
   }
 
   if (!isInitialized) {
-    _bufferManager = new BufferManager(device, drawName, (ctx as any)._uniforms.resolution, [vb.x1, vb.y1]);
+    _bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
     _vertextBufferManager = new VertexBufferManager(
-      [], 
+      [],
       ['float32x2', 'float32x2', 'float32x4', 'float32'] // start, end, color, width
     );
-    _shader = (ctx as any)._shaderCache["Line"] as GPUShaderModule;
-    _shader2 = (ctx as any)._shaderCache["SLine"] as GPUShaderModule;
-    _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, scene._format, []);
-    _pipeline2 = Renderer.createRenderPipeline("S" + drawName, device, _shader2, scene._format, _vertextBufferManager.getBuffers());
+    _shader = ctx._shaderCache["Line"] as GPUShaderModule;
+    _shader2 = ctx._shaderCache["SLine"] as GPUShaderModule;
+    _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, Renderer.colorFormat, []);
+    _pipeline2 = Renderer.createRenderPipeline("S" + drawName, device, _shader2, Renderer.colorFormat, _vertextBufferManager.getBuffers());
+    _renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, ctx.background, ctx.depthTexture.createView());
     isInitialized = true;
   }
+  _renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 }
 
-function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bounds) {
+function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds) {
   const items = scene.items;
   if (!items?.length) {
     return;
   }
 
-  initialize(device, ctx, scene, vb);
-  _bufferManager.setResolution((ctx as any)._uniforms.resolution);
+  initialize(device, ctx, vb);
+  _bufferManager.setResolution(ctx._uniforms.resolution);
   _bufferManager.setOffset([vb.x1, vb.y1]);
 
 
-  if(this.simpleLine === true) {
+  if (ctx._renderer.wgOptions.simpleLine === true) {
     const uniformBindGroup = Renderer.createUniformBindGroup("S" + drawName, device, _pipeline2, _bufferManager.createUniformBuffer())
     const attributes = createAttributes(items);
     const instanceBuffer = _bufferManager.createInstanceBuffer(attributes);
 
-    Renderer.bundle2(device, _pipeline2, [6, items.length - 1], [instanceBuffer], [uniformBindGroup]);  
+    Renderer.queue2(device, _pipeline2, _renderPassDescriptor, [6, items.length - 1], [instanceBuffer], [uniformBindGroup]);
   } else {
     const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, _pipeline, _bufferManager.createUniformBuffer())
     const pointDatas = createPointDatas(items);
@@ -68,7 +71,7 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     const pointWidthBuffer = _bufferManager.createBuffer(drawName + ' Point Width Buffer', pointDatas.widths, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
     const pointBindGroup = Renderer.createBindGroup(drawName, device, _pipeline, [pointPositionBuffer, pointColorBuffer, pointWidthBuffer], null, 1);
 
-    Renderer.bundle2(device, _pipeline,  [6, items.length - 1], [], [uniformBindGroup, pointBindGroup]);
+    Renderer.queue2(device, _pipeline, _renderPassDescriptor, [6, items.length - 1], [], [uniformBindGroup, pointBindGroup]);
   }
 
 }
@@ -88,7 +91,7 @@ function createAttributes(items: SceneItem[]) {
     result[index + 1] = y;
     result[index + 2] = x2;
     result[index + 3] = y2;
-    result[index+ 4] = col[0];
+    result[index + 4] = col[0];
     result[index + 5] = col[1];
     result[index + 6] = col[2];
     result[index + 7] = col[3];

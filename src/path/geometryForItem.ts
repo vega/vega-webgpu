@@ -1,6 +1,7 @@
 import { color } from 'd3-color';
 import { Color } from '../util/color';
 import extrude from 'extrude-polyline';
+import { GPUVegaCanvasContext } from '../types/gpuVegaTypes.js';
 
 
 interface ItemGeometry {
@@ -12,7 +13,7 @@ interface ItemGeometry {
   strokeCount: number,
 }
 
-export default function (context, item, shapeGeom, cache: boolean = false): ItemGeometry {
+export default function (context: GPUVegaCanvasContext, item, shapeGeom, cache: boolean = false): ItemGeometry {
   if (cache && shapeGeom.key) {
     var entry = context._geometryCache[shapeGeom.key];
     if (entry)

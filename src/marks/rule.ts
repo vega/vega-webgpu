@@ -5,7 +5,7 @@ import {
 } from 'vega-typings';
 import shaderSource from '../shaders/rule.wgsl';
 import { quadVertex } from '../util/arrays';
-import { GPUScene } from '../types/gpuscene.js';
+import { GPUVegaScene, GPUVegaCanvasContext } from '../types/gpuVegaTypes.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { Renderer } from '../util/renderer.js';
@@ -17,31 +17,56 @@ export default {
   draw: draw
 };
 
+let _device: GPUDevice = null;
+let _bufferManager: BufferManager = null;
+let _shader: GPUShaderModule = null;
+let _vertextBufferManager: VertexBufferManager = null;
+let _pipeline: GPURenderPipeline = null;
+let _renderPassDescriptor: GPURenderPassDescriptor = null;
+let _geometryBuffer: GPUBuffer = null;
+let isInitialized: boolean = false;
 
-function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bounds) {
+function initialize(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds) {
+  if (_device != device) {
+    _device = device;
+    isInitialized = false;
+  }
+
+  if (!isInitialized) {
+    _bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+    _shader = ctx._shaderCache[drawName] as GPUShaderModule;
+    _vertextBufferManager = new VertexBufferManager(
+      ['float32x2'], // position
+      // center, scale, color
+      ['float32x2', 'float32x2', 'float32x4']
+    );
+    _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, Renderer.colorFormat, _vertextBufferManager.getBuffers());
+    _renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, ctx.background, ctx.depthTexture.createView());
+    _geometryBuffer = _bufferManager.createGeometryBuffer(quadVertex);
+    isInitialized = true;
+  }
+  _renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+}
+
+
+function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds) {
   const items = scene.items;
   if (!items?.length) {
     return;
   }
 
-  const resolution: [width: number, height: number] = [this._uniforms.resolution[0], this._uniforms.resolution[1]];
-  const bufferManager = new BufferManager(device, drawName, resolution, [vb.x1, vb.y1]);
-  const shader = device.createShaderModule({ code: shaderSource, label: drawName + ' Shader' });
-  const vertextBufferManager = new VertexBufferManager(
-    ['float32x2'], // position
-    // center, scale, color
-    ['float32x2', 'float32x2', 'float32x4']
-  );
-  const pipeline = Renderer.createRenderPipeline(drawName, device, shader, scene._format, vertextBufferManager.getBuffers());
+  initialize(device, ctx, vb);
+  _bufferManager.setResolution(ctx._uniforms.resolution);
+  _bufferManager.setOffset([vb.x1, vb.y1]);
 
-  const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex);
-  const uniformBuffer = bufferManager.createUniformBuffer();
-  const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, pipeline, uniformBuffer);
+  const uniformBuffer = _bufferManager.createUniformBuffer();
+  const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, _pipeline, uniformBuffer);
+
   const attributes = createAttributes(items);
-  const instanceBuffer = bufferManager.createInstanceBuffer(attributes);
+  const instanceBuffer = _bufferManager.createInstanceBuffer(attributes);
 
-  Renderer.bundle2(device, pipeline,  [6, items.length], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
-  
+  Renderer.queue2(device, _pipeline, _renderPassDescriptor, [6, items.length], [_geometryBuffer, instanceBuffer], [uniformBindGroup]);
+
 }
 
 function createAttributes(items: SceneItem[]): Float32Array {

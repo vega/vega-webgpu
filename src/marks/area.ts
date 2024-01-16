@@ -1,7 +1,7 @@
 import { Bounds } from 'vega-scenegraph';
 import { Color } from '../util/color.js';
 import { SceneGroup, SceneItem } from 'vega-typings';
-import { GPUScene } from '../types/gpuscene.js';
+import { GPUVegaScene, GPUVegaCanvasContext } from '../types/gpuVegaTypes.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { BufferManager } from '../util/bufferManager.js';
 import { Renderer } from '../util/renderer.js';
@@ -28,34 +28,37 @@ let _bufferManager: BufferManager = null;
 let _shader: GPUShaderModule = null;
 let _vertextBufferManager: VertexBufferManager = null;
 let _pipeline: GPURenderPipeline = null;
+let _renderPassDescriptor: GPURenderPassDescriptor = null;
 let isInitialized: boolean = false;
 
-function initialize(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bounds) {
+function initialize(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds) {
   if (_device != device) {
     _device = device;
     isInitialized = false;
   }
 
   if (!isInitialized) {
-    _bufferManager = new BufferManager(device, drawName, (ctx as any)._uniforms.resolution, [vb.x1, vb.y1]);
-    _shader = (ctx as any)._shaderCache["Area"] as GPUShaderModule;
+    _bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+    _shader = ctx._shaderCache["Area"] as GPUShaderModule;
     _vertextBufferManager = new VertexBufferManager(
       ['float32x3', 'float32x4'], // position, color
       [] // center
     );
-    _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, scene._format, _vertextBufferManager.getBuffers());
+    _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, Renderer.colorFormat, _vertextBufferManager.getBuffers());
+    _renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, ctx.background, ctx.depthTexture.createView());
     isInitialized = true;
   }
+  _renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 }
 
-function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bounds) {
+function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds) {
   const items = scene.items as SceneArea[];
   if (!items?.length) {
     return;
   }
 
-  initialize(device, ctx, scene, vb);
-  _bufferManager.setResolution((ctx as any)._uniforms.resolution);
+  initialize(device, ctx, vb);
+  _bufferManager.setResolution(ctx._uniforms.resolution);
   _bufferManager.setOffset([vb.x1, vb.y1]);
 
   const item = items[0];
@@ -68,19 +71,20 @@ function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene, vb: Bou
     if (geometryCount == 0)
       continue;
     const geometryBuffer = _bufferManager.createGeometryBuffer(geometryData[i]);
-    Renderer.bundle2(device, _pipeline,  [geometryCount], [geometryBuffer], [uniformBindGroup]);
+    // Renderer.queue2(device, _pipeline, [geometryCount], [geometryBuffer], [uniformBindGroup]);
+    Renderer.queue2(device, _pipeline, _renderPassDescriptor, [geometryCount], [geometryBuffer], [uniformBindGroup]);
   }
 }
 
 function createGeometryData(
-  context: GPUCanvasContext,
+  context: GPUVegaCanvasContext,
   item: SceneArea,
   items: SceneArea[]
 ): [geometryData: Float32Array, strokeGeometryData: Float32Array] {
   // @ts-ignore
   const shapeGeom = area(context, items);
   const geometry = geometryForItem(context, item, shapeGeom);
-  
+
   const geometryData = new Float32Array(geometry.fillCount * 7);
   const strokeGeometryData = new Float32Array(geometry.strokeCount * 7);
   const fill = Color.from2(item.fill, item.opacity, item.fillOpacity);

@@ -2,7 +2,7 @@
 
 [Demo](https://kanadaat.github.io/vega-webgpu/test?version=1_0_0)
 
-A specific Vega WebGPU Extension can be used by using the queryparameter `version=1_0_0` otherwise the latest will be used.
+A specific Vega WebGPU Extension can be used by using the queryparameter (as for example `version=1_0_0`) otherwise the latest will be used.
 
 The Vega WebGPU Extension is created by [KaNaDaAT](https://github.com/KaNaDaAT) based on the already existing efforts of [lsh](https://github.com/lsh).
 
@@ -45,6 +45,8 @@ The WebGPU renderer was developed for Vega 5.19.1. Other Versions may work as we
   </script>
 </body>
 ```
+
+The example shows how it is possible to always use the "latest" version.
 
 For more infos look at [Hosted Versions](#hosted-versions).
 
@@ -95,12 +97,17 @@ function render(spec) {
   });
   return view.runAsync();
 }
-view._renderer.debugLog = true;
+view._renderer.wgOptions.debugLog = true;
+// For Version 1.0.0 it is:
+// view._renderer.wgOptions.debugLog = true;
 ```
+| Option     | Description                                                                                                                                                 | Default | Version |   |
+|------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|---------|---------|---|
+| debugLog   | Allows the renderer to log the time needed for the frame                                                                                                    | false   | 1.0.0   |   |
+| simpleLine | When set to `false` the renderer will use a different type of line rendering that is optimized for small amount of lines with alot of points (curved lines) | true    | 1.0.0   |   |
+| cacheShape | Allows shapes to cache its entries so it might be faster (experimental)                                                                                     | false   | 1.1.0   |   |
 
-There are different options available for the WebGPU renderer.
-- **debugLog**: Allows the renderer to log the time needed for the frame
-- **simpleLine**: Allows the renderer to use a different type of line rendering that is optimized for small amount of lines with alot of points (curved lines)
+**Note:** Its a bit different on Version 1.0.0. Have a look at the demos index.js
 
 ## Contributing
 

@@ -116,17 +116,17 @@ export class Renderer {
 		)
 	}
 
-	static bundle(device: GPUDevice, bundleElement: BundleElement, ): GPURenderBundle {
+	static bundle(device: GPUDevice, bundleElement: BundleElement): GPURenderBundle {
 		const b = bundleElement;
 		const encoder = device.createRenderBundleEncoder({
 			colorFormats: [Renderer.colorFormat],
 			depthStencilFormat: Renderer.depthFormat
 		});
 		encoder.setPipeline(b.pipeline);
-		for (let i = 0; i < b.vertexBuffers.length; i++) {
+		for (let i = 0, length = b.vertexBuffers.length; i < length; i++) {
 			encoder.setVertexBuffer(i, b.vertexBuffers[i]);
 		}
-		for (let i = 0; i < b.bindGroups.length; i++) {
+		for (let i = 0, length = b.bindGroups.length; i < length; i++) {
 			encoder.setBindGroup(i, b.bindGroups[i]);
 		}
 		if (b.drawCounts instanceof Array) {
@@ -135,6 +135,7 @@ export class Renderer {
 			encoder.draw(b.drawCounts.vertexCount, b.drawCounts.instanceCount ?? 1, b.drawCounts.firstVertex ?? 0, b.drawCounts.firstInstance ?? 0);
 		}
 		const bundle = encoder.finish();
+    bundle.label = bundleElement.pipeline.label + " Bundler";
 		Renderer._bundles.push(bundle);
 		return bundle;
 	}
@@ -169,6 +170,7 @@ export class Renderer {
 			passEncoder.executeBundles(Renderer._bundles);
 			passEncoder.end();
 			device.queue.submit([commandEncoder.finish()]);
+      Renderer._bundles = [];
 		}
 	}
 

@@ -2,6 +2,7 @@ import parse from 'parse-svg-path';
 import simplify from 'simplify-path';
 import contours from 'svg-path-contours';
 import triangulate from 'triangulate-contours';
+import { GPUVegaCanvasContext } from '../types/gpuVegaTypes.js';
 
 interface Geometry {
   lines: Float32Array | [],
@@ -12,7 +13,7 @@ interface Geometry {
 }
 
 
-export default function (ctx: GPUCanvasContext, path: string, threshold?: number): Geometry {
+export default function (ctx: GPUVegaCanvasContext, path: string, threshold?: number): Geometry {
   var key = path;
   var context = ctx as any;
 

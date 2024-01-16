@@ -1,8 +1,9 @@
 import { multiply } from './matrix';
 import shaderSource from '../shaders/image.wgsl';
+import { GPUVegaCanvasContext } from '../types/gpuVegaTypes.js';
 
 
-export async function drawCanvas(device: GPUDevice, context: GPUCanvasContext, canvas: HTMLCanvasElement, format: GPUTextureFormat) {
+export async function drawCanvas(device: GPUDevice, context: GPUVegaCanvasContext, canvas: HTMLCanvasElement, format: GPUTextureFormat) {
   const shader = device.createShaderModule({ code: shaderSource, label: 'Image Shader' });
   const pipeline = device.createRenderPipeline({
     label: 'Image Render Pipeline',

@@ -5,11 +5,12 @@ import marks from './marks/index';
 import { inherits } from 'vega-util';
 import { drawCanvas } from './util/image';
 import { Renderer as RendererFunctions } from './util/renderer';
-import { GPUScene } from './types/gpuscene.js';
+import { GPUVegaCanvasContext, GPUVegaOptions, GPUVegaScene } from './types/gpuVegaTypes.js';
 
 
 import symbolShader from './shaders/symbol.wgsl';
 import lineShader from './shaders/line.wgsl';
+import ruleShader from './shaders/rule.wgsl';
 import slineShader from './shaders/sline.wgsl';
 import triangleShader from './shaders/triangles.wgsl';
 import rectShader from './shaders/rect.wgsl';
@@ -32,9 +33,9 @@ const viewBounds = (origin: [number, number], width: number, height: number) =>
   new Bounds().set(0, 0, width, height).translate(-origin[0], -origin[1]);
 
 inherits(WebGPURenderer, Renderer, {
-  initialize(el: HTMLCanvasElement, width: number, height: number, origin: [number, number]) {
+  initialize(el: HTMLCanvasElement, width: number, height: number, origin: [x: number, y: number]) {
     this._canvas = document.createElement('canvas'); // instantiate a small canvas
-    this._ctx = this._canvas.getContext('webgpu');
+    const ctx: GPUVegaCanvasContext = this._canvas.getContext('webgpu');
     this._textCanvas = document.createElement('canvas');
     this._textContext = this._textCanvas.getContext('2d');
     if (el) {
@@ -51,8 +52,8 @@ inherits(WebGPURenderer, Renderer, {
       el.appendChild(this._textCanvas);
     }
     this._canvas._textCanvas = this._textCanvas
-    this._ctx._textContext = this._textContext;
-    this._ctx._renderer = this;
+    ctx._textContext = this._textContext;
+    ctx._renderer = this;
     this._bgcolor = "#ffffff";
 
     this._uniforms = {
@@ -60,15 +61,19 @@ inherits(WebGPURenderer, Renderer, {
       origin: origin,
       dpi: window.devicePixelRatio || 1,
     };
-    this._ctx._uniforms = this._uniforms;
+    ctx._uniforms = this._uniforms;
 
-    this._ctx._pathCache = {};
-    this._ctx._pathCacheSize = 0;
-    this._ctx._geometryCache = {};
-    this._ctx._geometryCacheSize = 0;
+    ctx._pathCache = {};
+    ctx._pathCacheSize = 0;
+    ctx._geometryCache = {};
+    ctx._geometryCacheSize = 0;
+    this._ctx = ctx;
 
-    this.simpleLine = true;
-    this.debugLog = false;
+    const wgOptions = {} as GPUVegaOptions;
+    wgOptions.simpleLine = true;
+    wgOptions.debugLog = false;
+    wgOptions.cacheShapes = false;
+    this.wgOptions = wgOptions;
 
     this._renderCount = 0;
 
@@ -104,7 +109,7 @@ inherits(WebGPURenderer, Renderer, {
     return this._textCanvas;
   },
 
-  context(): GPUCanvasContext {
+  context(): GPUVegaCanvasContext {
     return this._ctx ? this._ctx : null;
   },
 
@@ -130,17 +135,16 @@ inherits(WebGPURenderer, Renderer, {
 
   async _reinit() {
     let device = this.device();
-    let ctx = this.context();
+    let ctx: GPUVegaCanvasContext = this.context();
     if (!device || !ctx) {
-      const adapter = await navigator.gpu.requestAdapter();
+      const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
       device = await adapter.requestDevice();
       this._adapter = adapter;
       this._device = device;
       const presentationFormat = navigator.gpu.getPreferredCanvasFormat() as GPUTextureFormat;
-	  RendererFunctions.colorFormat = presentationFormat;
-      this._prefferedFormat = presentationFormat;
+      RendererFunctions.colorFormat = presentationFormat;
       ctx = this._canvas.getContext('webgpu');
-      this._ctx.configure({
+      ctx.configure({
         device,
         format: presentationFormat,
         usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
@@ -148,13 +152,14 @@ inherits(WebGPURenderer, Renderer, {
       });
       this._ctx = ctx;
       this.cacheShaders();
+      this._renderPassDescriptor = RendererFunctions.createRenderPassDescriptor("Bundler", this.clearColor(), this.depthTexture().createView())
     }
     return { device, ctx };
   },
 
-  _render(scene: GPUScene) {
+  _render(scene: GPUVegaScene) {
     (async () => {
-      let { device, ctx } = (await this._reinit()) as { device: GPUDevice, ctx: any};
+      let { device, ctx } = (await this._reinit()) as { device: GPUDevice, ctx: GPUVegaCanvasContext };
       RendererFunctions.startFrame();
       let o = this._origin,
         w = this._width,
@@ -170,14 +175,13 @@ inherits(WebGPURenderer, Renderer, {
       this.draw(device, ctx, scene, vb);
       const t2 = performance.now();
       device.queue.onSubmittedWorkDone().then(() => {
-        if (this.debugLog == true) {
+        if (this.wgOptions.debugLog === true) {
           const t3 = performance.now();
           console.log(`Render Time (${this._renderCount++}): ${((t3 - t1) / 1).toFixed(3)}ms (Draw: ${((t2 - t1) / 1).toFixed(3)}ms, WebGPU: ${((t3 - t2) / 1).toFixed(3)}ms)`);
         }
       });
-	  const renderPassDescriptor = RendererFunctions.createRenderPassDescriptor("Bundler", this.clearColor(), this.depthTexture().createView())
-	  renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
-      RendererFunctions.submitBundles(device, renderPassDescriptor);
+      this._renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
+      await RendererFunctions.submitQueue(device);
     })();
 
     return this;
@@ -190,20 +194,22 @@ inherits(WebGPURenderer, Renderer, {
     return this;
   },
 
-  draw(device: GPUDevice, ctx: GPUCanvasContext, scene: GPUScene & { marktype: string }, transform: Bounds) {
+  draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene & { marktype: string }, transform: Bounds) {
     const mark = marks[scene.marktype];
     if (mark == null) {
       console.error(`Unknown mark type: '${scene.marktype}'`)
     } else {
       // ToDo: Set Options
-      scene._format = this.prefferedFormat();
+      ctx.depthTexture = this.depthTexture();
+      ctx.background = this.clearColor();
       mark.draw.call(this, device, ctx, scene, transform);
     }
   },
 
   clear() {
     const device = this.device() as GPUDevice;
-    const context = this.context() as GPUCanvasContext;
+    const context = this.context() as GPUVegaCanvasContext;
+
     const textureView = context.getCurrentTexture().createView();
     const renderPassDescriptor = {
       label: 'Background',
@@ -243,6 +249,7 @@ inherits(WebGPURenderer, Renderer, {
       usage: GPUTextureUsage.RENDER_ATTACHMENT,
     } as GPUTextureDescriptor);
     this._depthTexture.device = this._device;
+    this._renderPassDescriptor = RendererFunctions.createRenderPassDescriptor("Bundler", this.clearColor(), this.depthTexture().createView())
     return this._depthTexture;
   },
 
@@ -250,20 +257,18 @@ inherits(WebGPURenderer, Renderer, {
     return (this._bgcolor ? Color.from(this._bgcolor) : { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }) as GPUColor;
   },
 
-  prefferedFormat(): GPUTextureFormat {
-    return this._prefferedFormat != null ? this._prefferedFormat : null;
-  },
-
 
   cacheShaders() {
     const device: GPUDevice = this.device();
-    const context = this.context();
+    const context: GPUVegaCanvasContext = this.context();
     context._shaderCache = {};
     context._shaderCache["Symbol"] = device.createShaderModule({ code: symbolShader, label: 'Symbol Shader' });
     context._shaderCache["Line"] = device.createShaderModule({ code: lineShader, label: 'Line Shader' });
+    context._shaderCache["Rule"] = device.createShaderModule({ code: ruleShader, label: 'Rule Shader' });
     context._shaderCache["SLine"] = device.createShaderModule({ code: slineShader, label: 'SLine Shader' });
     context._shaderCache["Path"] = device.createShaderModule({ code: triangleShader, label: 'Triangle Shader' });
     context._shaderCache["Rect"] = device.createShaderModule({ code: rectShader, label: 'Rect Shader' });
+    context._shaderCache["Group"] = device.createShaderModule({ code: rectShader, label: 'Group Shader' });
     context._shaderCache["Arc"] = device.createShaderModule({ code: arcShader, label: 'Arc Shader' });
     context._shaderCache["Shape"] = device.createShaderModule({ code: shapeShader, label: 'Shape Shader' });
     context._shaderCache["Area"] = device.createShaderModule({ code: areaShader, label: 'Area Shader' });
