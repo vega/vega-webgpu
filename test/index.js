@@ -2,8 +2,9 @@
 const urlParams = new URLSearchParams(window.location.search);
 const urlSpec = urlParams.get('spec');
 const urlRenderer = urlParams.get('renderer') ?? 'webgpu';
+const urlVersion = urlParams.get('version') ?? 'dev';
 
-let runtime, view, selectedSpec, selectedRenderer;
+let runtime, view, selectedSpec, selectedRenderer, selectedVersion;
 
 const selectSpec = document.querySelector('#specs');
 selectSpec.addEventListener('change', function () {
@@ -22,12 +23,34 @@ selectRenderer.addEventListener('change', function () {
     view._renderer.simpleLine = true;
   }
 });
+const selectVersion = document.querySelector('#versions');
+selectVersion.addEventListener('change', function () {
+  selectedVersion = selectVersion.options[selectVersion.selectedIndex].value;
+  updateUrl();
+  window.location.reload(true);
+});
 
 
 function updateUrl() {
-  if (!selectedSpec)
+  // Assuming selectedSpec and selectedRenderer are defined elsewhere
+  if (!selectedSpec) {
     selectedSpec = undefined;
-  window.history.replaceState({}, '', `?spec=${selectedSpec}&renderer=${selectedRenderer}`);
+  }
+
+  const urlSearchParams = new URLSearchParams(window.location.search);
+
+  if (selectedVersion) {
+    // If version parameter exists, set it as the first tag
+    urlSearchParams.set('spec', selectedSpec);
+    urlSearchParams.set('renderer', selectedRenderer);
+    urlSearchParams.set('version', selectedVersion);
+  } else {
+    urlSearchParams.set('spec', selectedSpec);
+    urlSearchParams.set('renderer', selectedRenderer);
+    urlSearchParams.set('version', vegaWevGPURendererVersions[vegaWevGPURendererVersions.length - 1]);
+  }
+
+  window.history.replaceState({}, '', `?${urlSearchParams.toString()}`);
 }
 
 async function init() {
@@ -42,11 +65,21 @@ async function init() {
       selectSpec.appendChild(opt);
     });
 
+    vegaWevGPURendererVersions?.forEach(function (name) {
+      const opt = document.createElement('option');
+      opt.setAttribute('value', name);
+      opt.textContent = name;
+      selectVersion.appendChild(opt);
+    });
+
+    if (urlSpec) {
+      selectedSpec = urlSpec;
+    }
     if (urlRenderer) {
       selectedRenderer = urlRenderer;
     }
-    if (urlSpec) {
-      selectedSpec = urlSpec;
+    if (urlVersion) {
+      selectedVersion = urlVersion;
     }
   } catch (err) {
     console.error(err, err.stack);
@@ -75,8 +108,12 @@ async function load(name) {
       selectRenderer.selectedIndex = i;
       break;
     }
-    if (i + 1 == n) {
-      selectRenderer.selectedIndex = undefined;
+  }
+  selectVersion.selectedIndex = 0;
+  for (let i = 0, n = selectVersion.options.length; i < n; ++i) {
+    if (selectVersion.options[i].value === selectedVersion) {
+      selectVersion.selectedIndex = i;
+      break;
     }
   }
 
@@ -105,5 +142,6 @@ async function load(name) {
 
 (async () => {
   await init();
+  updateUrl();
   await load(selectedSpec);
 })();

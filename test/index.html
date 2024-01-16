@@ -35,7 +35,9 @@
 
 		// Load Vega and the selected version of Vega WebGPU Renderer
 		loadScript('https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.js', function () {
-			loadScript(vegaWebGPURendererUrl);
+			loadScript(vegaWebGPURendererUrl, function() {
+        loadScript('./index.js');
+      });
 		});
 	</script>
 </head>
@@ -52,13 +54,16 @@
 			<option value="canvas">canvas</option>
 			<option value="webgpu" selected>webgpu</option>
 		</select>
+		&nbsp; Version:
+		<select id="versions">
+			<option value="dev">dev</option>
+		</select>
 		&nbsp;
 	</div>
 	<div>
 		<div id="vis"></div>
 	</div>
 	<div id="external"></div>
-	<script src="./index.js"></script>
 </body>
 
 </html>
