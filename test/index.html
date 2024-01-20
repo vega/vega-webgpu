@@ -2,68 +2,71 @@
 <html>
 
 <head>
-	<title>Vega Renderer Test</title>
-	<meta charset="utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<link rel="stylesheet" href="./index.css" />
-	<script src="https://d3js.org/d3.v4.min.js" charset="utf-8"></script>
-	<script src="https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.js"></script>
-	<script src="https://kanadaat.github.io/vega-webgpu/releases/versions.js"></script>
-	<script>
-		console.log(vegaWevGPURendererVersions);
-		function loadScript(src, callback) {
-			const script = document.createElement('script');
-			script.type = 'text/javascript';
-			script.src = src;
-			script.onload = callback;
+  <title>Vega Renderer Test</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="./index.css" />
+  <script src="https://d3js.org/d3.v4.min.js" charset="utf-8"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.js"></script>
+  <script src="https://kanadaat.github.io/vega-webgpu/releases/versions.js"></script>
+  <script>
+    console.log(vegaWevGPURendererVersions);
+    function loadScript(src, callback) {
+      const script = document.createElement('script');
+      script.type = 'text/javascript';
+      script.src = src;
+      script.onload = callback;
 
-			document.head.appendChild(script);
-		}
+      document.head.appendChild(script);
+    }
 
-		function getQueryParam(param) {
-			const urlSearchParams = new URLSearchParams(window.location.search);
-			return urlSearchParams.get(param);
-		}
+    function getQueryParam(param) {
+      const urlSearchParams = new URLSearchParams(window.location.search);
+      return urlSearchParams.get(param);
+    }
 
-		const latestVersion = vegaWevGPURendererVersions[0];
-		const version = (getQueryParam('version') || latestVersion).replaceAll('.', '_');
-		console.log(`Vega WebGPU Renderer ${version}`)
-		let vegaWebGPURendererUrl = `https://kanadaat.github.io/vega-webgpu/releases/${version}/vega-webgpu-renderer.js`;
-		if (version == 'dev') {
-			vegaWebGPURendererUrl = 'http://localhost:5500/build/vega-webgpu-renderer.js';
-		}
+    const latestVersion = vegaWevGPURendererVersions[0];
+    const version = (getQueryParam('version') || latestVersion).replaceAll('.', '_');
+    console.log(`Vega WebGPU Renderer ${version}`)
+    let vegaWebGPURendererUrl = `https://kanadaat.github.io/vega-webgpu/releases/${version}/vega-webgpu-renderer.js`;
+    if (version == 'dev') {
+      vegaWebGPURendererUrl = 'http://localhost:5500/build/vega-webgpu-renderer.js';
+    }
 
-		// Load Vega and the selected version of Vega WebGPU Renderer
-		loadScript('https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.js', function () {
-			loadScript(vegaWebGPURendererUrl, function() {
-        loadScript('./index.js');
+    // Load Vega and the selected version of Vega WebGPU Renderer
+    loadScript('https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.js', function () {
+      loadScript(vegaWebGPURendererUrl, function () {
+        loadScript('https://unpkg.com/vega-webgl-renderer/build/vega-webgl-renderer.js', function () {
+          loadScript('./index.js');
+        });
       });
-		});
-	</script>
+    });
+  </script>
 </head>
 
 <body>
-	<div id="header">
-		Vega Specification:
-		<select id="specs">
-			<option value="">-----</option>
-		</select>
-		&nbsp; Renderer:
-		<select id="render">
-			<option value="svg">svg</option>
-			<option value="canvas">canvas</option>
-			<option value="webgpu" selected>webgpu</option>
-		</select>
-		&nbsp; Version:
-		<select id="versions">
-			<option value="dev">dev</option>
-		</select>
-		&nbsp;
-	</div>
-	<div>
-		<div id="vis"></div>
-	</div>
-	<div id="external"></div>
+  <div id="header">
+    Vega Specification:
+    <select id="specs">
+      <option value="">-----</option>
+    </select>
+    &nbsp; Renderer:
+    <select id="render">
+      <option value="svg">svg</option>
+      <option value="canvas">canvas</option>
+      <option value="webgpu" selected>webgpu</option>
+      <option value="webgl">webgl</option>
+    </select>
+    &nbsp; Version:
+    <select id="versions">
+      <option value="dev">dev</option>
+    </select>
+    &nbsp;
+  </div>
+  <div>
+    <div id="vis"></div>
+  </div>
+  <div id="external"></div>
 </body>
 
 </html>
