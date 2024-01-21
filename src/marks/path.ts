@@ -42,7 +42,7 @@ function initialize(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds) {
     _shader = ctx._shaderCache["Path"] as GPUShaderModule;
     _vertextBufferManager = new VertexBufferManager(
       ['float32x3', 'float32x4'], // position, color
-      ['float32x2']
+      []
     );
     _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, Renderer.colorFormat, _vertextBufferManager.getBuffers());
     _renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, ctx.background, ctx.depthTexture.createView());
@@ -60,6 +60,8 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   initialize(device, ctx, vb);
   _bufferManager.setResolution(ctx._uniforms.resolution);
   _bufferManager.setOffset([vb.x1, vb.y1]);
+  const uniformBuffer = _bufferManager.createUniformBuffer();
+  const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, _pipeline, uniformBuffer);
 
   for (var itemStr in items) {
     const item = items[itemStr];
@@ -67,17 +69,14 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     ctx._ty += item.y || 0;
 
     const geometryData = createGeometryData(ctx, item);
-    const uniformBuffer = _bufferManager.createUniformBuffer();
-    const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, _pipeline, uniformBuffer);
 
     for (let i = 0; i < geometryData.length; i++) {
       const geometryCount = geometryData[i].length / _vertextBufferManager.getVertexLength();
       if (geometryCount == 0)
         continue;
       const geometryBuffer = _bufferManager.createGeometryBuffer(geometryData[i]);
-      const instanceBuffer = _bufferManager.createInstanceBuffer(createPosition(item));
 
-      Renderer.queue2(device, _pipeline, _renderPassDescriptor, [geometryCount], [geometryBuffer, instanceBuffer], [uniformBindGroup]);
+      Renderer.queue2(device, _pipeline, _renderPassDescriptor, [geometryCount], [geometryBuffer], [uniformBindGroup]);
     }
 
     ctx._tx -= item.x || 0;
