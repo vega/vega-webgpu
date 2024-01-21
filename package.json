@@ -38,12 +38,13 @@
     "typescript": "^5.3.3",
     "vega-canvas": "^1.2.6",
     "vega-loader": "^4.4.1",
-    "vega-typings": "^1.0.1",
+    "vega-typings": "^1.1.0",
     "vega-util": "^1.17.0",
     "webdriverio": "^8.26.1"
   },
   "dependencies": {
     "chokidar": "^3.5.3",
+    "d3": "^7.8.5",
     "d3-color": "^3.1.0",
     "extrude-polyline": "^1.0.6",
     "parse-svg-path": "^0.1.2",
