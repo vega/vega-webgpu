@@ -141,6 +141,7 @@ function configureWebGPU() {
     view._renderer.wgOptions.debugLog = true;
     view._renderer.wgOptions.simpleLine = true;
     view._renderer.wgOptions.shapeCache = false;
+    view._renderer.wgOptions.renderLock = true;
   }
 }
 

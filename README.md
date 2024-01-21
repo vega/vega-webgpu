@@ -78,7 +78,7 @@ Readme has to be changed manually yet.
 | ------- | -------------------------------------------------------------------------------------------------------- | ------- |
 | 1.0.0   | [vega-webgpu-renderer](https://kanadaat.github.io/vega-webgpu/releases/1_0_0/vega-webgpu-renderer.js) | First WebGPU Implementation |
 | 1.1.0   | [vega-webgpu-renderer](https://kanadaat.github.io/vega-webgpu/releases/1_1_0/vega-webgpu-renderer.js) | Over all improvements in terms of performance and structure.  |
-| 1.1.1   | [vega-webgpu-renderer](https://kanadaat.github.io/vega-webgpu/releases/1_1_1/vega-webgpu-renderer.js) | Performance improvements on Paths  |
+| 1.1.1   | [vega-webgpu-renderer](https://kanadaat.github.io/vega-webgpu/releases/1_1_1/vega-webgpu-renderer.js) | Performance improvements on Paths.<br>Introducing WebGPU Render Option `renderLock`.  |
 
 Have a look at all versions [here](https://kanadaat.github.io/vega-webgpu/releases).
 
@@ -108,6 +108,7 @@ view._renderer.wgOptions.debugLog = true;
 | debugLog   | Allows the renderer to log the time needed for the frame                                                                                                    | false   | 1.0.0   |   |
 | simpleLine | When set to `false` the renderer will use a different type of line rendering that is optimized for small amount of lines with alot of points (curved lines) | true    | 1.0.0   |   |
 | cacheShape | Allows shapes to cache its entries so it might be faster (experimental)                                                                                     | false   | 1.1.0   |   |
+| renderLock | Will lock the render loop from beeing called again until the previous call is finished. Might skip render steps. The most recent will always be called. Will enhance the performance, esspecially for interactive GUI.                                 | true   | 1.1.1   |   |
 
 **Note:** Its a bit different on Version 1.0.0. Have a look at the demos index.js
 

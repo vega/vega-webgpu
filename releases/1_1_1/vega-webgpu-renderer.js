@@ -741,6 +741,35 @@
                 });
             });
         };
+        Renderer.submitQueue2 = function (device, renderPassDescriptor) {
+            var _a, _b, _c, _d, _e, _f;
+            return __awaiter(this, void 0, void 0, function () {
+                var commandEncoder, qi, q, passEncoder, i, i;
+                return __generator(this, function (_g) {
+                    commandEncoder = device.createCommandEncoder();
+                    for (qi = 0; qi < Renderer._queue.length; qi++) {
+                        q = Renderer._queue[qi];
+                        passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+                        passEncoder.setPipeline(q.pipeline);
+                        for (i = 0; i < q.vertexBuffers.length; i++) {
+                            passEncoder.setVertexBuffer(i, q.vertexBuffers[i]);
+                        }
+                        for (i = 0; i < q.bindGroups.length; i++) {
+                            passEncoder.setBindGroup(i, q.bindGroups[i]);
+                        }
+                        if (q.drawCounts instanceof Array) {
+                            passEncoder.draw(q.drawCounts[0], (_a = q.drawCounts[1]) !== null && _a !== void 0 ? _a : 1, (_b = q.drawCounts[2]) !== null && _b !== void 0 ? _b : 0, (_c = q.drawCounts[3]) !== null && _c !== void 0 ? _c : 0);
+                        }
+                        else {
+                            passEncoder.draw(q.drawCounts.vertexCount, (_d = q.drawCounts.instanceCount) !== null && _d !== void 0 ? _d : 1, (_e = q.drawCounts.firstVertex) !== null && _e !== void 0 ? _e : 0, (_f = q.drawCounts.firstInstance) !== null && _f !== void 0 ? _f : 0);
+                        }
+                        passEncoder.end();
+                    }
+                    device.queue.submit([commandEncoder.finish()]);
+                    return [2 /*return*/];
+                });
+            });
+        };
         Renderer.submitBundles = function (device, renderPassDescriptor) {
             return __awaiter(this, void 0, void 0, function () {
                 var commandEncoder, passEncoder;
@@ -6923,6 +6952,7 @@
     }
     function createAttributes$1(items) {
         return Float32Array.from(items.flatMap(function (item) {
+            // @ts-ignore
             var _a = item.x, x = _a === void 0 ? 0 : _a, _b = item.y, y = _b === void 0 ? 0 : _b, x2 = item.x2, y2 = item.y2, stroke = item.stroke, _c = item.strokeWidth, strokeWidth = _c === void 0 ? 1 : _c, _d = item.opacity, opacity = _d === void 0 ? 1 : _d, _e = item.strokeOpacity, strokeOpacity = _e === void 0 ? 1 : _e;
             x2 !== null && x2 !== void 0 ? x2 : (x2 = x);
             y2 !== null && y2 !== void 0 ? y2 : (y2 = y);
@@ -7176,8 +7206,8 @@
         if (useCache && cacheEntry && item.strokeWidth == cacheEntry.strokeWidth
             && item.x == cacheEntry.x && item.y == cacheEntry.y
             && item.bounds == cacheEntry.bounds) {
-            var fill_1 = Color.from(item.fill, item.opacity, item.fillOpacity);
-            var stroke_1 = Color.from(item.stroke, item.opacity, item.strokeOpacity);
+            var fill_1 = Color.from2(item.fill, item.opacity, item.fillOpacity);
+            var stroke_1 = Color.from2(item.stroke, item.opacity, item.strokeOpacity);
             if (cacheEntry.fill == fill_1 && cacheEntry.stroke == stroke_1)
                 return cacheEntry.data;
             var data = [new Float32Array(cacheEntry.data[0].length), new Float32Array(cacheEntry.data[1].length)];
@@ -7186,19 +7216,19 @@
                 data[0][i] = cacheEntry.data[0][i];
                 data[0][i + 1] = cacheEntry.data[0][i + 1];
                 data[0][i + 2] = cacheEntry.data[0][i + 2];
-                data[0][i + 3] = fill_1.r;
-                data[0][i + 4] = fill_1.g;
-                data[0][i + 5] = fill_1.b;
-                data[0][i + 6] = fill_1.a;
+                data[0][i + 3] = fill_1[0];
+                data[0][i + 4] = fill_1[1];
+                data[0][i + 5] = fill_1[2];
+                data[0][i + 6] = fill_1[3];
             }
             for (var i = 0; i < data[1].length; i += 7) {
                 data[1][i] = cacheEntry.data[1][i];
                 data[1][i + 1] = cacheEntry.data[1][i + 1];
                 data[1][i + 2] = cacheEntry.data[1][i + 2];
-                data[1][i + 3] = stroke_1.r;
-                data[1][i + 4] = stroke_1.g;
-                data[1][i + 5] = stroke_1.b;
-                data[1][i + 6] = stroke_1.a;
+                data[1][i + 3] = fill_1[0];
+                data[1][i + 4] = fill_1[1];
+                data[1][i + 5] = fill_1[2];
+                data[1][i + 6] = fill_1[3];
             }
             return data;
         }
@@ -7442,6 +7472,7 @@
             wgOptions.simpleLine = true;
             wgOptions.debugLog = false;
             wgOptions.cacheShapes = false;
+            wgOptions.renderLock = true;
             this.wgOptions = wgOptions;
             this._renderCount = 0;
             // this method will invoke resize to size the canvas appropriately
@@ -7524,6 +7555,11 @@
         },
         _render: function (scene) {
             var _this = this;
+            if (this.wgOptions.renderLock && this._isRendering) {
+                this._lastRenderCallback = function () { return _this._render(scene); };
+                return;
+            }
+            this._isRendering = true;
             (function () { return __awaiter(_this, void 0, void 0, function () {
                 var _a, device, ctx, o, w, h, 
                 // db = this._dirty,
@@ -7547,9 +7583,15 @@
                                     var t3 = performance.now();
                                     console.log("Render Time (".concat(_this._renderCount++, "): ").concat(((t3 - t1) / 1).toFixed(3), "ms (Draw: ").concat(((t2 - t1) / 1).toFixed(3), "ms, WebGPU: ").concat(((t3 - t2) / 1).toFixed(3), "ms)"));
                                 }
+                                _this._isRendering = false;
+                                if (_this.wgOptions.renderLock && _this._lastRenderCallback) {
+                                    var callback = _this._lastRenderCallback;
+                                    _this._lastRenderCallback = null;
+                                    callback();
+                                }
                             });
                             this._renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
-                            return [4 /*yield*/, Renderer.submitQueue(device)];
+                            return [4 /*yield*/, Renderer.submitQueue2(device, this._renderPassDescriptor)];
                         case 2:
                             _b.sent();
                             return [2 /*return*/];
