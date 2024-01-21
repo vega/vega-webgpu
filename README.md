@@ -24,7 +24,7 @@ Use this scaffolding to get started using the WebGPU renderer. Instead of being 
 
 Therefor all that needs to be done is to link the Vega WebGPU Renderer
 ```html
-<script src="https://kanadaat.github.io/vega-webgpu/releases/1_1_0/vega-webgpu-renderer.js"></script>
+<script src="https://kanadaat.github.io/vega-webgpu/releases/1_1_1/vega-webgpu-renderer.js"></script>
 ```
 
 The WebGPU renderer was developed for Vega 5.19.1. Other Versions may work as well.
@@ -68,7 +68,7 @@ To develop the WebGPU renderer locally, follow these steps:
 Call: http://localhost:5500/test?spec=bar&renderer=webgpu&version=dev in order to use the local file.
 
 New Versions can be simply released by using the npm run release script.
-`npm run release 1.1.0 "Using Render Bundles for Performance"`
+`npm run release 1.1.1 "Using Render Bundles for Performance"`
 
 Readme has to be changed manually yet.
 
@@ -78,6 +78,7 @@ Readme has to be changed manually yet.
 | ------- | -------------------------------------------------------------------------------------------------------- | ------- |
 | 1.0.0   | [vega-webgpu-renderer](https://kanadaat.github.io/vega-webgpu/releases/1_0_0/vega-webgpu-renderer.js) | First WebGPU Implementation |
 | 1.1.0   | [vega-webgpu-renderer](https://kanadaat.github.io/vega-webgpu/releases/1_1_0/vega-webgpu-renderer.js) | Over all improvements in terms of performance and structure.  |
+| 1.1.1   | [vega-webgpu-renderer](https://kanadaat.github.io/vega-webgpu/releases/1_1_1/vega-webgpu-renderer.js) | Performance improvements on Paths  |
 
 Have a look at all versions [here](https://kanadaat.github.io/vega-webgpu/releases).
 
