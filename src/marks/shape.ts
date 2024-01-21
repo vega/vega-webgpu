@@ -95,8 +95,8 @@ function createGeometryData(
     && item.x == cacheEntry.x && item.y == cacheEntry.y
     && item.bounds == cacheEntry.bounds
   ) {
-    const fill = Color.from(item.fill, item.opacity, item.fillOpacity);
-    const stroke = Color.from(item.stroke, item.opacity, item.strokeOpacity);
+    const fill = Color.from2(item.fill, item.opacity, item.fillOpacity);
+    const stroke = Color.from2(item.stroke, item.opacity, item.strokeOpacity);
     if (cacheEntry.fill == fill && cacheEntry.stroke == stroke)
       return cacheEntry.data;
     const data = [new Float32Array(cacheEntry.data[0].length), new Float32Array(cacheEntry.data[1].length)];
@@ -105,19 +105,19 @@ function createGeometryData(
       data[0][i] = cacheEntry.data[0][i];
       data[0][i + 1] = cacheEntry.data[0][i + 1];
       data[0][i + 2] = cacheEntry.data[0][i + 2];
-      data[0][i + 3] = fill.r;
-      data[0][i + 4] = fill.g;
-      data[0][i + 5] = fill.b;
-      data[0][i + 6] = fill.a;
+      data[0][i + 3] = fill[0];
+      data[0][i + 4] = fill[1];
+      data[0][i + 5] = fill[2];
+      data[0][i + 6] = fill[3];
     }
     for (var i = 0; i < data[1].length; i += 7) {
       data[1][i] = cacheEntry.data[1][i];
       data[1][i + 1] = cacheEntry.data[1][i + 1];
       data[1][i + 2] = cacheEntry.data[1][i + 2];
-      data[1][i + 3] = stroke.r;
-      data[1][i + 4] = stroke.g;
-      data[1][i + 5] = stroke.b;
-      data[1][i + 6] = stroke.a;
+      data[1][i + 3] = fill[0];
+      data[1][i + 4] = fill[1];
+      data[1][i + 5] = fill[2];
+      data[1][i + 6] = fill[3];
     }
     return data as [geometryData: Float32Array, strokeGeometryData: Float32Array];
   }

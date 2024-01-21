@@ -72,6 +72,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 function createAttributes(items: SceneItem[]): Float32Array {
   return Float32Array.from(
     items.flatMap((item: SceneLine) => {
+      // @ts-ignore
       let { x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, opacity = 1, strokeOpacity = 1 } = item;
       x2 ??= x;
       y2 ??= y;

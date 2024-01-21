@@ -50,4 +50,5 @@ export type GPUVegaOptions = {
   simpleLine: boolean,
   cacheShapes: boolean,
   debugLog: boolean,
+  renderLock: boolean,
 };

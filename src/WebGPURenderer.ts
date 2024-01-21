@@ -74,6 +74,7 @@ inherits(WebGPURenderer, Renderer, {
     wgOptions.simpleLine = true;
     wgOptions.debugLog = false;
     wgOptions.cacheShapes = false;
+    wgOptions.renderLock = true;
     this.wgOptions = wgOptions;
 
     this._renderCount = 0;
@@ -159,6 +160,12 @@ inherits(WebGPURenderer, Renderer, {
   },
 
   _render(scene: GPUVegaScene) {
+    if (this.wgOptions.renderLock && this._isRendering) {
+      this._lastRenderCallback = () => this._render(scene);
+      return;
+    }
+    this._isRendering = true;
+
     (async () => {
       let { device, ctx } = (await this._reinit()) as { device: GPUDevice, ctx: GPUVegaCanvasContext };
       RendererFunctions.startFrame();
@@ -180,9 +187,16 @@ inherits(WebGPURenderer, Renderer, {
           const t3 = performance.now();
           console.log(`Render Time (${this._renderCount++}): ${((t3 - t1) / 1).toFixed(3)}ms (Draw: ${((t2 - t1) / 1).toFixed(3)}ms, WebGPU: ${((t3 - t2) / 1).toFixed(3)}ms)`);
         }
+        this._isRendering = false;
+        if (this.wgOptions.renderLock && this._lastRenderCallback) {
+          const callback = this._lastRenderCallback;
+          this._lastRenderCallback = null;
+          callback();
+        }
       });
       this._renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
-      await RendererFunctions.submitQueue(device);
+      await RendererFunctions.submitQueue2(device, this._renderPassDescriptor);
+
     })();
 
     return this;
