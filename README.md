@@ -32,7 +32,7 @@ The WebGPU renderer was developed for Vega 5.19.1. Other Versions may work as we
 <body>
   <script src="https://d3js.org/d3.v4.min.js" charset="utf-8"></script>
   <script src="https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.js"></script>
-  <script src="https://kanadaat.github.io/vega-webgpu/releases/1_1_0/vega-webgpu-renderer.js"></script>
+  <script src="https://kanadaat.github.io/vega-webgpu/releases/1_1_1/vega-webgpu-renderer.js"></script>
   <div id="vis"></div>
   <script>
     // Load in your own Vega spec here.
