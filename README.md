@@ -123,4 +123,5 @@ Contributions are welcome as this project is very complex. The small amount of W
 - Symbols only support circles yet.
 - Lines dont support dashes nor joins (miter join, bevel join, ...)
 - Rects do not support rounded edges yet.
-  Cliping is not supported yet.
+- Cliping is not supported yet.
+- Resizing the Canvas will cause webgpu renderer to fail.
