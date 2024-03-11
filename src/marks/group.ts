@@ -18,7 +18,7 @@ export default {
 let _device: GPUDevice = null;
 let _bufferManager: BufferManager = null;
 let _shader: GPUShaderModule = null;
-let _vertextBufferManager: VertexBufferManager = null;
+let _vertexBufferManager: VertexBufferManager = null;
 let _pipeline: GPURenderPipeline = null;
 let _renderPassDescriptor: GPURenderPassDescriptor = null;
 let _geometryBuffer: GPUBuffer = null;
@@ -33,12 +33,12 @@ function initialize(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds) {
   if (!isInitialized) {
     _bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
     _shader = ctx._shaderCache[drawName] as GPUShaderModule;
-    _vertextBufferManager = new VertexBufferManager(
+    _vertexBufferManager = new VertexBufferManager(
       ['float32x2'], // position
       // center, dimensions, fill color, stroke color, stroke width, corner radii
       ['float32x2', 'float32x2', 'float32x4', 'float32x4', 'float32', 'float32x4']
     );
-    _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, Renderer.colorFormat, _vertextBufferManager.getBuffers());
+    _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, Renderer.colorFormat, _vertexBufferManager.getBuffers());
     _renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, ctx.background, ctx.depthTexture.createView());
     _geometryBuffer = _bufferManager.createGeometryBuffer(quadVertex);
     isInitialized = true;
@@ -49,7 +49,7 @@ function initialize(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds) {
 
 interface GroupGPUVegaCanvasContext extends GPUVegaCanvasContext {
   _origin: [number, number],
-  _clip: unknown,
+  _clip: [x: number, y: number, width: number, height: number],
 }
 
 function draw(device: GPUDevice, ctx: GroupGPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds) {
@@ -83,13 +83,14 @@ function draw(device: GPUDevice, ctx: GroupGPUVegaCanvasContext, scene: GPUVegaS
     ctx._textContext.save();
     ctx._textContext.translate(gx, gy);
 
-    if (group.mark.clip) {
+    //@ts-ignore
+    if (group.clip) {
       oldClip = ctx._clip;
       ctx._clip = [
-        ctx._origin[0] + ctx._tx,
-        ctx._origin[1] + ctx._ty,
-        ctx._origin[0] + ctx._tx + w,
-        ctx._origin[1] + ctx._ty + h
+        (ctx._origin[0] + ctx._tx) * ctx._uniforms.dpi,
+        (ctx._origin[1] + ctx._ty) * ctx._uniforms.dpi,
+        (ctx._origin[0] + ctx._tx + w) * ctx._uniforms.dpi,
+        (ctx._origin[1] + ctx._ty + h) * ctx._uniforms.dpi
       ];
     }
     if (vb) vb.translate(-gx, -gy);
@@ -100,7 +101,7 @@ function draw(device: GPUDevice, ctx: GroupGPUVegaCanvasContext, scene: GPUVegaS
 
     if (vb) vb.translate(gx, gy);
     //@ts-ignore
-    if (group.clip || group.bounds.clip) {
+    if (group.clip) {
       ctx._clip = oldClip;
     }
     ctx._tx -= gx;

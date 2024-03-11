@@ -10,10 +10,6 @@ struct VertexInput {
   @location(1) fill_color: vec4<f32>,
 }
 
-struct InstanceInput {
-  @location(2) center: vec2<f32>,
-}
-
 struct VertexOutput {
   @builtin(position) pos: vec4<f32>,
   @location(0) uv: vec2<f32>,

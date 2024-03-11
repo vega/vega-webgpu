@@ -1,21 +1,17 @@
-struct Uniforms {
-    resolution: vec2<f32>,
-    offset: vec2<f32>,
-};
-
-@group(0) @binding(0) var<uniform> uniforms: Uniforms;
-@group(1) @binding(0) var<storage, read> pos: array<vec2<f32>>;
-@group(1) @binding(1) var<storage, read> colors: array<vec4<f32>>;
-@group(1) @binding(2) var<storage, read> widths: array<f32>;
 
 struct VertexInput {
-    @location(0) index: u32,
+    @location(0) start: vec2<f32>,
+    @location(1) end: vec2<f32>,
+    @location(2) color: vec4<f32>,
+    @location(3) stroke_width: f32,
+    @location(4) resolution: vec2<f32>,
+    @location(5) offset: vec2<f32>,
 };
 
 
 struct VertexOutput {
     @builtin(position) pos: vec4<f32>,
-    @location(0) uv: vec2<f32>,
+    @location(0)  uv: vec2<f32>,
     @location(1) fill: vec4<f32>,
     @location(2) smooth_width: f32,
 };
@@ -23,11 +19,11 @@ struct VertexOutput {
 const smooth_step = 1.5;
 
 @vertex
-fn main_vertex(@builtin(instance_index) index: u32, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
-    let start = pos[index];
-    let end = pos[index + 1];
-    let stroke_width = widths[index];
-    var color = colors[index];
+fn main_vertex(in: VertexInput, @builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
+    let start = in.start;
+    let end = in.end;
+    let color = in.color;
+    let stroke_width = in.stroke_width;
 
     // Calculate the direction vector of the line
     let direction = normalize(end - start);
@@ -58,7 +54,7 @@ fn main_vertex(@builtin(instance_index) index: u32, @builtin(vertex_index) verte
         vec2<f32>(0.0, 1.0)
     );
     var pos = vertices[vertexIndex];
-    pos = (pos - uniforms.offset) / uniforms.resolution;
+    pos = (pos - in.offset) / in.resolution;
     pos.y = 1.0 - pos.y;
     pos = pos * 2.0 - 1.0;
 
@@ -77,8 +73,4 @@ fn main_fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let aax: f32 = 1.0 - smoothstep(1.0 - in.smooth_width, 1.0, sx);
     // let aay: f32 = 1.0 - smoothstep(1.0 - in.smooth_length, 1.0, sy);
     return vec4<f32>(in.fill.rgb, in.fill.a * aax);
-}
-
-fn pos_length() -> u32 {
-    return arrayLength(&pos);
 }

@@ -134,15 +134,52 @@ async function load(name) {
 function configureWebGPU() {
   if (!selectedRenderer || selectedRenderer != 'webgpu')
     return;
-  if (selectedVersion && selectedVersion.replaceAll('_', '.') == '1.0.0') {
-    view._renderer.debugLog = true;
+
+  if (matchesVersion(selectedVersion, '1.0.x', false)) {
+    view._renderer.debugLog = false;
     view._renderer.simpleLine = true;
-  } else {
+  }
+  if (matchesVersion(selectedVersion, '1+.1+.x')) {
     view._renderer.wgOptions.debugLog = true;
     view._renderer.wgOptions.simpleLine = true;
     view._renderer.wgOptions.shapeCache = false;
+  }
+  if (matchesVersion(selectedVersion, '1+.1+.1+')) {
     view._renderer.wgOptions.renderLock = true;
   }
+  if (matchesVersion(selectedVersion, '1+.2+.x')) {
+    view._renderer.wgOptions.renderBatch = true;
+  }
+}
+
+function matchesVersion(version, pattern, devAlwaysTrue = true) {
+  if (!version)
+    return false;
+  if (devAlwaysTrue && version === 'dev')
+    return true;
+  const versionParts = version.replaceAll('_', '.').split('.');
+  const patternParts = pattern.replaceAll('_', '.').split('.');
+
+  if (versionParts.length < patternParts.length) return false;
+
+  for (let i = 0; i < versionParts.length; i++) {
+    if (patternParts.length <= i) {
+      return true;
+    }
+    if (patternParts[i].endsWith('+')) {
+      const patternNumber = parseInt(patternParts[i].slice(0, -1)); // Remove the '+' and parse the number
+      const versionNumber = parseInt(versionParts[i]);
+      if (isNaN(patternNumber) || isNaN(versionNumber) || versionNumber < patternNumber) {
+        return false;
+      } else if (versionNumber > patternNumber) {
+        return true;
+      }
+    } else if (patternParts[i] !== 'x' && versionParts[i] !== patternParts[i]) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 (async () => {

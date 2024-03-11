@@ -39,7 +39,7 @@ export default function (
   };
   context._origin = origin;
   context._ratio = ratio;
-  context._clip = [0, 0, canvas.width / context._ratio, canvas.height / context._ratio];
+  context._clip = [0, 0, canvas.width, canvas.height];
   
   return canvas;
 }

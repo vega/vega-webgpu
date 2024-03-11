@@ -21,7 +21,6 @@ let _bufferManager: BufferManager = null;
 let _shader: GPUShaderModule = null;
 let _vertextBufferManager: VertexBufferManager = null;
 let _pipeline: GPURenderPipeline = null;
-let _renderPassDescriptor: GPURenderPassDescriptor = null;
 let _geometryBuffer: GPUBuffer = null;
 let isInitialized: boolean = false;
 
@@ -39,11 +38,9 @@ function initialize(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds) {
       ['float32x2', 'float32', 'float32x4', 'float32x4', 'float32'] // center, radius, color, stroke color, stroke width
     );
     _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, Renderer.colorFormat, _vertextBufferManager.getBuffers());
-    _renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, ctx.background, ctx.depthTexture.createView());
     _geometryBuffer = _bufferManager.createGeometryBuffer(createGeometry());
     isInitialized = true;
   }
-  _renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 }
 
 function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds) {
@@ -61,34 +58,44 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
 
   const attributes = createAttributes(items);
   const instanceBuffer = _bufferManager.createInstanceBuffer(attributes);
+  
+  let oldClip = ctx._clip;
+  if (scene.clip && scene.bounds.y2 !== 0) {
+    ctx._clip = [
+      (vb.x1 * -1) * ctx._uniforms.dpi,
+      (vb.y1 * -1) * ctx._uniforms.dpi,
+      (scene.bounds.x2  || ctx._uniforms.resolution[0] - vb.x1 * -1) * ctx._uniforms.dpi,
+      (scene.bounds.y2) * ctx._uniforms.dpi
+    ];
+  }
+  Renderer.queue2(device, _pipeline, null, [segments * 3, items.length], [_geometryBuffer, instanceBuffer], [uniformBindGroup], ctx._clip);
 
-  Renderer.queue2(device, _pipeline, _renderPassDescriptor, [segments * 3, items.length], [_geometryBuffer, instanceBuffer], [uniformBindGroup]);
+  if (scene.clip) {
+    ctx._clip = oldClip;
+  }
 }
 
 function createAttributes(items: SceneItem[]): Float32Array {
   const result = new Float32Array(items.length * 12);
-
-  let sum = 0;
-  var len = items.length;
-  for (let i = 0; i < len; i++) {
-    const { x = 0, y = 0, size, fill, stroke, strokeWidth, opacity = 1, fillOpacity = 1, strokeOpacity = 1 } = items[i] as SceneSymbol;
+  let index = -1;
+  for (let i = 0, len = items.length; i < len; i++) {
+    const { x = 0, y = 0, size, fill, stroke, strokeWidth = 1, opacity = 1, fillOpacity = 1, strokeOpacity = 1 } = items[i] as SceneSymbol;
     const col = Color.from2(fill, opacity, fillOpacity);
     const scol = Color.from2(stroke, opacity, strokeOpacity);
     const rad = Math.sqrt(size) / 2;
 
-    const startIndex = i * 12;
-    result[startIndex] = x;
-    result[startIndex + 1] = y
-    result[startIndex + 2] = rad;
-    result[startIndex + 3] = col[0];
-    result[startIndex + 4] = col[1];
-    result[startIndex + 5] = col[2];
-    result[startIndex + 6] = col[3];
-    result[startIndex + 7] = scol[0];
-    result[startIndex + 8] = scol[1];
-    result[startIndex + 9] = scol[2];
-    result[startIndex + 10] = scol[3];
-    result[startIndex + 11] = stroke ? (strokeWidth ?? 1) : 0;
+    result[++index] = x;
+    result[++index] = y;
+    result[++index] = rad;
+    result[++index] = col[0];
+    result[++index] = col[1];
+    result[++index] = col[2];
+    result[++index] = col[3];
+    result[++index] = scol[0];
+    result[++index] = scol[1];
+    result[++index] = scol[2];
+    result[++index] = scol[3];
+    result[++index] = stroke ? strokeWidth : 0;
   }
   return result;
 }

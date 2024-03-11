@@ -1,4 +1,7 @@
-
+import { buffer } from 'd3';
+import { GPUVegaCanvasContext } from '../types/gpuVegaTypes.js'
+import { BufferManager } from '../util/bufferManager.js';
+import { VertexBufferManager } from '../util/vertexManager';
 
 
 export class Renderer {
@@ -7,6 +10,8 @@ export class Renderer {
   private static _bundles: GPURenderBundle[] = [];
   public static colorFormat: GPUTextureFormat = 'bgra8unorm';
   public static depthFormat: GPUTextureFormat = 'depth24plus';
+  public static _renderBatchQueue: number[] = [];
+  public static _renderBatchInfo: RenderBatchInfo = null;
 
   static startFrame() {
     Renderer._queue = [];
@@ -25,6 +30,7 @@ export class Renderer {
     } | [vertexCount: number, instanceCount?: number, firstVertex?: number, firstInstance?: number],
     vertexBuffers: GPUBuffer[],
     bindGroups: GPUBindGroup[],
+    clip?: [x: number, y: number, width: number, height: number],
     submit: boolean = true
   ): null | GPUCommandBuffer {
     return Renderer.render(
@@ -35,6 +41,7 @@ export class Renderer {
         drawCounts,
         vertexBuffers,
         bindGroups,
+        clip
       },
       submit
     )
@@ -67,7 +74,7 @@ export class Renderer {
   static queue2(
     device: GPUDevice,
     pipeline: GPURenderPipeline,
-    renderPassDescriptor: GPURenderPassDescriptor,
+    renderPassDescriptor: GPURenderPassDescriptor | null,
     drawCounts: {
       vertexCount: GPUSize32,
       instanceCount?: GPUSize32,
@@ -75,7 +82,8 @@ export class Renderer {
       firstInstance?: GPUSize32,
     } | [vertexCount: number, instanceCount?: number, firstVertex?: number, firstInstance?: number],
     vertexBuffers: GPUBuffer[],
-    bindGroups: GPUBindGroup[]
+    bindGroups: GPUBindGroup[],
+    clip?: [x: number, y: number, width: number, height: number]
   ) {
     Renderer.queue(
       {
@@ -85,12 +93,19 @@ export class Renderer {
         drawCounts,
         vertexBuffers,
         bindGroups,
+        clip
       }
     )
   }
 
   static queue(queueElement: QueueElement) {
+    if (this._renderBatchInfo != null && queueElement.pipeline !== this._renderBatchInfo.pipeline)
+      this.submitRenderBatch();
     Renderer._queue.push(queueElement);
+  }
+
+  static queueRenderBatch(instance: number[]) {
+    this._renderBatchQueue.push(...instance);
   }
 
   static bundle2(
@@ -148,6 +163,27 @@ export class Renderer {
     Renderer._bundles = [];
   }
 
+  static setupRenderBatch(device: GPUDevice, vertexBufferManager: VertexBufferManager, pipeline: GPURenderPipeline,
+    renderPassDescriptor?: GPURenderPassDescriptor, clip?: [x: number, y: number, width: number, height: number],
+    bindGroups?: GPUBindGroup[], geometryBuffer?: GPUBuffer, geometryCount?: number) {
+    const rbi = this._renderBatchInfo;
+    if (this._renderBatchInfo != null) {
+      if (rbi.pipeline === pipeline)
+        return;
+    }
+    this._renderBatchQueue = [];
+    this._renderBatchInfo = {
+      device,
+      vertexBufferManager,
+      pipeline,
+      renderPassDescriptor,
+      clip,
+      bindGroups: bindGroups ?? ([] as GPUBindGroup[]),
+      geometryBuffer,
+      geometryCount
+    }
+  }
+
   static async submitQueue(device?: GPUDevice) {
     const commands: GPUCommandBuffer[] = [];
     for (let i = 0; i < Renderer._queue.length; i++) {
@@ -164,10 +200,13 @@ export class Renderer {
   }
 
   static async submitQueue2(device: GPUDevice, renderPassDescriptor: GPURenderPassDescriptor) {
+    this.submitRenderBatch(renderPassDescriptor);
     const commandEncoder = device.createCommandEncoder();
     for (let qi = 0; qi < Renderer._queue.length; qi++) {
       const q = Renderer._queue[qi];
       const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+      if (q.clip)
+        passEncoder.setScissorRect(q.clip[0], q.clip[1], q.clip[2], q.clip[3])
       passEncoder.setPipeline(q.pipeline);
       for (let i = 0; i < q.vertexBuffers.length; i++) {
         passEncoder.setVertexBuffer(i, q.vertexBuffers[i]);
@@ -183,6 +222,25 @@ export class Renderer {
       passEncoder.end();
     }
     device.queue.submit([commandEncoder.finish()]);
+  }
+
+  static submitRenderBatch(renderPassDescriptor?: GPURenderPassDescriptor) {
+    if (this._renderBatchInfo == null || this._renderBatchQueue.length == 0) {
+      return;
+    }
+    const device = this._renderBatchInfo.device;
+    const renderBatchDataBuffer = new BufferManager(device).createInstanceBuffer(Float32Array.from(this._renderBatchQueue));
+
+    if (this._renderBatchInfo.geometryBuffer == null) {
+      this.queue2(device, this._renderBatchInfo.pipeline, renderPassDescriptor ?? this._renderBatchInfo.renderPassDescriptor,
+        [6, this._renderBatchQueue.length / this._renderBatchInfo.vertexBufferManager.getInstanceLength()], [renderBatchDataBuffer], []);
+    } else {
+      this.queue2(device, this._renderBatchInfo.pipeline, renderPassDescriptor ?? this._renderBatchInfo.renderPassDescriptor,
+        [this._renderBatchInfo.geometryCount ?? 1, this._renderBatchQueue.length / this._renderBatchInfo.vertexBufferManager.getInstanceLength()], 
+        [this._renderBatchInfo.geometryBuffer, renderBatchDataBuffer], this._renderBatchInfo.bindGroups, this._renderBatchInfo.clip);
+    }
+    this._renderBatchQueue = [];
+    this._renderBatchInfo = null;
   }
 
   static async submitBundles(device: GPUDevice, renderPassDescriptor: GPURenderPassDescriptor) {
@@ -344,10 +402,20 @@ export class Renderer {
   }
 }
 
+export interface RenderBatchInfo {
+  device: GPUDevice,
+  vertexBufferManager: VertexBufferManager,
+  pipeline: GPURenderPipeline,
+  renderPassDescriptor?: GPURenderPassDescriptor,
+  clip?: [x: number, y: number, width: number, height: number],
+  bindGroups: GPUBindGroup[],
+  geometryBuffer?: GPUBuffer,
+  geometryCount?: number,
+}
 export interface QueueElement {
   device: GPUDevice,
   pipeline: GPURenderPipeline,
-  renderPassDescriptor: GPURenderPassDescriptor,
+  renderPassDescriptor?: GPURenderPassDescriptor,
   drawCounts: {
     vertexCount: GPUSize32,
     instanceCount?: GPUSize32,
@@ -356,6 +424,7 @@ export interface QueueElement {
   } | [vertexCount: number, instanceCount?: number, firstVertex?: number, firstInstance?: number],
   vertexBuffers: GPUBuffer[],
   bindGroups: GPUBindGroup[],
+  clip?: [x: number, y: number, width: number, height: number]
 }
 
 export interface BundleElement {

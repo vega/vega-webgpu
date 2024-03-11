@@ -20,7 +20,7 @@ export default {
 let _device: GPUDevice = null;
 let _bufferManager: BufferManager = null;
 let _shader: GPUShaderModule = null;
-let _vertextBufferManager: VertexBufferManager = null;
+let _vertexBufferManager: VertexBufferManager = null;
 let _pipeline: GPURenderPipeline = null;
 let _renderPassDescriptor: GPURenderPassDescriptor = null;
 let _geometryBuffer: GPUBuffer = null;
@@ -35,12 +35,12 @@ function initialize(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds) {
   if (!isInitialized) {
     _bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
     _shader = ctx._shaderCache[drawName] as GPUShaderModule;
-    _vertextBufferManager = new VertexBufferManager(
+    _vertexBufferManager = new VertexBufferManager(
       ['float32x2'], // position
       // center, scale, color
       ['float32x2', 'float32x2', 'float32x4']
     );
-    _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, Renderer.colorFormat, _vertextBufferManager.getBuffers());
+    _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, Renderer.colorFormat, _vertexBufferManager.getBuffers());
     _renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, ctx.background, ctx.depthTexture.createView());
     _geometryBuffer = _bufferManager.createGeometryBuffer(quadVertex);
     isInitialized = true;
@@ -65,7 +65,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const attributes = createAttributes(items);
   const instanceBuffer = _bufferManager.createInstanceBuffer(attributes);
 
-  Renderer.queue2(device, _pipeline, _renderPassDescriptor, [6, items.length], [_geometryBuffer, instanceBuffer], [uniformBindGroup]);
+  Renderer.queue2(device, _pipeline, _renderPassDescriptor, [6, items.length], [_geometryBuffer, instanceBuffer], [uniformBindGroup], ctx._clip);
 
 }
 

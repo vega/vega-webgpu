@@ -78,7 +78,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         continue;
       const geometryBuffer = _bufferManager.createGeometryBuffer(geometryData[i]);
 
-      Renderer.queue2(device, _pipeline, _renderPassDescriptor, [geometryCount], [geometryBuffer], [uniformBindGroup]);
+      Renderer.queue2(device, _pipeline, _renderPassDescriptor, [geometryCount], [geometryBuffer], [uniformBindGroup], ctx._clip);
     }
   }
 }

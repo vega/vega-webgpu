@@ -26,7 +26,7 @@ export default {
 let _device: GPUDevice = null;
 let _bufferManager: BufferManager = null;
 let _shader: GPUShaderModule = null;
-let _vertextBufferManager: VertexBufferManager = null;
+let _vertexBufferManager: VertexBufferManager = null;
 let _pipeline: GPURenderPipeline = null;
 let _renderPassDescriptor: GPURenderPassDescriptor = null;
 let isInitialized: boolean = false;
@@ -40,11 +40,11 @@ function initialize(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds) {
   if (!isInitialized) {
     _bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
     _shader = ctx._shaderCache["Path"] as GPUShaderModule;
-    _vertextBufferManager = new VertexBufferManager(
+    _vertexBufferManager = new VertexBufferManager(
       ['float32x3', 'float32x4'], // position, color
       []
     );
-    _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, Renderer.colorFormat, _vertextBufferManager.getBuffers());
+    _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, Renderer.colorFormat, _vertexBufferManager.getBuffers());
     _renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, ctx.background, ctx.depthTexture.createView());
     isInitialized = true;
   }
@@ -71,12 +71,12 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     const geometryData = createGeometryData(ctx, item);
 
     for (let i = 0; i < geometryData.length; i++) {
-      const geometryCount = geometryData[i].length / _vertextBufferManager.getVertexLength();
+      const geometryCount = geometryData[i].length / _vertexBufferManager.getVertexLength();
       if (geometryCount == 0)
         continue;
       const geometryBuffer = _bufferManager.createGeometryBuffer(geometryData[i]);
 
-      Renderer.queue2(device, _pipeline, _renderPassDescriptor, [geometryCount], [geometryBuffer], [uniformBindGroup]);
+      Renderer.queue2(device, _pipeline, _renderPassDescriptor, [geometryCount], [geometryBuffer], [uniformBindGroup], ctx._clip);
     }
 
     ctx._tx -= item.x || 0;

@@ -12,24 +12,24 @@ export class BufferManager {
     this.offset = offset || [0, 0];
   }
 
-  createUniformBuffer(data?: Float32Array, usage: GPUBufferUsageFlags = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST) {
+  createUniformBuffer(data?: Float32Array, usage: GPUBufferUsageFlags = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST): GPUBuffer {
     data = data != null ? data : new Float32Array([...this.resolution, ...this.offset]);
     return this.createBuffer(this.bufferName + ' Uniform Buffer', data, usage);
   }
 
-  createGeometryBuffer(data: Float32Array, usage: GPUBufferUsageFlags = GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST) {
+  createGeometryBuffer(data: Float32Array, usage: GPUBufferUsageFlags = GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST): GPUBuffer {
     return this.createBuffer(this.bufferName + ' Geometry Buffer', data, usage);
   }
 
-  createInstanceBuffer(data: Uint16Array | Uint32Array | Float32Array, usage: GPUBufferUsageFlags = GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST) {
+  createInstanceBuffer(data: Uint16Array | Uint32Array | Float32Array, usage: GPUBufferUsageFlags = GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST): GPUBuffer {
     return this.createBuffer(this.bufferName + ' Instance Buffer', data, usage);
   }
 
-  createVertexBuffer(data: Float32Array, usage: GPUBufferUsageFlags = GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST) {
+  createVertexBuffer(data: Float32Array, usage: GPUBufferUsageFlags = GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST): GPUBuffer {
     return this.createBuffer(this.bufferName + ' Vertex Buffer', data, usage);
   }
 
-  createFrameBuffer(size: number, usage: GPUBufferUsageFlags = GPUBufferUsage.COPY_SRC | GPUBufferUsage.MAP_WRITE) {
+  createFrameBuffer(size: number, usage: GPUBufferUsageFlags = GPUBufferUsage.COPY_SRC | GPUBufferUsage.MAP_WRITE): GPUBuffer {
     let desc = { name: this.bufferName + ' Frame Buffer', size, usage, mappedAtCreation: true };
     let buffer = this.device.createBuffer(desc);
     buffer.unmap();
@@ -37,7 +37,7 @@ export class BufferManager {
   }
 
   // source: https://alain.xyz/blog/raw-webgpu
-  createBuffer(name: string, data: Uint16Array | Uint32Array | Float32Array, usage: GPUBufferUsageFlags) {
+  createBuffer(name: string, data: Uint16Array | Uint32Array | Float32Array, usage: GPUBufferUsageFlags): GPUBuffer {
     let desc: GPUBufferDescriptor = { label: name, size: (data.byteLength + 3) & ~3, usage, mappedAtCreation: true };
     let buffer = this.device.createBuffer(desc);
 
@@ -79,11 +79,15 @@ export class BufferManager {
     this.bufferName = bufferName;
   }
 
-  setResolution(resolution: [width: number, height: number]): void {
+  setResolution(resolution: [width: number, height: number]): boolean {
+    let old = this.resolution;
     this.resolution = resolution;
+    return old != resolution;
   }
 
-  setOffset(offset: [x: number, y: number]): void {
+  setOffset(offset: [x: number, y: number]): boolean {
+    let old = this.offset;
     this.offset = offset;
+    return old != offset;
   }
 }

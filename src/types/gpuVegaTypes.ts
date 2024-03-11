@@ -44,9 +44,11 @@ export type GPUVegaCanvasContext = GPUCanvasContext & {
   _shapeCache: {},
   _shapeCacheSize: number,
   _shapeCacheMiss: number,
+  _clip: [x: number, y: number, width: number, height: number],
 };
 
 export type GPUVegaOptions = {
+  renderBatch: boolean,
   simpleLine: boolean,
   cacheShapes: boolean,
   debugLog: boolean,

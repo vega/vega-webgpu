@@ -3,7 +3,6 @@ import { Bounds, Renderer, domClear as clear } from 'vega-scenegraph';
 import resize from './util/resize';
 import marks from './marks/index';
 import { inherits } from 'vega-util';
-import { drawCanvas } from './util/image';
 import { Renderer as RendererFunctions } from './util/renderer';
 import { GPUVegaCanvasContext, GPUVegaOptions, GPUVegaScene } from './types/gpuVegaTypes.js';
 
@@ -12,7 +11,6 @@ import symbolShader from './shaders/symbol.wgsl';
 import lineShader from './shaders/line.wgsl';
 import ruleShader from './shaders/rule.wgsl';
 import slineShader from './shaders/sline.wgsl';
-import triangleShader from './shaders/triangles.wgsl';
 import pathShader from './shaders/path.wgsl';
 import rectShader from './shaders/rect.wgsl';
 import arcShader from './shaders/arc.wgsl';
@@ -71,6 +69,7 @@ inherits(WebGPURenderer, Renderer, {
     this._ctx = ctx;
 
     const wgOptions = {} as GPUVegaOptions;
+    wgOptions.renderBatch = true;
     wgOptions.simpleLine = true;
     wgOptions.debugLog = false;
     wgOptions.cacheShapes = false;
@@ -182,24 +181,25 @@ inherits(WebGPURenderer, Renderer, {
       const t1 = performance.now();
       this.draw(device, ctx, scene, vb);
       const t2 = performance.now();
-      device.queue.onSubmittedWorkDone().then(() => {
-        if (this.wgOptions.debugLog === true) {
-          const t3 = performance.now();
-          console.log(`Render Time (${this._renderCount++}): ${((t3 - t1) / 1).toFixed(3)}ms (Draw: ${((t2 - t1) / 1).toFixed(3)}ms, WebGPU: ${((t3 - t2) / 1).toFixed(3)}ms)`);
-        }
-        this._isRendering = false;
-        if (this.wgOptions.renderLock && this._lastRenderCallback) {
-          const callback = this._lastRenderCallback;
-          this._lastRenderCallback = null;
-          callback();
-        }
-      });
+      
       this._renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
       await RendererFunctions.submitQueue2(device, this._renderPassDescriptor);
-
+      requestAnimationFrame(() => this.renderlock(t1, t2))
     })();
-
     return this;
+  },
+
+  renderlock(t1: number, t2: number) {
+    if (this.wgOptions.debugLog === true) {
+      const t3 = performance.now();
+      console.log(`Render Time (${this._renderCount++}): ${((t3 - t1) / 1).toFixed(3)}ms (Draw: ${((t2 - t1) / 1).toFixed(3)}ms, WebGPU: ${((t3 - t2) / 1).toFixed(3)}ms)`);
+    }
+    this._isRendering = false;
+    if (this.wgOptions.renderLock && this._lastRenderCallback) {
+      const callback = this._lastRenderCallback;
+      this._lastRenderCallback = null;
+      callback();
+    }
   },
 
   frame() {
@@ -209,7 +209,7 @@ inherits(WebGPURenderer, Renderer, {
     return this;
   },
 
-  draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene & { marktype: string }, transform: Bounds) {
+  draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene & { marktype: string }, bounds: Bounds) {
     const mark = marks[scene.marktype];
     if (mark == null) {
       console.error(`Unknown mark type: '${scene.marktype}'`)
@@ -217,7 +217,7 @@ inherits(WebGPURenderer, Renderer, {
       // ToDo: Set Options
       ctx.depthTexture = this.depthTexture();
       ctx.background = this.clearColor();
-      mark.draw.call(this, device, ctx, scene, transform);
+      mark.draw.call(this, device, ctx, scene, bounds);
     }
   },
 

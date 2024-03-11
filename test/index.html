@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="./index.css" />
   <script src="https://d3js.org/d3.v4.min.js" charset="utf-8"></script>
-  <script src="https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5.25.0/build/vega.js"></script>
   <script src="https://kanadaat.github.io/vega-webgpu/releases/versions.js"></script>
   <script>
     console.log(vegaWevGPURendererVersions);
@@ -46,22 +46,24 @@
 
 <body>
   <div id="header">
-    Vega Specification:
+    &nbsp; <span style="font-family: Arial; font-size: 14px;">Vega Specification:</span>
     <select id="specs">
       <option value="">-----</option>
     </select>
-    &nbsp; Renderer:
+    &nbsp; <span style="font-family: Arial; font-size: 14px;">Renderer:</span>
     <select id="render">
       <option value="svg">svg</option>
       <option value="canvas">canvas</option>
       <option value="webgpu" selected>webgpu</option>
       <option value="webgl">webgl</option>
     </select>
-    &nbsp; Version:
+    &nbsp; <span style="font-family: Arial; font-size: 14px;">Version:</span>
     <select id="versions">
       <option value="dev">dev</option>
     </select>
     &nbsp;
+    <span id="fpsDisplay" style="font-family: Arial; font-size: 14px;"></div>
+      <script src="./fps.js"></script>
   </div>
   <div>
     <div id="vis"></div>
