@@ -10,6 +10,10 @@ struct VertexInput {
   @location(1) fill_color: vec4<f32>,
 }
 
+struct InstanceInput {
+  @location(2) center: vec2<f32>,
+}
+
 struct VertexOutput {
   @builtin(position) pos: vec4<f32>,
   @location(0) uv: vec2<f32>,
@@ -18,10 +22,11 @@ struct VertexOutput {
 
 @vertex
 fn main_vertex(
-    model: VertexInput
+    model: VertexInput,
+    instance: InstanceInput,
 ) -> VertexOutput {
     var output: VertexOutput;
-    var pos = model.position.xy - uniforms.offset;
+    var pos = model.position.xy + instance.center - uniforms.offset;
     pos = pos / uniforms.resolution;
     pos.y = 1.0 - pos.y;
     pos = pos * 2.0 - 1.0;
