@@ -69,8 +69,8 @@ export default function (context: GPUVegaCanvasContext, item, shapeGeom, cache: 
   if (fill) {
     c = Color.from(item.fill);
     for (i = 0, len = st.length; i < len; i += 3) {
-      triangles[i] = st[i];
-      triangles[i + 1] = st[i + 1];
+      triangles[i] = st[i] + context._tx;
+      triangles[i + 1] = st[i + 1] + context._ty;
       triangles[i + 2] = st[i + 2];
     }
     for (i = 0, len = st.length / 3; i < len; i++) {
@@ -95,8 +95,8 @@ export default function (context: GPUVegaCanvasContext, item, shapeGeom, cache: 
         p1 = mp[cell[0]];
         p2 = mp[cell[1]];
         p3 = mp[cell[2]];
-        sTriangles[i * 3] = p1[0];
-        sTriangles[i * 3 + 1] = p1[1];
+        sTriangles[i * 3] = p1[0] + context._tx;
+        sTriangles[i * 3 + 1] = p1[1] + context._ty;
         sTriangles[i * 3 + 2] = z;
         sColors[i * 4] = c[0];
         sColors[i * 4 + 1] = c[1];
@@ -104,8 +104,8 @@ export default function (context: GPUVegaCanvasContext, item, shapeGeom, cache: 
         sColors[i * 4 + 3] = strokeOpacity;
         i++;
 
-        sTriangles[i * 3] = p2[0];
-        sTriangles[i * 3 + 1] = p2[1];
+        sTriangles[i * 3] = p2[0] + context._tx;
+        sTriangles[i * 3 + 1] = p2[1] + context._ty;
         sTriangles[i * 3 + 2] = z;
         sColors[i * 4] = c[0];
         sColors[i * 4 + 1] = c[1];
@@ -113,8 +113,8 @@ export default function (context: GPUVegaCanvasContext, item, shapeGeom, cache: 
         sColors[i * 4 + 3] = strokeOpacity;
         i++;
 
-        sTriangles[i * 3] = p3[0];
-        sTriangles[i * 3 + 1] = p3[1];
+        sTriangles[i * 3] = p3[0] + context._tx;
+        sTriangles[i * 3 + 1] = p3[1] + context._ty;
         sTriangles[i * 3 + 2] = z;
         sColors[i * 4] = c[0];
         sColors[i * 4 + 1] = c[1];

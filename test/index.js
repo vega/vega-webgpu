@@ -1,3 +1,19 @@
+function isLocalhost() {
+  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+}
+
+if (isLocalhost()) {
+  const selectElement = document.getElementById('versions');
+  if (selectElement) {
+    // Create an option element for "dev"
+    const devOption = document.createElement('option');
+    devOption.value = 'dev';
+    devOption.textContent = 'dev';
+
+    // Add the "dev" option to the select element
+    selectElement.appendChild(devOption);
+  }
+}
 
 const urlParams = new URLSearchParams(window.location.search);
 const urlSpec = urlParams.get('spec');

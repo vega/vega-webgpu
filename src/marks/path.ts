@@ -42,7 +42,6 @@ function initialize(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds) {
     _shader = ctx._shaderCache["Path"] as GPUShaderModule;
     _vertexBufferManager = new VertexBufferManager(
       ['float32x3', 'float32x4'], // position, color
-      ['float32x2'] // center
     );
     _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, Renderer.colorFormat, _vertexBufferManager.getBuffers());
     _renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, ctx.background, ctx.depthTexture.createView());
@@ -69,7 +68,6 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     ctx._ty += item.y || 0;
 
     const geometryData = createGeometryData(ctx, item);
-    const instanceBuffer = _bufferManager.createInstanceBuffer(createPosition(item));
 
     for (let i = 0; i < geometryData.length; i++) {
       const geometryCount = geometryData[i].length / _vertexBufferManager.getVertexLength();
@@ -77,7 +75,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         continue;
       const geometryBuffer = _bufferManager.createGeometryBuffer(geometryData[i]);
 
-      Renderer.queue2(device, _pipeline, _renderPassDescriptor, [geometryCount], [geometryBuffer, instanceBuffer], [uniformBindGroup], ctx._clip);
+      Renderer.queue2(device, _pipeline, _renderPassDescriptor, [geometryCount], [geometryBuffer], [uniformBindGroup], ctx._clip);
     }
 
     ctx._tx -= item.x || 0;
