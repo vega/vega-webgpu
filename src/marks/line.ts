@@ -62,7 +62,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   _bufferManager.setOffset([vb.x1, vb.y1]);
 
   // console.log("Line");
-  if (ctx._renderer.wgOptions.simpleLine === true) {
+  if (ctx._renderer.wgOptions.renderBatch === true) {
     const uniformBindGroup = Renderer.createUniformBindGroup("S" + drawName, device, _pipeline2, _bufferManager.createUniformBuffer())
     const attributes = createAttributes(items);
     const instanceBuffer = _bufferManager.createInstanceBuffer(attributes);
