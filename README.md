@@ -24,7 +24,7 @@ Use this scaffolding to get started using the WebGPU renderer. Instead of being 
 
 Therefor all that needs to be done is to link the Vega WebGPU Renderer
 ```html
-<script src="https://kanadaat.github.io/vega-webgpu/releases/1_1_1/vega-webgpu-renderer.js"></script>
+<script src="https://kanadaat.github.io/vega-webgpu/releases/1_2_0/vega-webgpu-renderer.js"></script>
 ```
 
 The WebGPU renderer was developed for Vega 5.19.1. Other Versions may work as well.
@@ -124,5 +124,4 @@ Contributions are welcome as this project is very complex. The small amount of W
 - Symbols only support circles yet.
 - Lines dont support dashes nor joins (miter join, bevel join, ...)
 - Rects do not support rounded edges yet.
-- Cliping is not supported yet.
 - Resizing the Canvas will cause webgpu renderer to fail.
