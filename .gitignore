@@ -1,4 +1,6 @@
+build/*
 dist/*
 .DS_Store
 node_modules
 pnpm-debug.log
+test/penguins_read.py

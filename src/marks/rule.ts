@@ -1,169 +1,91 @@
-import {color} from 'd3-color';
-import {createBuffer, quadVertex} from '../util/arrays';
-import {Bounds} from 'vega-scenegraph';
-//@ts-ignore
+import { Color } from '../util/color';
+import { Bounds } from 'vega-scenegraph';
+import {
+  SceneItem, SceneLine
+} from 'vega-typings';
 import shaderSource from '../shaders/rule.wgsl';
+import { quadVertex } from '../util/arrays';
+import { GPUVegaScene, GPUVegaCanvasContext } from '../types/gpuVegaTypes.js';
+import { VertexBufferManager } from '../util/vertexManager.js';
+import { BufferManager } from '../util/bufferManager.js';
+import { Renderer } from '../util/renderer.js';
 
-interface Rule {
-  x: number;
-  y: number;
-  x2: number;
-  y2: number;
-  width: number;
-  height: number;
-  stroke: string;
-  strokeWidth: string;
-  strokeOpacity: number;
+
+const drawName = 'Rule';
+export default {
+  type: 'rule',
+  draw: draw
+};
+
+let _device: GPUDevice = null;
+let _bufferManager: BufferManager = null;
+let _shader: GPUShaderModule = null;
+let _vertexBufferManager: VertexBufferManager = null;
+let _pipeline: GPURenderPipeline = null;
+let _renderPassDescriptor: GPURenderPassDescriptor = null;
+let _geometryBuffer: GPUBuffer = null;
+let isInitialized: boolean = false;
+
+function initialize(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds) {
+  if (_device != device) {
+    _device = device;
+    isInitialized = false;
+  }
+
+  if (!isInitialized) {
+    _bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+    _shader = ctx._shaderCache[drawName] as GPUShaderModule;
+    _vertexBufferManager = new VertexBufferManager(
+      ['float32x2'], // position
+      // center, scale, color
+      ['float32x2', 'float32x2', 'float32x4']
+    );
+    _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, Renderer.colorFormat, _vertexBufferManager.getBuffers());
+    _renderPassDescriptor = Renderer.createRenderPassDescriptor(drawName, ctx.background, ctx.depthTexture.createView());
+    _geometryBuffer = _bufferManager.createGeometryBuffer(quadVertex);
+    isInitialized = true;
+  }
+  _renderPassDescriptor.colorAttachments[0].view = ctx.getCurrentTexture().createView();
 }
 
-function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Rule>; bounds: Bounds}, vb: Bounds) {
-  const {items, bounds} = scene;
+
+function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds) {
+  const items = scene.items;
   if (!items?.length) {
     return;
   }
-  const itemCount = items.length;
-  if (bounds) {
-    vb.translate(bounds.x1, bounds.y1);
-  }
 
-  const shader = device.createShaderModule({code: shaderSource, label: 'Rule Shader'});
+  initialize(device, ctx, vb);
+  _bufferManager.setResolution(ctx._uniforms.resolution);
+  _bufferManager.setOffset([vb.x1, vb.y1]);
 
-  const pipeline = device.createRenderPipeline({
-    label: 'Rule Render Pipeline',
-    vertex: {
-      module: shader,
-      entryPoint: 'main_vertex',
-      buffers: [
-        {
-          arrayStride: Float32Array.BYTES_PER_ELEMENT * 2,
-          stepMode: 'vertex' as GPUVertexStepMode,
-          attributes: [
-            // position
-            {
-              shaderLocation: 0,
-              offset: 0,
-              format: 'float32x2' as GPUVertexFormat,
-            },
-          ],
-        },
-        {
-          arrayStride: Float32Array.BYTES_PER_ELEMENT * 8,
-          stepMode: 'instance' as GPUVertexStepMode,
-          attributes: [
-            // center
-            {
-              shaderLocation: 1,
-              offset: 0,
-              format: 'float32x2' as GPUVertexFormat,
-            },
-            // scale
-            {
-              shaderLocation: 2,
-              offset: Float32Array.BYTES_PER_ELEMENT * 2,
-              format: 'float32x2' as GPUVertexFormat,
-            },
-            // color
-            {
-              shaderLocation: 3,
-              offset: Float32Array.BYTES_PER_ELEMENT * 4,
-              format: 'float32x4' as GPUVertexFormat,
-            },
-          ],
-        },
-      ],
-    },
-    fragment: {
-      module: shader,
-      entryPoint: 'main_fragment',
-      targets: [
-        {
-          format: 'bgra8unorm' as GPUTextureFormat,
-          blend: {
-            alpha: {
-              srcFactor: 'one' as GPUBlendFactor,
-              dstFactor: 'one-minus-src-alpha' as GPUBlendFactor,
-              operation: 'add' as GPUBlendOperation,
-            },
-            color: {
-              srcFactor: 'src-alpha' as GPUBlendFactor,
-              dstFactor: 'one-minus-src-alpha' as GPUBlendFactor,
-              operation: 'add' as GPUBlendOperation,
-            },
-          },
-        },
-      ],
-    },
-    primitive: {
-      topology: 'triangle-list' as GPUPrimitiveTopology,
-    },
-  });
+  const uniformBuffer = _bufferManager.createUniformBuffer();
+  const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, _pipeline, uniformBuffer);
 
-  const positionBuffer = createBuffer(device, quadVertex, GPUBufferUsage.VERTEX);
-  const attributes = [];
+  const attributes = createAttributes(items);
+  const instanceBuffer = _bufferManager.createInstanceBuffer(attributes);
 
-  for (let i = 0; i < itemCount; i++) {
-    let {x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, strokeOpacity = 1} = items[i];
-    x2 ??= x;
-    y2 ??= y;
-    const ax = Math.abs(x2 - x);
-    const ay = Math.abs(y2 - y);
+  Renderer.queue2(device, _pipeline, _renderPassDescriptor, [6, items.length], [_geometryBuffer, instanceBuffer], [uniformBindGroup], ctx._clip);
 
-    const col = color(stroke).rgb();
-    attributes.push(
-      Math.min(x, x2),
-      Math.min(y, y2),
-      ax ? ax : strokeWidth,
-      ay ? ay : strokeWidth,
-      col.r / 255,
-      col.g / 255,
-      col.b / 255,
-      strokeOpacity,
-    );
-  }
-
-  const attributesBuffer = createBuffer(device, Float32Array.from(attributes), GPUBufferUsage.VERTEX);
-
-  const uniforms = new Float32Array([...this._uniforms.resolution, vb.x1 + scene.bounds.x1, vb.y1 + scene.bounds.y1]);
-  const uniformBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
-  const uniformBindGroup = device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(0),
-    entries: [
-      {
-        binding: 0,
-        resource: {
-          buffer: uniformBuffer,
-        },
-      },
-    ],
-  });
-
-  const commandEncoder = device.createCommandEncoder();
-  //@ts-ignore
-  const textureView = ctx.getCurrentTexture().createView();
-  const renderPassDescriptor: GPURenderPassDescriptor = {
-    label: 'Rule Render Pass',
-    colorAttachments: [
-      {
-        view: textureView,
-        loadOp: 'load',
-        storeOp: 'store',
-      } as GPURenderPassColorAttachment,
-    ],
-  };
-
-  const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-  passEncoder.setPipeline(pipeline);
-  passEncoder.setVertexBuffer(0, positionBuffer);
-  passEncoder.setVertexBuffer(1, attributesBuffer);
-  passEncoder.setBindGroup(0, uniformBindGroup);
-  // 6 because rectangles are a quad -- two triangles
-  passEncoder.draw(6, itemCount);
-  passEncoder.end();
-  device.queue.submit([commandEncoder.finish()]);
 }
 
-export default {
-  type: 'rule',
-  draw: draw,
-  pick: () => null,
-};
+function createAttributes(items: SceneItem[]): Float32Array {
+  return Float32Array.from(
+    items.flatMap((item: SceneLine) => {
+      // @ts-ignore
+      let { x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, opacity = 1, strokeOpacity = 1 } = item;
+      x2 ??= x;
+      y2 ??= y;
+      const ax = Math.abs(x2 - x);
+      const ay = Math.abs(y2 - y);
+      const col = Color.from(stroke, opacity, strokeOpacity);
+      return [
+        Math.min(x, x2),
+        Math.min(y, y2),
+        ax ? ax : strokeWidth,
+        ay ? ay : strokeWidth,
+        ...col.rgba
+      ];
+    }),
+  );
+}

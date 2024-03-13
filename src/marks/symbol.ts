@@ -1,95 +1,109 @@
-import {color} from 'd3-color';
-import {Bounds} from 'vega-scenegraph';
-//@ts-ignore
-import shaderSource from '../shaders/symbol.wgsl';
-import {SceneGroup, SceneSymbol} from 'vega-typings';
+import { Color } from '../util/color';
+import { Bounds } from 'vega-scenegraph';
+import { SceneSymbol, SceneItem } from 'vega-typings';
+import { GPUVegaScene, GPUVegaCanvasContext } from '../types/gpuVegaTypes.js'
+import { VertexBufferManager } from '../util/vertexManager.js';
+import { BufferManager } from '../util/bufferManager.js';
+import { Renderer } from '../util/renderer.js';
 
-interface WebGPUSceneGroup extends SceneGroup {
-  _pipeline: GPURenderPipeline;
-  _geometryBuffer: GPUBuffer;
-  _uniformsBuffer: GPUBuffer;
-  _frameBuffer: GPUBuffer;
-  _uniformsBindGroup: GPUBindGroup;
-}
 
 const segments = 32;
 
-function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
-  const shader = device.createShaderModule({code: shaderSource, label: 'Symbol Shader'});
-  scene._pipeline = device.createRenderPipeline({
-    label: 'Symbol Render Pipeline',
-    vertex: {
-      module: shader,
-      entryPoint: 'main_vertex',
-      //@ts-ignore
-      buffers: [
-        {
-          arrayStride: Float32Array.BYTES_PER_ELEMENT * 2,
-          stepMode: 'vertex',
-          attributes: [
-            // position
-            {
-              shaderLocation: 0,
-              offset: 0,
-              format: 'float32x2',
-            },
-          ],
-        },
-        {
-          arrayStride: Float32Array.BYTES_PER_ELEMENT * 7,
-          stepMode: 'instance',
-          attributes: [
-            // center
-            {
-              shaderLocation: 1,
-              offset: 0,
-              format: 'float32x2',
-            },
-            // color
-            {
-              shaderLocation: 2,
-              offset: Float32Array.BYTES_PER_ELEMENT * 2,
-              format: 'float32x4',
-            },
-            // radius
-            {
-              shaderLocation: 3,
-              offset: Float32Array.BYTES_PER_ELEMENT * 6,
-              format: 'float32',
-            },
-          ],
-        },
-      ],
-    },
-    fragment: {
-      module: shader,
-      entryPoint: 'main_fragment',
-      //@ts-ignore
-      targets: [
-        {
-          format: 'bgra8unorm',
-          blend: {
-            alpha: {
-              srcFactor: 'one',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
-            },
-            color: {
-              srcFactor: 'src-alpha',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
-            },
-          },
-        },
-      ],
-    },
-    primitive: {
-      topology: 'triangle-list',
-    },
-  });
+const drawName = 'Symbol';
+export default {
+  type: 'symbol',
+  draw: draw,
+  pick: () => null,
+};
 
-  const positions = new Float32Array(
-    Array.from({length: segments}, (_, i) => {
+let _device: GPUDevice = null;
+let _bufferManager: BufferManager = null;
+let _shader: GPUShaderModule = null;
+let _vertextBufferManager: VertexBufferManager = null;
+let _pipeline: GPURenderPipeline = null;
+let _geometryBuffer: GPUBuffer = null;
+let isInitialized: boolean = false;
+
+function initialize(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds) {
+  if (_device != device) {
+    _device = device;
+    isInitialized = false;
+  }
+
+  if (!isInitialized) {
+    _bufferManager = new BufferManager(device, drawName, ctx._uniforms.resolution, [vb.x1, vb.y1]);
+    _shader = ctx._shaderCache["Symbol"] as GPUShaderModule;
+    _vertextBufferManager = new VertexBufferManager(
+      ['float32x2'], // position
+      ['float32x2', 'float32', 'float32x4', 'float32x4', 'float32'] // center, radius, color, stroke color, stroke width
+    );
+    _pipeline = Renderer.createRenderPipeline(drawName, device, _shader, Renderer.colorFormat, _vertextBufferManager.getBuffers());
+    _geometryBuffer = _bufferManager.createGeometryBuffer(createGeometry());
+    isInitialized = true;
+  }
+}
+
+function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds) {
+  const items = scene.items;
+  if (!items?.length) {
+    return;
+  }
+
+  initialize(device, ctx, vb);
+  _bufferManager.setResolution(ctx._uniforms.resolution);
+  _bufferManager.setOffset([vb.x1, vb.y1]);
+
+  const uniformBuffer = _bufferManager.createUniformBuffer();
+  const uniformBindGroup = Renderer.createUniformBindGroup(drawName, device, _pipeline, uniformBuffer);
+
+  const attributes = createAttributes(items);
+  const instanceBuffer = _bufferManager.createInstanceBuffer(attributes);
+  
+  let oldClip = ctx._clip;
+  if (scene.clip && scene.bounds.y2 !== 0) {
+    ctx._clip = [
+      (vb.x1 * -1) * ctx._uniforms.dpi,
+      (vb.y1 * -1) * ctx._uniforms.dpi,
+      (scene.bounds.x2  || ctx._uniforms.resolution[0] - vb.x1 * -1) * ctx._uniforms.dpi,
+      (scene.bounds.y2) * ctx._uniforms.dpi
+    ];
+  }
+  Renderer.queue2(device, _pipeline, null, [segments * 3, items.length], [_geometryBuffer, instanceBuffer], [uniformBindGroup], ctx._clip);
+
+  if (scene.clip) {
+    ctx._clip = oldClip;
+  }
+}
+
+function createAttributes(items: SceneItem[]): Float32Array {
+  const result = new Float32Array(items.length * 12);
+  let index = -1;
+  for (let i = 0, len = items.length; i < len; i++) {
+    const { x = 0, y = 0, size, fill, stroke, strokeWidth = 1, opacity = 1, fillOpacity = 1, strokeOpacity = 1 } = items[i] as SceneSymbol;
+    const col = Color.from2(fill, opacity, fillOpacity);
+    const scol = Color.from2(stroke, opacity, strokeOpacity);
+    const rad = Math.sqrt(size) / 2;
+
+    result[++index] = x;
+    result[++index] = y;
+    result[++index] = rad;
+    result[++index] = col[0];
+    result[++index] = col[1];
+    result[++index] = col[2];
+    result[++index] = col[3];
+    result[++index] = scol[0];
+    result[++index] = scol[1];
+    result[++index] = scol[2];
+    result[++index] = scol[3];
+    result[++index] = stroke ? strokeWidth : 0;
+  }
+  return result;
+}
+
+
+function createGeometry(): Float32Array {
+  return new Float32Array(
+    Array.from({ length: segments }, (_, i) => {
       const j = (i + 1) % segments;
       const ang1 = !i ? 0 : ((Math.PI * 2.0) / segments) * i;
       const ang2 = !j ? 0 : ((Math.PI * 2.0) / segments) * j;
@@ -100,100 +114,4 @@ function initRenderPipeline(device: GPUDevice, scene: WebGPUSceneGroup) {
       return [x1, y1, 0, 0, x2, y2];
     }).flat(),
   );
-
-  scene._geometryBuffer = device.createBuffer({
-    label: 'Symbol Geometry Buffer',
-    size: positions.byteLength,
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-    mappedAtCreation: true,
-  });
-  let geometryData: Float32Array;
-  geometryData = new Float32Array(scene._geometryBuffer.getMappedRange());
-  geometryData.set(positions);
-  scene._geometryBuffer.unmap();
-
-  scene._uniformsBuffer = device.createBuffer({
-    label: 'Symbol Uniform Buffer',
-    size: Float32Array.BYTES_PER_ELEMENT * 4,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    mappedAtCreation: true,
-  });
-
-  scene._uniformsBindGroup = device.createBindGroup({
-    label: 'Symbol Uniform Bind Group',
-    layout: scene._pipeline.getBindGroupLayout(0),
-    entries: [
-      {
-        binding: 0,
-        resource: {
-          buffer: scene._uniformsBuffer,
-        },
-      },
-    ],
-  });
 }
-
-function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: WebGPUSceneGroup, vb: Bounds) {
-  if (!scene.items?.length) {
-    return;
-  }
-  if (!scene._pipeline) {
-    initRenderPipeline(device, scene);
-    const uniforms = Float32Array.from([...this._uniforms.resolution, vb.x1, vb.y1]);
-    const uniformsData = new Float32Array(scene._uniformsBuffer.getMappedRange());
-    uniformsData.set(uniforms);
-    scene._uniformsBuffer.unmap();
-  }
-
-  const attributes = Float32Array.from(
-    scene.items.flatMap((item: SceneSymbol) => {
-      //@ts-ignore
-      const {x = 0, y = 0, size, fill, opacity = 0} = item;
-      const col = color(fill).rgb();
-      const rad = Math.sqrt(size) / 2;
-      const r = col.r / 255;
-      const g = col.g / 255;
-      const b = col.b / 255;
-      return [x, y, r, g, b, opacity, rad];
-    }),
-  );
-
-  const instanceBuffer = device.createBuffer({
-    label: 'Symbol Instance Buffer',
-    size: attributes.byteLength,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.VERTEX,
-  });
-
-  device.queue.writeBuffer(instanceBuffer, attributes.byteOffset, attributes.buffer);
-
-  const commandEncoder = device.createCommandEncoder();
-  //@ts-ignore
-  const textureView = ctx.getCurrentTexture().createView();
-  const renderPassDescriptor = {
-    label: 'Symbol Render Pass',
-    colorAttachments: [
-      {
-        view: textureView,
-        loadOp: 'load',
-        storeOp: 'store',
-      },
-    ],
-  };
-
-  //@ts-ignore
-  const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-  passEncoder.setPipeline(scene._pipeline);
-  passEncoder.setVertexBuffer(0, scene._geometryBuffer);
-  passEncoder.setVertexBuffer(1, instanceBuffer);
-  passEncoder.setBindGroup(0, scene._uniformsBindGroup);
-  passEncoder.draw(segments * 3, scene.items.length, 0, 0);
-  passEncoder.end();
-
-  device.queue.submit([commandEncoder.finish()]);
-}
-
-export default {
-  type: 'symbol',
-  draw: draw,
-  pick: () => null,
-};

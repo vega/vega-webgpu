@@ -1,148 +1,74 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Vega Renderer Test</title>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style>
-      body {
-        margin: 10px;
-        font: 14px Helvetica Neue;
-        position: relative;
-      }
-      #header {
-        position: fixed;
-        top: 0;
-        left: 0;
-        padding: 10px;
-        width: 100%;
-        height: 20px;
-        background: white;
-      }
-      #view {
-        margin-top: 40px;
-      }
-      canvas,
-      svg {
-        border: 1px dashed #ccc;
-      }
-      .vega-bind {
-        line-height: 18px;
-        margin-bottom: 2px;
-      }
-      .vega-bind-name {
-        display: inline-block;
-        width: 100px;
-      }
-      .vega-bind input[type='range'] {
-        width: 400px;
-        margin-right: 0.5em;
-      }
-      .vega-bind input[type='radio'] {
-        margin-right: 4px;
-      }
-      .vega-bind-radio label {
-        margin-right: 0.5em;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="header">
-      Vega Specification:
-      <select id="specs">
-        <option value="">-----</option>
-      </select>
-      &nbsp; Renderer:
-      <select id="render">
-        <option value="svg">svg</option>
-        <option value="canvas">canvas</option>
-        <option value="webgpu" selected>webgpu</option>
-      </select>
-      &nbsp;
-    </div>
-    <div id="view"></div>
-    <div id="external"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.js"></script>
-    <script type="module">
-      import createWebGPU from '../dist/vega-webgpu.module.js';
-      let runtime, spec, view;
+<head>
+  <title>Vega Renderer Test</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="./index.css" />
+  <script src="https://d3js.org/d3.v4.min.js" charset="utf-8"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega@5.25.0/build/vega.js"></script>
+  <script src="https://kanadaat.github.io/vega-webgpu/releases/versions.js"></script>
+  <script>
+    console.log(vegaWevGPURendererVersions);
+    function loadScript(src, callback) {
+      const script = document.createElement('script');
+      script.type = 'text/javascript';
+      script.src = src;
+      script.onload = callback;
 
-      const options = {
-        container: '#view',
-        renderer: 'webgpu',
-        logLevel: vega.Warn,
-        hover: true,
-      };
+      document.head.appendChild(script);
+    }
 
-      (async () => {
-        const adapter = await navigator.gpu.requestAdapter();
-        const device = await adapter.requestDevice();
-        const webgpu = createWebGPU();
-        vega.renderModule('webgpu', webgpu);
-        const select = document.querySelector('#specs');
-        select.addEventListener('change', function () {
-          load(select.options[select.selectedIndex].value);
+    function getQueryParam(param) {
+      const urlSearchParams = new URLSearchParams(window.location.search);
+      return urlSearchParams.get(param);
+    }
+
+    const latestVersion = vegaWevGPURendererVersions[0];
+    const version = (getQueryParam('version') || latestVersion).replaceAll('.', '_');
+    console.log(`Vega WebGPU Renderer ${version}`)
+    let vegaWebGPURendererUrl = `https://kanadaat.github.io/vega-webgpu/releases/${version}/vega-webgpu-renderer.js`;
+    if (version == 'dev') {
+      vegaWebGPURendererUrl = 'http://localhost:5500/build/vega-webgpu-renderer.js';
+    }
+
+    // Load Vega and the selected version of Vega WebGPU Renderer
+    loadScript('https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.js', function () {
+      loadScript(vegaWebGPURendererUrl, function () {
+        loadScript('https://unpkg.com/vega-webgl-renderer/build/vega-webgl-renderer.js', function () {
+          loadScript('./index.js');
         });
+      });
+    });
+  </script>
+</head>
 
-        const render = document.querySelector('#render');
-        render.addEventListener('change', function () {
-          options.renderer = render.options[render.selectedIndex].value;
-          if (view) view.renderer(options.renderer).runAsync();
-        });
+<body>
+  <div id="header">
+    &nbsp; <span style="font-family: Arial; font-size: 14px;">Vega Specification:</span>
+    <select id="specs">
+      <option value="">-----</option>
+    </select>
+    &nbsp; <span style="font-family: Arial; font-size: 14px;">Renderer:</span>
+    <select id="render">
+      <option value="svg">svg</option>
+      <option value="canvas">canvas</option>
+      <option value="webgpu" selected>webgpu</option>
+      <option value="webgl">webgl</option>
+    </select>
+    &nbsp; <span style="font-family: Arial; font-size: 14px;">Version:</span>
+    <select id="versions">
+    </select>
+    &nbsp;
+    <span id="fpsDisplay" style="font-family: Arial; font-size: 14px;">
+  </div>
+  <script src="./fps.js"></script>
+  </div>
+  <div>
+    <div id="vis"></div>
+  </div>
+  <div id="external"></div>
+</body>
 
-        async function init() {
-          try {
-            const data = await fetch('specs-valid.json').then(r => r.json());
-
-            // load manifest of test specifications
-            data.forEach(function (name) {
-              const opt = document.createElement('option');
-              opt.setAttribute('value', name);
-              opt.textContent = name;
-              select.appendChild(opt);
-            });
-
-            // if query string is present, try to load spec
-            if (location.search) load(location.search.slice(1));
-          } catch (err) {
-            console.error(err, err.stack);
-          }
-        }
-        async function load(name) {
-          if (!name) {
-            if (view) view.finalize().container().innerHTML = '';
-            return;
-          }
-
-          // update select widget state
-          select.selectedIndex = 0;
-          for (let i = 0, n = select.options.length; i < n; ++i) {
-            if (select.options[i].value === name) {
-              select.selectedIndex = i;
-              break;
-            }
-          }
-
-          // load vega spec, then visualize it
-          try {
-            spec = await fetch(`specs-valid/${name}.vg.json`).then(r => r.json());
-            console.log('LOAD', name);
-
-            if (view) view.finalize(); // finalize existing view
-
-            const t0 = Date.now();
-            runtime = vega.parse(spec);
-            view = new vega.View(runtime, options);
-            await view.runAsync();
-            console.log('INIT', name, Date.now() - t0);
-          } catch (err) {
-            console.error(err, err.stack);
-          }
-        }
-
-        init();
-      })();
-    </script>
-  </body>
 </html>
