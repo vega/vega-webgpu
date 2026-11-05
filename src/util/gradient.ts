@@ -1,0 +1,128 @@
+import type { GPUVegaCanvasContext } from '../types/context.js';
+import type { SceneGradient } from '../types/scene.js';
+import { getMarkResources } from '../marks/util.js';
+import { uploadBuffer } from './bufferManager.js';
+import { cssColor } from './color.js';
+import { bindGroupLayout, linearSampler, viewOf } from './webgpu.js';
+
+/** Texels in a baked gradient stop ramp. */
+const RAMP_SIZE = 256;
+
+export interface GradientResources {
+  device: GPUDevice;
+  /** Stop ramps keyed by gradient id (or serialized stops). */
+  ramps: Map<string, GPUTexture>;
+}
+
+export function getGradientResources(device: GPUDevice, ctx: GPUVegaCanvasContext): GradientResources {
+  return getMarkResources(ctx, '__gradient', device, undefined, () => ({
+    device,
+    ramps: new Map(),
+  }));
+}
+
+function rampKey(gradient: SceneGradient): string {
+  return gradient.id ?? `${gradient.gradient}:${JSON.stringify(gradient.stops ?? [])}`;
+}
+
+/** Bakes the gradient's color stops into a RAMP_SIZE x 1 texture. */
+function getStopRamp(res: GradientResources, gradient: SceneGradient): GPUTexture {
+  const key = rampKey(gradient);
+  const cached = res.ramps.get(key);
+  if (cached) {
+    return cached;
+  }
+
+  const stops = (gradient.stops ?? [])
+    .map(s => {
+      const c = cssColor(s.color);
+      return {
+        offset: Math.min(Math.max(s.offset, 0), 1),
+        r: c ? c[0] : 0,
+        g: c ? c[1] : 0,
+        b: c ? c[2] : 0,
+        a: c ? c[3] : 1,
+      };
+    })
+    .sort((a, b) => a.offset - b.offset);
+  if (stops.length === 0) {
+    stops.push({ offset: 0, r: 0, g: 0, b: 0, a: 1 });
+  }
+
+  const data = new Uint8Array(RAMP_SIZE * 4);
+  for (let i = 0; i < RAMP_SIZE; i++) {
+    const t = (i + 0.5) / RAMP_SIZE;
+    let lo = stops[0];
+    let hi = stops[stops.length - 1];
+    for (let s = 0; s < stops.length - 1; s++) {
+      if (t >= stops[s].offset && t <= stops[s + 1].offset) {
+        lo = stops[s];
+        hi = stops[s + 1];
+        break;
+      }
+    }
+    const span = hi.offset - lo.offset;
+    const f = span > 0 ? Math.min(Math.max((t - lo.offset) / span, 0), 1) : 0;
+    data[i * 4] = Math.round(lo.r + (hi.r - lo.r) * f);
+    data[i * 4 + 1] = Math.round(lo.g + (hi.g - lo.g) * f);
+    data[i * 4 + 2] = Math.round(lo.b + (hi.b - lo.b) * f);
+    data[i * 4 + 3] = Math.round((lo.a + (hi.a - lo.a) * f) * 255);
+  }
+
+  const texture = res.device.createTexture({
+    label: 'Gradient Stop Ramp',
+    size: [RAMP_SIZE, 1, 1],
+    format: 'rgba8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+  });
+  res.device.queue.writeTexture({ texture }, data, { bytesPerRow: RAMP_SIZE * 4 }, [RAMP_SIZE, 1, 1]);
+
+  res.ramps.set(key, texture);
+  return texture;
+}
+
+/**
+ * Gradient parameters as consumed by the gradient shaders:
+ * coords = [x1, y1, x2, y2], bounds = [x, y, w, h] mapping positions into
+ * the normalized gradient space, misc = [kind, r1, r2, 0].
+ * A radial runs between the circles (x1, y1, r1) and (x2, y2, r2), as canvas does.
+ */
+function gradientParams(
+  gradient: SceneGradient,
+  bounds: [x: number, y: number, w: number, h: number],
+): Float32Array<ArrayBuffer> {
+  const radial = gradient.gradient === 'radial';
+  const x1 = gradient.x1 ?? (radial ? 0.5 : 0);
+  const y1 = gradient.y1 ?? (radial ? 0.5 : 0);
+  const x2 = gradient.x2 ?? (radial ? 0.5 : 1);
+  const y2 = gradient.y2 ?? (radial ? 0.5 : 0);
+  const r1 = gradient.r1 ?? 0;
+  const r2 = gradient.r2 ?? 0.5;
+  return Float32Array.from([x1, y1, x2, y2, ...bounds, radial ? 2 : 1, r1, r2, 0]);
+}
+
+/** Creates the per-draw gradient bind group (params + ramp + sampler). */
+export function createGradientBindGroup(
+  res: GradientResources,
+  pipeline: GPURenderPipeline,
+  gradient: SceneGradient,
+  bounds: [x: number, y: number, w: number, h: number],
+): GPUBindGroup {
+  // one per gradient draw, so it goes in the frame pool like every other
+  const paramsBuffer = uploadBuffer(
+    res.device,
+    'Gradient Params',
+    gradientParams(gradient, bounds),
+    GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  );
+
+  return res.device.createBindGroup({
+    label: 'Gradient Bind Group',
+    layout: bindGroupLayout(pipeline, 1),
+    entries: [
+      { binding: 0, resource: linearSampler(res.device) },
+      { binding: 1, resource: viewOf(getStopRamp(res, gradient)) },
+      { binding: 2, resource: { buffer: paramsBuffer } },
+    ],
+  });
+}

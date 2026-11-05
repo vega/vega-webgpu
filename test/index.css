@@ -1,0 +1,277 @@
+/* The demo page's own layout. Everything the gallery also needs is in compare-ui.css. */
+
+/*
+ * The spec list holds the height and main scrolls under it, so picking the next
+ * spec never means scrolling back up first.
+ */
+body {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+#specList {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/*
+ * The footer sits at the bottom of a short page and after the content of a long
+ * one, rather than floating up into the middle of an empty page.
+ */
+main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+#page {
+  flex: 1 0 auto;
+  padding: 12px;
+}
+
+#pagefoot {
+  flex-shrink: 0;
+  margin: 0 12px;
+}
+
+/*
+ * Wraps onto as many rows as it needs, so the chart below is never overlapped.
+ * A fixed height let the controls spill over it once they wrapped, which is
+ * what zooming in does.
+ */
+#header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+#fpsDisplay {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+canvas,
+svg {
+  border: 1px dashed var(--line);
+}
+
+.vega-bind {
+  line-height: 18px;
+  margin-bottom: 2px;
+}
+
+.vega-bind-name {
+  display: inline-block;
+  width: 100px;
+  color: var(--dim);
+  font-size: 13px;
+}
+
+.vega-bind input[type='range'] {
+  width: 400px;
+  margin-right: 0.5em;
+  vertical-align: middle;
+}
+
+.vega-bind input[type='radio'] {
+  margin-right: 4px;
+}
+
+.vega-bind-radio label {
+  margin-right: 0.5em;
+}
+
+#panels {
+  max-width: 100%;
+}
+
+/*
+ * The row that decides how the pair is shown. The wipe controls keep their slot
+ * when another mode is on, so the buttons do not move under the pointer as the
+ * mode changes.
+ */
+#viewRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding-bottom: 8px;
+}
+
+#wipeControls.idle {
+  visibility: hidden;
+}
+
+#wipe {
+  width: 200px;
+}
+
+#wipeReadout {
+  font-variant-numeric: tabular-nums;
+  min-width: 11ch;
+}
+
+#stage,
+#visStage {
+  padding: 10px;
+  border-radius: 6px;
+  max-width: 100%;
+  overflow: auto;
+}
+
+/*
+ * A single render needs the same white ground the compared pair has. A canvas
+ * is transparent wherever nothing was drawn, so without it the page shows
+ * through the chart, which in the dark theme means a black background.
+ */
+#visSolo {
+  display: inline-block;
+  line-height: 0;
+  background: var(--vis-bg, #fff);
+}
+
+#visSolo canvas,
+#visSolo img {
+  display: block;
+  background: #fff;
+}
+
+#blinkBox.idle {
+  visibility: hidden;
+}
+
+/*
+ * Side by side is the same two layers, laid out in a row instead of stacked, so
+ * neither view has to be rebuilt to switch between them.
+ */
+#overlay.side {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  background: none;
+  min-width: 0;
+}
+
+#overlay.side .layer {
+  grid-row: 2;
+  background: var(--vis-bg, #fff);
+  min-width: 0;
+}
+
+#overlay.side .layer:not(.top) {
+  grid-column: 1;
+}
+
+#overlay.side .layer.top {
+  grid-column: 2;
+  position: static;
+  clip-path: none;
+}
+
+#overlay.side::after {
+  display: none;
+}
+
+/* side by side: the layer has no strip to reserve, the caption sits in flow */
+#overlay.side .layer {
+  padding-top: 0;
+}
+
+#overlay.side .side {
+  position: static;
+  display: block;
+  padding: 0 0 4px;
+  background: none;
+  color: var(--dim);
+  border-radius: 0;
+}
+
+#diffPanel {
+  margin-top: 14px;
+}
+
+#diffSummary {
+  padding-bottom: 6px;
+  display: block;
+}
+
+/* the diff is drawn on white, so differing pixels are the only thing on it */
+#diffCanvas {
+  background: white;
+}
+
+#diffThreshold {
+  width: 52px;
+}
+
+/*
+ * The bound signals of the spec, in a box of their own. Loose in the page they
+ * read as leftovers of the chart above rather than controls for it. Hidden by
+ * script when the spec binds nothing, since an empty titled box is worse.
+ */
+#bindPanel {
+  margin-top: 18px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  max-width: max-content;
+  min-width: 260px;
+}
+
+#bindPanel > h2 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+@media (max-width: 700px) {
+  body {
+    grid-template-columns: 180px 1fr;
+  }
+
+  #page {
+    padding: 8px;
+  }
+
+  #header {
+    gap: 4px 8px;
+    padding: 6px;
+  }
+
+  #fpsDisplay {
+    margin-left: 0;
+  }
+
+  #wipe {
+    width: 120px;
+  }
+
+  .vega-bind input[type='range'] {
+    width: 160px;
+  }
+
+  .vega-bind-name {
+    width: 84px;
+  }
+
+  #bindPanel {
+    min-width: 0;
+    max-width: none;
+  }
+}

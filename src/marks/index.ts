@@ -1,15 +1,30 @@
-import group from './group';
-import line from './line';
-import rect from './rect';
-import rule from './rule';
-import symbol from './symbol';
-import text from './text';
+import arc from './arc.js';
+import area from './area.js';
+import group from './group.js';
+import image from './image.js';
+import line from './line.js';
+import path from './path.js';
+import rect from './rect.js';
+import rule from './rule.js';
+import shape from './shape.js';
+import symbol from './symbol.js';
+import text from './text.js';
+import trail from './trail.js';
+import type { MarkModule } from './util.js';
 
-export default {
+const marks: Record<string, MarkModule> = {
+  arc,
+  area,
   group,
+  image,
   line,
+  path,
   rect,
   rule,
+  shape,
   symbol,
-  text
+  text,
+  trail,
 };
+
+export default marks;

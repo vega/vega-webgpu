@@ -1,169 +1,178 @@
-import {color} from 'd3-color';
-import {createBuffer, quadVertex} from '../util/arrays';
-import {Bounds} from 'vega-scenegraph';
-//@ts-ignore
-import shaderSource from '../shaders/rule.wgsl';
+import type { Bounds } from 'vega-scenegraph';
+import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
+import type { SceneRule } from '../types/scene.js';
+import { quadVertex } from '../util/arrays.js';
+import { BufferManager } from '../util/bufferManager.js';
+import { blendKey } from '../util/blend.js';
+import { Color } from '../util/color.js';
+import { VertexBufferManager } from '../util/vertexManager.js';
+import type { Point } from '../types/geometry.js';
+import type { RGBA } from '../util/color.js';
+import {
+  dashPatternOf,
+  outlinePipelines,
+  type OutlinePipelines,
+  enqueueOutline,
+  getMarkResources,
+  instanceScratch,
+  markItems,
+  blendPipelines,
+  segmentInstances,
+  strokeEnds,
+  strokeRuns,
+  type MarkModule,
+  uniformBindGroup,
+  paintColour,
+  rampOf,
+  targetOf,
+} from './util.js';
+import { DrawRun } from '../util/drawRun.js';
 
-interface Rule {
-  x: number;
-  y: number;
-  x2: number;
-  y2: number;
-  width: number;
-  height: number;
-  stroke: string;
-  strokeWidth: string;
-  strokeOpacity: number;
+const drawName = 'Rule';
+
+interface RuleResources {
+  device: GPUDevice;
+  bufferManager: BufferManager;
+  /** The quad, one pipeline per blend mode. */
+  pipelineFor: (blend: string) => GPURenderPipeline;
+  /** Pipelines for an outline drawn through the segment shader. */
+  outline: OutlinePipelines;
+  geometryBuffer: GPUBuffer;
 }
 
-function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Rule>; bounds: Bounds}, vb: Bounds) {
-  const {items, bounds} = scene;
-  if (!items?.length) {
+function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): RuleResources {
+  return getMarkResources(ctx, 'rule', device, vb, () => {
+    const bufferManager = new BufferManager(device, drawName);
+    const vertexManager = new VertexBufferManager(
+      ['float32x2'], // position
+      // center, scale, color, half-thickness offset
+      ['float32x2', 'float32x2', 'float32x4', 'float32x2'],
+    );
+    const pipelineFor = blendPipelines(ctx, device, drawName, drawName, vertexManager);
+    // A rule with both x2 and y2 set is a diagonal segment, which an
+    // axis-aligned quad cannot express. Those go through the single-segment
+    // line shader instead.
+    const outline = outlinePipelines(ctx, device, `${drawName}Diagonal`);
+    const geometryBuffer = bufferManager.createGeometryBuffer(quadVertex, true);
+    return {
+      device,
+      bufferManager,
+      pipelineFor,
+      outline,
+      geometryBuffer,
+    };
+  });
+}
+
+/** A rule's two ends. An unset x2 or y2 is its start, the way vega draws one. */
+function ruleEnds(item: SceneRule): [x: number, y: number, ex: number, ey: number] {
+  const x = item.x || 0;
+  const y = item.y || 0;
+  return [x, y, item.x2 == null ? x : item.x2 || 0, item.y2 == null ? y : item.y2 || 0];
+}
+
+/**
+ * A rule drawn through the segment shader, for what the rect cannot draw: a
+ * dash, a diagonal, a cap or a ramp. The rule is two points, so the walk the
+ * line mark dashes with covers it. The raw ends: writeSegments lengthens a
+ * square capped run itself, and a dash cuts it into runs whose inner ends are
+ * not caps at all.
+ */
+function segmentAttributes(item: SceneRule, color: RGBA): Float32Array | null {
+  const [x, y, ex, ey] = ruleEnds(item);
+  const line: Point[] = [
+    [x, y],
+    [ex, ey],
+  ];
+  return segmentInstances(strokeRuns([line], item), color, item.strokeWidth ?? 1, strokeEnds(item));
+}
+
+/** True when the rule has no length, so canvas draws nothing under a butt cap. */
+function isDegenerate(item: SceneRule): boolean {
+  const x = item.x || 0;
+  const y = item.y || 0;
+  return (item.x2 ?? x) === x && (item.y2 ?? y) === y;
+}
+
+/** True when the rule runs at an angle, so it cannot be drawn as a rect. */
+function isDiagonal(item: SceneRule): boolean {
+  const x = item.x || 0;
+  const y = item.y || 0;
+  return (item.x2 ?? x) !== x && (item.y2 ?? y) !== y;
+}
+
+function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
+  const items = markItems<SceneRule>(scene);
+  if (items.length === 0) {
     return;
   }
-  const itemCount = items.length;
-  if (bounds) {
-    vb.translate(bounds.x1, bounds.y1);
-  }
 
-  const shader = device.createShaderModule({code: shaderSource, label: 'Rule Shader'});
+  const res = getResources(device, ctx, vb);
 
-  const pipeline = device.createRenderPipeline({
-    label: 'Rule Render Pipeline',
-    vertex: {
-      module: shader,
-      entryPoint: 'main_vertex',
-      buffers: [
-        {
-          arrayStride: Float32Array.BYTES_PER_ELEMENT * 2,
-          stepMode: 'vertex' as GPUVertexStepMode,
-          attributes: [
-            // position
-            {
-              shaderLocation: 0,
-              offset: 0,
-              format: 'float32x2' as GPUVertexFormat,
-            },
-          ],
-        },
-        {
-          arrayStride: Float32Array.BYTES_PER_ELEMENT * 8,
-          stepMode: 'instance' as GPUVertexStepMode,
-          attributes: [
-            // center
-            {
-              shaderLocation: 1,
-              offset: 0,
-              format: 'float32x2' as GPUVertexFormat,
-            },
-            // scale
-            {
-              shaderLocation: 2,
-              offset: Float32Array.BYTES_PER_ELEMENT * 2,
-              format: 'float32x2' as GPUVertexFormat,
-            },
-            // color
-            {
-              shaderLocation: 3,
-              offset: Float32Array.BYTES_PER_ELEMENT * 4,
-              format: 'float32x4' as GPUVertexFormat,
-            },
-          ],
-        },
-      ],
-    },
-    fragment: {
-      module: shader,
-      entryPoint: 'main_fragment',
-      targets: [
-        {
-          format: 'bgra8unorm' as GPUTextureFormat,
-          blend: {
-            alpha: {
-              srcFactor: 'one' as GPUBlendFactor,
-              dstFactor: 'one-minus-src-alpha' as GPUBlendFactor,
-              operation: 'add' as GPUBlendOperation,
-            },
-            color: {
-              srcFactor: 'src-alpha' as GPUBlendFactor,
-              dstFactor: 'one-minus-src-alpha' as GPUBlendFactor,
-              operation: 'add' as GPUBlendOperation,
-            },
-          },
-        },
-      ],
-    },
-    primitive: {
-      topology: 'triangle-list' as GPUPrimitiveTopology,
-    },
+  const uniformBuffer = res.bufferManager.createUniformBuffer();
+  const outlineTarget = targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer);
+
+  const run = new DrawRun<SceneRule>(ctx._opaqueBackdrop, (rules, blend) => {
+    const pipeline = res.pipelineFor(blend);
+    const instanceBuffer = res.bufferManager.createInstanceBuffer(createAttributes(rules));
+    ctx._renderQueue.enqueue({
+      pipeline,
+      drawCounts: [6, rules.length],
+      vertexBuffers: [res.geometryBuffer, instanceBuffer],
+      bindGroups: [uniformBindGroup(ctx, device, drawName, pipeline, uniformBuffer)],
+      clip: ctx._clip,
+    });
   });
 
-  const positionBuffer = createBuffer(device, quadVertex, GPUBufferUsage.VERTEX);
-  const attributes = [];
-
-  for (let i = 0; i < itemCount; i++) {
-    let {x = 0, y = 0, x2, y2, stroke, strokeWidth = 1, strokeOpacity = 1} = items[i];
-    x2 ??= x;
-    y2 ??= y;
-    const ax = Math.abs(x2 - x);
-    const ay = Math.abs(y2 - y);
-
-    const col = color(stroke).rgb();
-    attributes.push(
-      Math.min(x, x2),
-      Math.min(y, y2),
-      ax ? ax : strokeWidth,
-      ay ? ay : strokeWidth,
-      col.r / 255,
-      col.g / 255,
-      col.b / 255,
-      strokeOpacity,
-    );
+  for (const item of items) {
+    const blend = blendKey(item.blend);
+    const pattern = dashPatternOf(item);
+    // The rect shader draws a rule with a butt end and a solid colour, so a cap
+    // or a ramp takes the segment path the diagonal and dashed ones take.
+    const strokeRamp = rampOf(item.stroke, item.bounds);
+    const shaped = item.strokeCap === 'round' || item.strokeCap === 'square';
+    // canvas moves to the point and lines to the same point, which a butt cap
+    // renders as nothing. Falling back to the stroke width for both extents
+    // would paint a square block instead.
+    if (!shaped && isDegenerate(item)) {
+      continue;
+    }
+    if (!pattern && !isDiagonal(item) && !strokeRamp && !shaped) {
+      run.add(item, blend);
+      continue;
+    }
+    run.flush();
+    const color = paintColour(item.stroke, item.opacity, item.strokeOpacity, strokeRamp);
+    const data = segmentAttributes(item, color);
+    if (!data) {
+      continue; // a zero length rule, or a dash that left nothing drawn
+    }
+    enqueueOutline(outlineTarget, data, strokeRamp, blend);
   }
-
-  const attributesBuffer = createBuffer(device, Float32Array.from(attributes), GPUBufferUsage.VERTEX);
-
-  const uniforms = new Float32Array([...this._uniforms.resolution, vb.x1 + scene.bounds.x1, vb.y1 + scene.bounds.y1]);
-  const uniformBuffer = createBuffer(device, uniforms, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
-  const uniformBindGroup = device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(0),
-    entries: [
-      {
-        binding: 0,
-        resource: {
-          buffer: uniformBuffer,
-        },
-      },
-    ],
-  });
-
-  const commandEncoder = device.createCommandEncoder();
-  //@ts-ignore
-  const textureView = ctx.getCurrentTexture().createView();
-  const renderPassDescriptor: GPURenderPassDescriptor = {
-    label: 'Rule Render Pass',
-    colorAttachments: [
-      {
-        view: textureView,
-        loadOp: 'load',
-        storeOp: 'store',
-      } as GPURenderPassColorAttachment,
-    ],
-  };
-
-  const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-  passEncoder.setPipeline(pipeline);
-  passEncoder.setVertexBuffer(0, positionBuffer);
-  passEncoder.setVertexBuffer(1, attributesBuffer);
-  passEncoder.setBindGroup(0, uniformBindGroup);
-  // 6 because rectangles are a quad -- two triangles
-  passEncoder.draw(6, itemCount);
-  passEncoder.end();
-  device.queue.submit([commandEncoder.finish()]);
+  run.flush();
 }
 
-export default {
-  type: 'rule',
-  draw: draw,
-  pick: () => null,
-};
+/** Floats per rule instance: corner, size, colour, and the offset a half stroke takes. */
+const RULE_STRIDE = 10;
+
+function createAttributes(items: SceneRule[]): Float32Array {
+  const out = instanceScratch(items.length * RULE_STRIDE);
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const { stroke, strokeWidth = 1, opacity = 1, strokeOpacity = 1 } = item;
+    const [x, y, ex, ey] = ruleEnds(item);
+    const ax = Math.abs(ex - x);
+    const ay = Math.abs(ey - y);
+    const base = i * RULE_STRIDE;
+    out[base] = Math.min(x, ex);
+    out[base + 1] = Math.min(y, ey);
+    out[base + 2] = ax ? ax : strokeWidth;
+    out[base + 3] = ay ? ay : strokeWidth;
+    Color.write(out, base + 4, stroke, opacity, strokeOpacity);
+    out[base + 8] = ax ? 0 : strokeWidth / 2;
+    out[base + 9] = ay ? 0 : strokeWidth / 2;
+  }
+  return out;
+}
+
+export default { draw } satisfies MarkModule;

@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: Typecheck, lint & build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # the versions vega itself covers
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm run lint
+
+      - run: npm run build
+
+      - uses: actions/upload-artifact@v7
+        if: matrix.node == 24
+        with:
+          name: build
+          path: build/
+          retention-days: 7
+
+  test:
+    # Both pixel ratios, because they are not the same test: a finer grid moves
+    # every analytic edge onto different sample positions, and eight fixtures
+    # carry a budget of their own for it. Only dpr 1 ran here, so a regression
+    # that showed at dpr 2 was one somebody had to find by hand.
+    name: Render tests at dpr ${{ matrix.dpr }} (WebGPU on SwiftShader)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dpr: [1, 2]
+    env:
+      RENDER_DPR: ${{ matrix.dpr }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # Full Chromium (not the headless shell) is required for WebGPU. --with-deps
+      # pulls the Linux system libraries it needs.
+      - run: npx playwright install chromium --no-shell --with-deps
+
+      - run: npm run build
+
+      # Fail fast with a clear message if WebGPU can't initialize on SwiftShader,
+      # instead of all ~108 specs failing with a renderer mismatch. Runs as its
+      # own step so the job stops here, before the (slower) full suite.
+      - name: WebGPU smoke test
+        run: npx playwright test webgpu-smoke --reporter=line
+
+      # RENDER_ARTIFACTS=1 also writes the raw per-spec PNGs to
+      # test/render/output/ so they can be downloaded and diffed directly.
+      - run: npm run test:artifacts
+
+      # Always publish the report. It embeds every spec's webgpu, canvas and
+      # diff images, so it doubles as a manual comparison gallery.
+      - name: Upload render report
+        id: report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: render-report-dpr${{ matrix.dpr }}
+          path: playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # Raw per-spec webgpu / canvas / diff PNGs for direct manual comparison.
+      - name: Upload render images
+        id: images
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: render-images-dpr${{ matrix.dpr }}
+          path: test/render/output/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # The report and the images are bare zips, so nothing in a run says where
+      # the browsable gallery is or what the run let through. This names the
+      # cases over budget with a gallery link each, and links both zips.
+      - name: Summarize the run
+        if: always()
+        run: node scripts/run-summary.mjs >> "$GITHUB_STEP_SUMMARY"
+        env:
+          RENDER_DPR: ${{ matrix.dpr }}
+          REPORT_URL: ${{ steps.report.outputs.artifact-url }}
+          IMAGES_URL: ${{ steps.images.outputs.artifact-url }}

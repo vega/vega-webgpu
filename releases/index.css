@@ -1,0 +1,558 @@
+:root {
+  --bg: #ffffff;
+  --panel: #f7f8fa;
+  --ink: #1b1f24;
+  --muted: #5b6673;
+  --line: #e2e6eb;
+  --accent: #2f6fd0;
+  --accent-ink: #ffffff;
+  --code-bg: #f2f4f7;
+  --yes: #1f7a4d;
+  --partial: #8a6100;
+  --no: #a33a3a;
+  --radius: 10px;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #14171b;
+    --panel: #1b1f25;
+    --ink: #e6e9ed;
+    --muted: #9aa5b1;
+    --line: #2b313a;
+    --accent: #6ea8fe;
+    --accent-ink: #10131a;
+    --code-bg: #1f242b;
+    --yes: #57c48a;
+    --partial: #d8a53a;
+    --no: #e07a7a;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font:
+    16px/1.6 system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+a {
+  color: var(--accent);
+}
+
+header {
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  padding: 48px 0 36px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(28px, 5vw, 40px);
+  letter-spacing: -0.02em;
+}
+
+.lede {
+  margin: 12px 0 0;
+  max-width: 60ch;
+  font-size: 18px;
+  color: var(--muted);
+}
+
+.actions {
+  margin: 24px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.btn {
+  display: inline-block;
+  padding: 9px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+/* something the page names but cannot link to yet */
+.btn.off {
+  color: var(--muted);
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+.btn.off:hover {
+  border-color: var(--line);
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+
+nav .wrap {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  scrollbar-width: none;
+}
+
+nav .wrap::-webkit-scrollbar {
+  display: none;
+}
+
+nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+nav a:hover {
+  color: var(--ink);
+}
+
+main {
+  padding: 8px 20px 64px;
+}
+
+section {
+  padding-top: 44px;
+  scroll-margin-top: 60px;
+}
+
+h2 {
+  margin: 0 0 14px;
+  font-size: 24px;
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  margin: 28px 0 8px;
+  font-size: 17px;
+}
+
+p,
+ul {
+  max-width: 68ch;
+}
+
+li {
+  margin-bottom: 8px;
+}
+
+.note {
+  border-left: 3px solid var(--line);
+  padding-left: 14px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+code {
+  background: var(--code-bg);
+  border-radius: 5px;
+  padding: 1px 5px;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  overflow-x: auto;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin: 16px 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+thead th {
+  background: var(--panel);
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.opts td:first-child,
+.matrix td:first-child,
+.versions td:first-child {
+  white-space: nowrap;
+}
+
+/* the headings are property names, so they keep their own casing */
+.matrix thead th {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.matrix td:not(:first-child) {
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.matrix .y {
+  color: var(--yes);
+}
+
+.matrix .p {
+  color: var(--partial);
+}
+
+.matrix .n {
+  color: var(--no);
+}
+
+.matrix .na {
+  color: var(--muted);
+}
+
+.cards {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  margin-top: 16px;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 18px 20px;
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.cardnote {
+  margin: 4px 0 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.card ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 15px;
+}
+
+footer {
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  padding: 28px 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+footer p {
+  margin: 0 0 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+footer .updated {
+  display: block;
+}
+
+/* --- mark playground and impressum --- */
+
+header.slim {
+  padding: 32px 0 24px;
+}
+
+header.slim .eyebrow a {
+  color: inherit;
+  text-decoration: none;
+}
+
+header.slim .eyebrow a:hover {
+  color: var(--accent);
+}
+
+.controls {
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.controls .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px 20px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.controls label > span {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.controls select {
+  font: inherit;
+  font-size: 15px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+legend {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 14px;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.check .value {
+  margin-left: 2px;
+  font: inherit;
+  font-size: 13px;
+  padding: 1px 4px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--ink);
+  max-width: 11em;
+}
+
+.check .value option,
+.check .value optgroup {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.callout {
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin: 20px 0;
+  max-width: none;
+  font-size: 15px;
+}
+
+.callout.bad {
+  border-left-color: var(--no);
+}
+
+.callout.warn {
+  border-left-color: var(--partial);
+}
+
+.panels {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.panel {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #fff;
+}
+
+.panel figcaption {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.panel > div {
+  padding: 8px;
+  overflow-x: auto;
+}
+
+details {
+  margin-top: 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+}
+
+summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+
+details .actions {
+  margin: 14px 0;
+}
+
+button.btn {
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.matrix td a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px dotted var(--muted);
+}
+
+.matrix td a:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+dl.legal dt {
+  font-weight: 600;
+  margin-top: 16px;
+}
+
+dl.legal dd {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.todo {
+  color: var(--no);
+  font-style: italic;
+}
+
+.callout ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.callout li {
+  margin-bottom: 4px;
+}
+
+.callout .y {
+  color: var(--yes);
+}
+
+.callout .p {
+  color: var(--partial);
+}
+
+.callout .n {
+  color: var(--no);
+}
+
+.callout .na {
+  color: var(--muted);
+}
+
+.madewith {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}

@@ -1,0 +1,121 @@
+name: Release
+
+# Push a tag like v2.0.0 (matching package.json's version) to:
+#  1. build and attach the bundles to a GitHub Release
+#  2. publish the hosted files to releases/<x_y_z>/ on main (GitHub Pages)
+#  3. publish to npm, when the NPM_TOKEN secret is configured
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      # to start the site deploy, see the step after hosting
+      actions: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Resolve version and notes from tag
+        id: meta
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          NOTES="$(git tag -l --format='%(contents:subject)' "$GITHUB_REF_NAME")"
+          echo "notes=$NOTES" >> "$GITHUB_OUTPUT"
+          # pages.yml keeps the run recorded at this tag's commit under the version
+          echo "gallery=https://${GITHUB_REPOSITORY_OWNER,,}.github.io/${GITHUB_REPOSITORY#*/}/gallery/?run=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Verify tag matches package.json
+        run: |
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$PKG_VERSION" != "${{ steps.meta.outputs.version }}" ]; then
+            echo "Tag v${{ steps.meta.outputs.version }} does not match package.json version $PKG_VERSION" >&2
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm run build
+
+      # npm run release does this before the tag is cut, so normally there is
+      # nothing left to do. This is the safety net for a tag pushed without it.
+      # No --notes: releases.json is the source for the notes, not the tag.
+      #
+      # main gets its own worktree, so the steps after this one still release
+      # the tag's tree, and a main that has moved on to another version since
+      # is no reason to stop.
+      - name: Host the build, if main does not already have it
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          HOST="$RUNNER_TEMP/main"
+          git worktree add --detach "$HOST" origin/main
+          cp -r build "$HOST/"
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$HOST/node_modules"
+          cd "$HOST"
+          node scripts/prepare-release.mjs "$VERSION" --no-version-check
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "main already hosts $VERSION, nothing to commit."
+          else
+            git add releases index.html README.md
+            git commit -m "release: host $VERSION"
+            git push origin HEAD:main
+          fi
+
+      # A push made with this token starts no workflow, so without this the site
+      # stays whatever the last deploy built, which is the tree before the
+      # hosted files. A dispatch is the one event the token may start.
+      - name: Deploy the site with the hosted build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ steps.meta.outputs.version }}
+          body: |
+            ${{ steps.meta.outputs.notes }}
+
+            [Render gallery for this release](${{ steps.meta.outputs.gallery }}), every case as this version drew it.
+          # a version with a suffix is an rc, and must not read as the latest stable
+          prerelease: ${{ contains(steps.meta.outputs.version, '-') }}
+          files: |
+            build/vega-webgpu-renderer.js
+            build/vega-webgpu-renderer.min.js
+            build/vega-webgpu-renderer.module.js
+
+      # The secrets context is not allowed in an if condition, so the token is
+      # checked inside the step. The GitHub Release above always publishes.
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "NPM_TOKEN is not configured, skipping the npm publish."
+            exit 0
+          fi
+          # An rc under the default tag becomes what `npm install` gives you.
+          case "$VERSION" in
+            *-*) npm publish --provenance --access public --tag next ;;
+            *) npm publish --provenance --access public ;;
+          esac

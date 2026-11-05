@@ -1,0 +1,64 @@
+import js from '@eslint/js';
+import tseslint from 'typescript-eslint';
+
+export default tseslint.config(
+  {
+    ignores: [
+      'build/',
+      'releases/',
+      // the staged site the pages workflow uploads, which is a copy of files
+      // that are linted where they live
+      '_site/',
+      'gallery/',
+      'node_modules/',
+      'test/data/',
+      // vendored vega builds the demo page loads for A/B comparison
+      'test/vendor/',
+      'test-results/',
+      'playwright-report/',
+    ],
+  },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/ban-ts-comment': 'error',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      'no-var': 'error',
+      'prefer-const': 'error',
+    },
+  },
+  {
+    // Node maintenance scripts.
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        fetch: 'readonly',
+      },
+    },
+  },
+  {
+    // Browser demo scripts loaded via <script> tags.
+    files: ['test/**/*.js'],
+    languageOptions: {
+      globals: {
+        window: 'readonly',
+        document: 'readonly',
+        console: 'readonly',
+        fetch: 'readonly',
+        location: 'readonly',
+        requestAnimationFrame: 'readonly',
+        performance: 'readonly',
+        URLSearchParams: 'readonly',
+        vega: 'readonly',
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+      'no-undef': 'off',
+    },
+  },
+);

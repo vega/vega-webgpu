@@ -1,123 +1,365 @@
-import {Bounds} from 'vega-scenegraph';
-import Marks from '../marks/index';
-import shaderSource from '../shaders/text.wgsl';
+import type { Bounds } from 'vega-scenegraph';
+import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
+import type { SceneTextItem } from '../types/scene.js';
+import { BufferManager } from '../util/bufferManager.js';
+import { VertexBufferManager } from '../util/vertexManager.js';
+import { TextAtlas, type GlyphSlot } from '../util/textAtlas.js';
+import {
+  NO_TURN,
+  drawGlyph,
+  driftShift,
+  glyphMetrics,
+  rasterizeText,
+  textAnchor,
+  type Drift,
+  textCacheKey,
+  turnOf,
+  upright,
+  type GlyphMetrics,
+  type Turn,
+} from '../util/textTexture.js';
+import { blendKey } from '../util/blend.js';
+import { linearSampler, textureBindGroup, viewOf } from '../util/webgpu.js';
+import { blendPipelines, getMarkResources, markItems, type MarkModule, uniformBindGroup } from './util.js';
+import { DrawRun } from '../util/drawRun.js';
 
-function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: {items: Array<Text>; bounds: Bounds}, bounds: Bounds) {
-  // Marks.text.draw(this._textContext, scene, bounds);
-  const shader = device.createShaderModule({code: shaderSource, label: 'Text Shader'});
-  const pipeline = device.createRenderPipeline({
-    label: 'Text Render Pipeline',
-    vertex: {
-      module: shader,
-      entryPoint: 'main_vertex',
-      //@ts-ignore
-      buffers: [
-        {
-          arrayStride: Float32Array.BYTES_PER_ELEMENT * 4,
-          attributes: [
-            // pos
-            {
-              shaderLocation: 0,
-              offset: 0,
-              format: 'float32x2',
-            },
-            // uv
-            {
-              shaderLocation: 1,
-              offset: Float32Array.BYTES_PER_ELEMENT * 2,
-              format: 'float32x2',
-            },
-          ],
-        },
-      ],
-    },
-    fragment: {
-      module: shader,
-      entryPoint: 'main_fragment',
-      targets: [
-        {
-          format: 'bgra8unorm',
-          blend: {
-            alpha: {
-              srcFactor: 'one',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
-            },
-            color: {
-              srcFactor: 'src-alpha',
-              dstFactor: 'one-minus-src-alpha',
-              operation: 'add',
-            },
-          },
-        },
-      ],
-    },
-    primitives: {
-      topology: 'triangle-list',
-    },
-  });
-  const positions = new Float32Array([
-    1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0,
-    0.0,
-  ]);
-  const positionBuffer = device.createBuffer({
-    label: 'Text position buffer',
-    size: positions.byteLength,
-    usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.VERTEX,
-    mappedAtCreation: true,
-  });
-  const positionData = new Float32Array(positionBuffer.getMappedRange());
-  positionData.set(positions);
-  positionBuffer.unmap();
-  const sampler = device.createSampler({});
-  const texture = device.createTexture({
-    label: 'Text Texture',
-    size: {width: this._textCanvas.width, height: this._textCanvas.height, depthOrArrayLayers: 1},
-    format: 'rgba8unorm',
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT,
-  });
-  device.queue.copyExternalImageToTexture(
-    {source: this._textCanvas},
-    {texture},
-    {width: this._textCanvas.width, height: this._textCanvas.height},
-  );
-  const bindGroup = device.createBindGroup({
-    label: 'Text Bind Group',
-    layout: pipeline.getBindGroupLayout(0),
-    entries: [
-      {
-        binding: 0,
-        resource: sampler,
-      },
-      {
-        binding: 1,
-        resource: texture.createView(),
-      },
-    ],
-  });
-  //@ts-ignore
-  const textureView = ctx.getCurrentTexture().createView();
-  const renderPassDescriptor = {
-    label: 'Text Render Pass',
-    colorAttachments: [
-      {
-        view: textureView,
-        loadOp: 'load',
-        storeOp: 'store',
-      },
-    ],
-  };
-  const commandEncoder = device.createCommandEncoder();
-  const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
-  passEncoder.setPipeline(pipeline);
-  passEncoder.setBindGroup(0, bindGroup);
-  passEncoder.setVertexBuffer(0, positionBuffer);
-  passEncoder.draw(6, 1, 0, 0);
-  passEncoder.end();
-  device.queue.submit([commandEncoder.finish()]);
+const drawName = 'Text';
+
+/** Per instance: quad rect, atlas sub-rect, anchor with cos and sin, opacity. */
+const LABEL_LAYOUT: GPUVertexFormat[] = ['float32x4', 'float32x4', 'float32x4', 'float32'];
+const LABEL_STRIDE = 13;
+
+/**
+ * Upload time above which a mark stops rasterizing the rotation into its
+ * labels. A rotated label costs roughly 0.15 ms, all of it inside the atlas
+ * upload rather than at the call that asked for it, so the choice is made for a
+ * whole draw from what the last one cost. Half a frame of crisp labels and half
+ * of turned ones would be worse than either.
+ */
+const UPLOAD_BUDGET_MS = 2.5;
+
+interface TextResources {
+  device: GPUDevice;
+  bufferManager: BufferManager;
+  /** The glyph quads, one pipeline per blend mode. */
+  pipelineFor: (blend: string) => GPURenderPipeline;
+  atlas: TextAtlas;
+  /** Whether a rotated label is still worth rasterizing at its angle. */
+  exact: boolean;
+  /** Scratch for a label too large to pack. */
+  scratch: HTMLCanvasElement;
+  scratchCtx: CanvasRenderingContext2D;
 }
 
-export default {
-  type: 'text',
-  draw: draw,
-};
+function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): TextResources {
+  return getMarkResources(ctx, 'text', device, vb, () => {
+    const bufferManager = new BufferManager(device, drawName);
+    const vertexManager = new VertexBufferManager([], LABEL_LAYOUT);
+    // a blend is baked into the pipeline state, so each mode needs its own
+    const pipelineFor = blendPipelines(ctx, device, `${drawName}`, drawName, vertexManager);
+    const atlas = new TextAtlas(device, texture => ctx._renderer.deferDestroy(texture));
+    const scratch = document.createElement('canvas');
+    const scratchCtx = scratch.getContext('2d') as CanvasRenderingContext2D;
+    return {
+      device,
+      bufferManager,
+      pipelineFor,
+      atlas,
+      exact: true,
+      scratch,
+      scratchCtx,
+    };
+  });
+}
+
+/** A label's place in the atlas, and the turn its quad still has to apply. */
+interface Placement {
+  slot: GlyphSlot;
+  turn: Turn;
+}
+
+/** A label's metrics and atlas key, and everything they were worked out from. */
+interface HeldLabel {
+  style: string;
+  x: number | undefined;
+  y: number | undefined;
+  radius: number | undefined;
+  theta: number | undefined;
+  dpi: number;
+  vx: number;
+  vy: number;
+  turn: Turn;
+  metrics: GlyphMetrics | null;
+  key: string;
+}
+
+/** Kept per item, so a label that has not changed is not measured again. */
+const heldLabels = new WeakMap<SceneTextItem, HeldLabel>();
+
+/**
+ * The label's metrics and atlas key, measured again only when something they
+ * come from changed. Keyed by the scene item, since `raster` may be a copy.
+ */
+function labelOf(
+  ctx: GPUVegaCanvasContext,
+  item: SceneTextItem,
+  raster: SceneTextItem,
+  vb: Bounds,
+  turn: Turn,
+): HeldLabel {
+  const dpi = ctx._uniforms.dpi || 1;
+  const style = textCacheKey(raster);
+  const held = heldLabels.get(item);
+  if (
+    held &&
+    held.style === style &&
+    held.x === raster.x &&
+    held.y === raster.y &&
+    held.radius === raster.radius &&
+    held.theta === raster.theta &&
+    held.dpi === dpi &&
+    held.vx === vb.x1 &&
+    held.vy === vb.y1 &&
+    held.turn[0] === turn[0] &&
+    held.turn[1] === turn[1]
+  ) {
+    return held;
+  }
+  const metrics = glyphMetrics(ctx, raster, vb, turn);
+  const key = metrics ? `${style}|${dpi}|${metrics.anchorTexX}|${metrics.anchorTexY}` : '';
+  const label: HeldLabel = {
+    style,
+    x: raster.x,
+    y: raster.y,
+    radius: raster.radius,
+    theta: raster.theta,
+    dpi,
+    vx: vb.x1,
+    vy: vb.y1,
+    turn,
+    metrics,
+    key,
+  };
+  heldLabels.set(item, label);
+  return label;
+}
+
+/** Slot for one rasterization of a label, drawn into the atlas on a miss. */
+function getSlot(
+  ctx: GPUVegaCanvasContext,
+  res: TextResources,
+  item: SceneTextItem,
+  raster: SceneTextItem,
+  vb: Bounds,
+  turn: Turn,
+): GlyphSlot | null {
+  const dpi = ctx._uniforms.dpi || 1;
+  const { metrics, key } = labelOf(ctx, item, raster, vb, turn);
+  if (!metrics) {
+    return null;
+  }
+
+  const cached = res.atlas.find(key);
+  if (cached) {
+    return cached;
+  }
+  const slot = res.atlas.alloc(key, metrics);
+  if (!slot) {
+    return null;
+  }
+  drawGlyph(res.atlas.context, dpi, raster, metrics, slot.x, slot.y);
+  return slot;
+}
+
+/**
+ * Places a label, with the rotation rasterized in, or upright with the quad
+ * turning it when this draw is not rasterizing rotations.
+ *
+ * A draw commits to one or the other for every label it has. Taking the
+ * rasterized one just because it happened to still be in the atlas mixed the
+ * two, and since the atlas recycles, a label swapped between them from frame to
+ * frame and visibly shifted.
+ */
+function place(
+  ctx: GPUVegaCanvasContext,
+  res: TextResources,
+  item: SceneTextItem,
+  vb: Bounds,
+  turn: Turn,
+  exact: boolean,
+): Placement | null {
+  if (turn === NO_TURN || exact) {
+    const slot = getSlot(ctx, res, item, item, vb, NO_TURN);
+    return slot && { slot, turn: NO_TURN };
+  }
+  const slot = getSlot(ctx, res, item, upright(item), vb, turn);
+  return slot && { slot, turn };
+}
+
+/**
+ * Places one label's quad, in logical pixels. The offsets are not rounded here:
+ * glyphMetrics already chose the anchor offset that lands the turned corner on
+ * a whole device pixel.
+ */
+function labelRect(
+  vb: Bounds,
+  dpi: number,
+  item: SceneTextItem,
+  m: GlyphMetrics,
+  shift: Drift,
+): [number, number, number, number] {
+  const [ax, ay] = textAnchor(item);
+  const originPhysX = (ax - vb.x1) * dpi - m.anchorTexX + shift[0];
+  const originPhysY = (ay - vb.y1) * dpi - m.anchorTexY + shift[1];
+  return [
+    vb.x1 + originPhysX / dpi,
+    vb.y1 + originPhysY / dpi,
+    vb.x1 + (originPhysX + m.physWidth) / dpi,
+    vb.y1 + (originPhysY + m.physHeight) / dpi,
+  ];
+}
+
+/**
+ * Rotation and sub-pixel phase are baked into the atlas, so every label is a
+ * plain axis-aligned quad on a whole device pixel and maps 1:1 without
+ * resampling. The shader maps (position - vb) * dpi to device pixels.
+ */
+function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene, vb: Bounds): void {
+  const items = markItems<SceneTextItem>(scene);
+  if (items.length === 0) {
+    return;
+  }
+
+  const res = getResources(device, ctx, vb);
+  const dpi = ctx._uniforms.dpi || 1;
+  const drift = ctx._textDrift?.get(scene);
+
+  const settling = ctx._renderer.settling;
+  // The option pins the cheaper path on, which nothing else can do: res.exact
+  // only ever drops under load and the settling frame puts it back.
+  const allowed = ctx._renderer.wgOptions.exactRotatedText !== false;
+  const exact = allowed && (settling || res.exact);
+  let deferred = false;
+  res.atlas.begin();
+  // Atlas coordinates stay in pixels until the batch closes, since begin may
+  // have resized it and every slot in a batch shares one size.
+  const packed: number[] = [];
+  // which labels draw together, recorded as they pack and drawn once the atlas
+  // has its final size
+  const runs: { blend: string; first: number; count: number }[] = [];
+  const run = new DrawRun<number>(ctx._opaqueBackdrop, (labels, blend) => {
+    runs.push({ blend, first: labels[0], count: labels.length });
+  });
+  const oversized: { texture: GPUTexture; data: Float32Array; blend: string }[] = [];
+
+  for (const item of items) {
+    const opacity = item.opacity == null ? 1 : item.opacity;
+    if (opacity === 0 || (item.fontSize ?? 11) <= 0 || item.text == null || String(item.text).length === 0) {
+      continue;
+    }
+
+    const [ax, ay] = textAnchor(item);
+    const turn = turnOf(item);
+    const blend = blendKey(item.blend);
+
+    const placed = place(ctx, res, item, vb, turn, exact);
+    deferred ||= placed !== null && placed.turn !== NO_TURN;
+    if (placed) {
+      const { slot } = placed;
+      const [x1, y1, x2, y2] = labelRect(vb, dpi, item, slot, driftShift(ctx, item, vb, placed.turn, drift));
+      run.add(packed.length / LABEL_STRIDE, blend);
+      packed.push(
+        x1,
+        y1,
+        x2,
+        y2,
+        slot.x,
+        slot.y,
+        slot.x + slot.physWidth,
+        slot.y + slot.physHeight,
+        ax,
+        ay,
+        placed.turn[0],
+        placed.turn[1],
+        opacity,
+      );
+      continue;
+    }
+
+    // A label the atlas cannot hold takes the same decision as the rest of the
+    // draw, or it would be the one label that does not move with the others.
+    const spun = turn !== NO_TURN && !exact;
+    const raster = spun ? upright(item) : item;
+    const metrics = glyphMetrics(ctx, raster, vb, spun ? turn : NO_TURN);
+    if (!metrics) {
+      continue;
+    }
+    const texture = rasterizeText(device, res.scratch, res.scratchCtx, dpi, raster, metrics);
+    ctx._renderer.deferDestroy(texture);
+    const [x1, y1, x2, y2] = labelRect(vb, dpi, item, metrics, driftShift(ctx, item, vb, spun ? turn : NO_TURN, drift));
+    const [cos, sin] = spun ? turn : NO_TURN;
+    oversized.push({
+      texture,
+      data: Float32Array.from([x1, y1, x2, y2, 0, 0, 1, 1, ax, ay, cos, sin, opacity]),
+      blend,
+    });
+  }
+  run.flush();
+
+  const t0 = performance.now();
+  res.atlas.flush();
+  if (!settling && performance.now() - t0 > UPLOAD_BUDGET_MS) {
+    res.exact = false;
+  }
+  if (deferred) {
+    ctx._renderer.requestSettle();
+  }
+
+  const size = res.atlas.size;
+  for (let i = 0; i < packed.length; i += LABEL_STRIDE) {
+    packed[i + 4] /= size;
+    packed[i + 5] /= size;
+    packed[i + 6] /= size;
+    packed[i + 7] /= size;
+  }
+
+  const uniformBuffer = res.bufferManager.sharedUniformBuffer();
+  // a pipeline with a default layout owns its bind group layout, so both groups
+  // come from the blend variant a draw uses, and the atlas ones are held per blend
+  const atlasGroups = new Map<string, GPUBindGroup[]>();
+  const bindGroups = (pipeline: GPURenderPipeline, texture: GPUTexture): GPUBindGroup[] => [
+    uniformBindGroup(ctx, device, drawName, pipeline, uniformBuffer),
+    textureBindGroup(device, 'Text Texture Bind Group', pipeline, linearSampler(device), viewOf(texture)),
+  ];
+
+  if (packed.length > 0) {
+    const buffer = res.bufferManager.createInstanceBuffer(Float32Array.from(packed));
+    for (const { blend, first, count } of runs) {
+      const pipeline = res.pipelineFor(blend);
+      let groups = atlasGroups.get(blend);
+      if (!groups) {
+        groups = bindGroups(pipeline, res.atlas.texture);
+        atlasGroups.set(blend, groups);
+      }
+      ctx._renderQueue.enqueue({
+        pipeline,
+        drawCounts: [6, count, 0, first],
+        vertexBuffers: [buffer],
+        bindGroups: groups,
+        clip: ctx._clip,
+      });
+    }
+  }
+  for (const extra of oversized) {
+    const pipeline = res.pipelineFor(extra.blend);
+    ctx._renderQueue.enqueue({
+      pipeline,
+      drawCounts: [6, 1],
+      vertexBuffers: [res.bufferManager.createInstanceBuffer(extra.data)],
+      bindGroups: bindGroups(pipeline, extra.texture),
+      clip: ctx._clip,
+    });
+  }
+}
+
+export default { draw } satisfies MarkModule;

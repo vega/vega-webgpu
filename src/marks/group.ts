@@ -1,19 +1,168 @@
-import {Bounds} from 'vega-scenegraph';
-import {visit} from '../util/visit';
-import {Scene, SceneGroup, SceneItem} from 'vega-typings';
+import { Bounds, sceneVisit } from 'vega-scenegraph';
+import type { GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
+import type { SceneGroupExt } from '../types/scene.js';
+import { blendKey } from '../util/blend.js';
+import { BoxPainter, rectResources } from './rect.js';
+import { borderInstances, pushGroupClip, withStrokeOffset, type MarkModule, boxRampOf, type Ramp } from './util.js';
+import type WebGPURenderer from '../WebGPURenderer.js';
 
-function draw(device: GPUDevice, ctx: GPUCanvasContext, scene: Scene, vb: Bounds) {
-  visit(scene, (group: SceneGroup) => {
-    const {x, y} = group;
-    //@ts-ignore
-    vb.translate(x, y);
-    visit(group, (item: SceneItem) => {
-      this.draw(device, ctx, item, vb);
-    });
+const drawName = 'Group';
+
+function draw(
+  this: WebGPURenderer,
+  device: GPUDevice,
+  ctx: GPUVegaCanvasContext,
+  scene: GPUVegaScene,
+  vb: Bounds,
+  markTypes?: string[],
+): void {
+  const items = scene.items;
+  if (!items?.length) {
+    return;
+  }
+
+  // Group backgrounds share the rect instance layout and shader. Held borders
+  // draw after their children, by which point the visit has put the clip back
+  // to what it was, so every draw here takes the same one.
+  const painter = new BoxPainter(ctx, device, rectResources(ctx, device, vb, drawName));
+
+  /** Borders held back until after the backgrounds, which is the order canvas paints them in. */
+  const dashed: { data: Float32Array; ramp: Ramp | null; blend: string }[] = [];
+  // A group asking for strokeForeground has its border held back and enqueued
+  // after its own children, which is where vega draws it.
+  const held = new Map<SceneGroupExt, { rect: SceneGroupExt; dash: Float32Array | null; ramp: Ramp | null }>();
+
+  /** One group's background, and the border that goes under its children. */
+  const paintBackdrop = (item: SceneGroupExt): void => {
+    const blend = blendKey(item.blend);
+    const edged = withStrokeOffset(item);
+    const strokeRamp = boxRampOf(item.stroke, item);
+    const border = borderInstances(ctx, edged, strokeRamp);
+    const fore = item.strokeForeground === true && item.stroke != null;
+    if (fore) {
+      held.set(item, { rect: { ...edged, fill: undefined }, dash: border, ramp: strokeRamp });
+    } else if (border) {
+      dashed.push({ data: border, ramp: strokeRamp, blend });
+    }
+    const drawn = border || fore ? { ...edged, stroke: undefined } : edged;
+    // a backdrop with neither is a quad that draws nothing
+    if (drawn.fill || drawn.stroke) {
+      painter.paint(drawn, boxRampOf(drawn.fill, item), blend);
+    }
+  };
+
+  const flushBackdrops = (): void => {
+    painter.flush();
+    for (const entry of dashed) {
+      painter.border(entry.data, entry.ramp, entry.blend);
+    }
+    dashed.length = 0;
+  };
+
+  // vega draws each group's background, then its children, then the next group.
+  // Every background in one instanced draw reverses that wherever a later group
+  // covers what an earlier one drew, so the batch is kept only when nothing
+  // overlaps, which is what a row of panels looks like.
+  const interleaved = groupsOverlap(items as SceneGroupExt[]);
+  if (!interleaved) {
+    for (const item of items as SceneGroupExt[]) {
+      paintBackdrop(item);
+    }
+    flushBackdrops();
+  }
+
+  sceneVisit(scene, (group: SceneGroupExt) => {
+    if (interleaved) {
+      paintBackdrop(group);
+      flushBackdrops();
+    }
+    const gx = group.x || 0;
+    const gy = group.y || 0;
+
+    // accumulate the group translation for nested marks
+    ctx._tx += gx;
+    ctx._ty += gy;
+
+    const oldClip = ctx._clip;
+    const oldRound = ctx._clipRound;
+    if (group.clip) {
+      // A group item is cut to its own rectangle whatever its clip holds:
+      // vega's group mark calls clipGroup, which never reads the value, so a
+      // path there is the SVG renderer's route rather than anything canvas
+      // draws.
+      pushGroupClip(ctx, group);
+    }
+    vb.translate(-gx, -gy);
+    sceneVisit(group, (item: GPUVegaScene) => this.draw(device, ctx, item, vb, markTypes));
+    vb.translate(gx, gy);
+    ctx._clip = oldClip;
+    ctx._clipRound = oldRound;
+    ctx._tx -= gx;
+    ctx._ty -= gy;
+
+    const fore = held.get(group);
+    if (fore) {
+      const blend = blendKey(fore.rect.blend);
+      if (fore.dash) {
+        painter.border(fore.dash, fore.ramp, blend);
+      } else {
+        painter.paint(fore.rect, null, blend);
+        painter.flush();
+      }
+    }
   });
 }
 
-export default {
-  type: 'group',
-  draw: draw,
-};
+/**
+ * Whether any group's background lands on another's contents, so the order the
+ * two are drawn in shows.
+ *
+ * A group's `bounds` covers its children as well as its own box, which is what
+ * makes this more than a box test: a panel's axis labels reach outside it, and
+ * the next panel's background paints over them.
+ *
+ * Pairwise, since a group mark is panels rather than data points. Past the
+ * limit it answers yes without looking, which is the order vega draws in and
+ * only costs the batch.
+ */
+const OVERLAP_CHECK_LIMIT = 2048;
+
+function groupsOverlap(items: SceneGroupExt[]): boolean {
+  const n = items.length;
+  if (n < 2) {
+    return false;
+  }
+  if (n > OVERLAP_CHECK_LIMIT) {
+    return true;
+  }
+  for (let j = 0; j < n; j++) {
+    const a = items[j];
+    if (!paintsBackdrop(a)) {
+      continue;
+    }
+    for (let i = 0; i < n; i++) {
+      if (i !== j && reaches(a, items[i])) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/** True when a group paints a backdrop under its children at all. */
+function paintsBackdrop(a: SceneGroupExt): boolean {
+  return Boolean(a.fill || (a.stroke && a.strokeForeground !== true));
+}
+
+/** True when `a`'s box reaches into `b`. */
+function reaches(a: SceneGroupExt, b: SceneGroupExt): boolean {
+  const bounds = b.bounds;
+  if (!bounds) {
+    return false;
+  }
+  const x1 = a.x || 0;
+  const y1 = a.y || 0;
+  return x1 < bounds.x2 && x1 + (a.width || 0) > bounds.x1 && y1 < bounds.y2 && y1 + (a.height || 0) > bounds.y1;
+}
+
+export default { draw } satisfies MarkModule;

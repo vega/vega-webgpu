@@ -1,0 +1,122 @@
+name: Pages
+
+# The site is uploaded rather than served from the branch, which is what lets it
+# carry the render gallery. The gallery is about 20MB of pngs against a 19MB
+# repository, so committing one per release was never going to work, and an
+# artifact deployment keeps it off main entirely. Settings, Pages, Source is set
+# to GitHub Actions, so this is the only deploy.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Nothing here writes to the repository. Only the deployment needs a token.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Runs queue rather than cancel each other. Each carries the gallery history
+# over from the deploy before it, and the run at a release's tagged commit has
+# to finish for the release to keep its gallery. A push that lands while one
+# run waits replaces it, so a burst of pushes still deploys once.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build the site
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.history.outputs.release }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - run: npx playwright install chromium --no-shell --with-deps
+
+      # The gallery is the corpus as this commit draws it, beside the runs
+      # before it. Nothing is committed: the history step below carries the
+      # earlier runs over from the deployed site.
+      #
+      # A case over its budget must not stop the site going out. The pngs and
+      # the manifest are written before the assertions run, so the gallery ships
+      # showing where the renderer actually stands, which is what it is for, and
+      # ci.yml is the workflow that gates on the suite.
+      - name: Record the corpus
+        continue-on-error: true
+        run: npm run gallery:record
+
+      # git archive rather than a copy, so the site is exactly the tracked files
+      # and node_modules and the render output never reach the upload.
+      #
+      # The bundle goes in on top of it, because it is not tracked and the pages
+      # that let you pick a build look for it there. Without it the playground
+      # falls back to the newest cut release while its support table comes from
+      # this commit's source, so the page states what the renderer it is running
+      # cannot do.
+      - name: Stage the site
+        run: |
+          mkdir -p _site
+          git archive HEAD | tar -x -C _site
+          mkdir -p _site/build
+          cp build/vega-webgpu-renderer.js build/vega-webgpu-renderer.min.js build/vega-webgpu-renderer.module.js _site/build/
+          mkdir -p _site/gallery
+          cat > _site/gallery/index.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8" />
+          <title>render gallery</title>
+          <script>
+            location.replace('../test/render/gallery.html' + location.search + location.hash);
+          </script>
+          <a href="../test/render/gallery.html">render gallery</a>
+          HTML
+
+      # The gallery keeps the last ten runs beside its page, where it reads them
+      # and renders live from the repository. The runs before this one come from
+      # the site as deployed, and each png is stored once, so ten runs of an
+      # unchanged renderer weigh what one does.
+      #
+      # A run at a release's tagged commit is kept past the ten. The release
+      # script pushes the tag seconds after the commit, so it is there by now.
+      - name: Add this run to the gallery history
+        id: history
+        run: |
+          git fetch --quiet --depth=1 origin '+refs/tags/v*:refs/tags/v*'
+          RELEASE="$(git tag --points-at HEAD --list 'v*' | head -n 1)"
+          RELEASE="${RELEASE#v}"
+          echo "release=$RELEASE" >> "$GITHUB_OUTPUT"
+          node scripts/gallery-history.mjs --out _site/test/render/runs \
+            --from "https://${GITHUB_REPOSITORY_OWNER,,}.github.io/${GITHUB_REPOSITORY#*/}/test/render/runs/" \
+            ${RELEASE:+--release "$RELEASE"}
+          du -sh _site
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+      - name: Link the gallery for this run
+        env:
+          RELEASE: ${{ needs.build.outputs.release }}
+        run: |
+          RUN="${RELEASE:-${GITHUB_SHA::7}}"
+          echo "[Render gallery for ${RUN}](${{ steps.deploy.outputs.page_url }}gallery/?run=${RUN})" >> "$GITHUB_STEP_SUMMARY"

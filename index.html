@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="./favicon.ico" sizes="any" />
+    <link rel="stylesheet" href="./releases/index.css" />
+    <title>vega-webgpu-renderer</title>
+    <meta name="description" content="A WebGPU renderer for Vega. Drop-in alongside the canvas and svg renderers." />
+  </head>
+  <body>
+    <header>
+      <div class="wrap">
+        <p class="eyebrow">Vega renderer</p>
+        <h1>vega-webgpu-renderer</h1>
+        <p class="lede">
+          Draws a Vega scenegraph on the GPU. Register it, pass <code>renderer: 'webgpu'</code>, and the rest of the
+          spec is unchanged.
+        </p>
+        <p class="actions">
+          <a class="btn primary" href="./test/">Live demo</a>
+          <a class="btn" href="./releases/marks.html">Mark playground</a>
+          <a
+            class="btn"
+            href="./gallery/"
+            title="Every case drawn by both renderers, for each of the last ten runs on main and every release"
+            >Render gallery</a
+          >
+          <a class="btn" href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
+          <span class="btn off" aria-disabled="true">npm, not published yet</span>
+        </p>
+      </div>
+    </header>
+
+    <nav>
+      <div class="wrap">
+        <a href="#what">What it is</a>
+        <a href="#use">Use it</a>
+        <a href="#config">Config</a>
+        <a href="#features">Features</a>
+        <a href="#roadmap">Roadmap</a>
+        <a href="#local">Local setup</a>
+        <a href="#versions">Versions</a>
+      </div>
+    </nav>
+
+    <main class="wrap">
+      <section id="what">
+        <h2>What it is</h2>
+        <p>
+          Vega ships a canvas renderer and an svg renderer. This is a third one, built on WebGPU. It registers itself
+          with Vega's renderer module, so nothing about a spec changes: the same scenegraph is drawn with GPU pipelines
+          instead of 2D canvas calls.
+        </p>
+        <p>
+          The canvas renderer is the reference. Every spec in the corpus is rendered both ways and compared pixel by
+          pixel on every commit, so a difference is a tracked defect rather than a surprise. The
+          <a href="./gallery/">render gallery</a> shows every case as each of the last ten runs on main and every
+          release drew it, and what is still off is listed under <a href="#features">features</a> and
+          <a href="#roadmap">roadmap</a>.
+        </p>
+        <p class="note">
+          Needs a browser with WebGPU. Without one, <code>'webgpu'</code> draws with the canvas renderer, see
+          <a href="#fallback">falling back</a>.
+        </p>
+      </section>
+
+      <section id="use">
+        <h2>Use it</h2>
+
+        <h3>Script tag</h3>
+        <p>The renderer registers itself when loaded after Vega.</p>
+        <pre><code>&lt;script src="https://cdn.jsdelivr.net/npm/vega@6/build/vega.min.js"&gt;&lt;/script&gt;
+&lt;script src="https://kanadaat.github.io/vega-webgpu/releases/<!-- latest:start -->2_0_1<!-- latest:end -->/vega-webgpu-renderer.js"&gt;&lt;/script&gt;
+&lt;div id="vis"&gt;&lt;/div&gt;
+&lt;script&gt;
+  fetch('https://vega.github.io/vega/examples/bar-chart.vg.json')
+    .then(res =&gt; res.json())
+    .then(spec =&gt; {
+      new vega.View(vega.parse(spec), {
+        renderer: 'webgpu',
+        container: '#vis',
+        hover: true,
+      }).runAsync();
+    });
+&lt;/script&gt;</code></pre>
+        <p>Every hosted build is listed under <a href="#versions">versions</a>, each with its own page.</p>
+        <p class="note">
+          <strong>Match the Vega major version.</strong> 2.0.0 and later target Vega 6. Everything before it targets
+          Vega 5 and throws <code>Class constructor cannot be invoked without 'new'</code> when loaded next to Vega 6,
+          because a renderer registers itself against whichever Vega is already on the page.
+        </p>
+        <div class="scroll">
+          <table class="opts">
+            <thead>
+              <tr>
+                <th>Renderer</th>
+                <th>Load this Vega</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>2.0.0 and later</td>
+                <td><code>https://cdn.jsdelivr.net/npm/vega@6/build/vega.min.js</code></td>
+              </tr>
+              <tr>
+                <td>1.2.0 and earlier</td>
+                <td><code>https://cdn.jsdelivr.net/npm/vega@5/build/vega.min.js</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="fallback">Falling back</h3>
+        <p>
+          Without <code>navigator.gpu</code>, <code>'webgpu'</code> draws with the canvas renderer and warns. A browser
+          can also have <code>navigator.gpu</code> and no adapter, a blocklisted GPU for instance, and then nothing is
+          drawn. To fall back there too, pick the renderer from the adapter:
+        </p>
+        <pre><code>const renderer = (await navigator.gpu?.requestAdapter()) ? 'webgpu' : 'canvas';
+new vega.View(vega.parse(spec), { renderer, container: '#vis' }).runAsync();</code></pre>
+      </section>
+
+      <section id="config">
+        <h2>Config</h2>
+        <p>Options live on <code>view._renderer.wgOptions</code> and can be changed between frames.</p>
+        <pre><code>const view = new vega.View(vega.parse(spec), { renderer: 'webgpu', container: '#vis' });
+view._renderer.wgOptions.debugLog = true;</code></pre>
+        <div class="scroll">
+          <table class="opts">
+            <thead>
+              <tr>
+                <th>Option</th>
+                <th>What it does</th>
+                <th>Default</th>
+                <th>Since</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>sampleCount</code></td>
+                <td>
+                  MSAA samples per pixel: <code>4</code> for antialiased, <code>1</code> for plain. Anything else falls
+                  back to 4. Pipelines rebuild on the next render.
+                </td>
+                <td><code>4</code></td>
+                <td>2.0.0</td>
+              </tr>
+              <tr>
+                <td><code>redrawOnZoom</code></td>
+                <td>
+                  Follow browser zoom. Zoom changes <code>devicePixelRatio</code>, and the default resizes the canvas
+                  and redraws so the view stays sharp. When <code>false</code> the canvas keeps the ratio it was first
+                  sized at and the browser scales it, which is softer but skips the redraw and cannot grow past the
+                  texture cap.
+                </td>
+                <td><code>true</code></td>
+                <td>2.0.0</td>
+              </tr>
+              <tr>
+                <td><code>renderLock</code></td>
+                <td>
+                  Skip re-entrant render calls while a frame is in flight. The most recent request always runs, so an
+                  interactive chart stays responsive under a drag.
+                </td>
+                <td><code>true</code></td>
+                <td>1.1.1</td>
+              </tr>
+              <tr>
+                <td><code>cacheShapes</code></td>
+                <td>
+                  Keep triangulated shape geometry between frames instead of rebuilding it. Costs memory on a scene
+                  whose geometry changes every frame.
+                </td>
+                <td><code>true</code></td>
+                <td>1.1.0</td>
+              </tr>
+              <tr>
+                <td><code>debugLog</code></td>
+                <td>Log per-frame render timings to the console.</td>
+                <td><code>false</code></td>
+                <td>1.0.0</td>
+              </tr>
+              <tr>
+                <td><code>offscreen</code></td>
+                <td>
+                  Render into a texture the renderer owns and never touch the canvas swapchain. For a headless runner
+                  with no compositor, where acquiring the swapchain destroys the device. The canvas stays blank, so the
+                  frame is only reachable through <code>captureFrame()</code>.
+                </td>
+                <td><code>false</code></td>
+                <td>2.0.0</td>
+              </tr>
+              <tr>
+                <td><code>canvasTextDrift</code></td>
+                <td>
+                  Place each label where the canvas renderer would, which can be a row off on a half pixel baseline.
+                  Only for matching a canvas view side by side.
+                </td>
+                <td><code>false</code></td>
+                <td>2.0.0</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">
+          <code>renderBatch</code> and <code>simpleLine</code> were removed in 2.0.0. The line mark batches its segments
+          unconditionally now, so neither had anything left to switch.
+        </p>
+      </section>
+
+      <section id="features">
+        <h2>Feature completeness</h2>
+        <p>
+          All twelve of Vega's mark types are drawn: arc, area, group, image, line, path, rect, rule, shape, symbol,
+          text and trail. Fill, stroke, opacity, clipping, corner radii, symbol shapes and rotation, and text layout all
+          work on every mark that has them. The table is the properties that used to stop at some marks, and each now
+          reaches every mark that has it.
+        </p>
+        <div class="scroll">
+          <table class="matrix">
+            <!-- filled from marks.js, which the playground reads too, so the two cannot disagree -->
+            <thead>
+              <tr id="matrixHead">
+                <th>Mark</th>
+              </tr>
+            </thead>
+            <tbody id="matrix"></tbody>
+          </table>
+        </div>
+        <p>
+          Every mark name is a link into the <a href="./releases/marks.html">playground</a>, where you can tick these
+          properties on and off and watch canvas and WebGPU draw the same spec side by side.
+        </p>
+
+        <h3>Known differences from canvas</h3>
+        <ul>
+          <li>
+            <strong>No seam between abutting fills.</strong> Two polygons sharing an edge, a choropleth's counties for
+            instance, come out with no line between them. Canvas fills each polygon separately so about a quarter of the
+            background survives on the shared edge, which is the seam you are used to seeing. One multisampled pass
+            covers that edge completely. Ask for the border with a <code>stroke</code> instead, which is clearer about
+            the intent and matches everywhere. Reproducing the seam is
+            <a href="#roadmap">planned for a release after 2.0.0</a>.
+          </li>
+          <li>
+            <strong>Edges of triangulated marks.</strong> arc, area, path and shape take their edge coverage from MSAA,
+            which expresses quarter steps, so an edge landing on a pixel boundary can read a quarter light or heavy
+            against canvas. rect, rule, symbol and line segments compute coverage analytically and do not have this.
+          </li>
+          <li>
+            <strong>Maximum canvas size.</strong> The canvas is a GPU texture, so its device pixels are capped at the
+            adapter's <code>maxTextureDimension2D</code>, usually 16384 on a desktop GPU and never less than 8192. A
+            view past that draws at a lower pixel ratio that fits, softer than asked for, with one warning. Keep width
+            and height times <code>devicePixelRatio</code> under the cap for full sharpness.
+          </li>
+          <li>
+            <strong>An erasing operator inside a clip path.</strong> <code>source-in</code>,
+            <code>destination-in</code>, <code>source-out</code>, <code>destination-atop</code> and <code>copy</code>
+            clear what lies outside the source, and inside a clip path they clear the path's whole bounding box where
+            canvas clears only the path. Queued for 2.1.0.
+          </li>
+        </ul>
+      </section>
+
+      <section id="roadmap">
+        <h2>Roadmap</h2>
+        <p>
+          Broad strokes. The full list, with the measurement behind each item, is in
+          <a href="https://github.com/KaNaDaAT/vega-webgpu/blob/main/ToDo.md">ToDo.md</a>.
+        </p>
+        <div class="cards">
+          <div class="card">
+            <h3>Next</h3>
+            <p class="cardnote">2.0 is out. What is left is getting it into Vega.</p>
+            <ul>
+              <li>Report the bugs found in the canvas renderer along the way to Vega</li>
+              <li>Propose it to Vega as an official renderer</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>2.1.0 and later</h3>
+            <p class="cardnote">Worth doing, not worth holding a release for.</p>
+            <ul>
+              <li>
+                Analytic edge coverage for triangulated fills, so an edge on a pixel boundary matches canvas rather than
+                landing a quarter step off
+              </li>
+              <li>Publish to npm</li>
+              <li>Viewport clipping, so a very tall view draws only what is on screen</li>
+              <li>Tiled rendering for a canvas past the GPU's texture cap</li>
+              <li>Per-item compositing, which is what would reproduce canvas's polygon seams</li>
+              <li>Performance: feed d3-geo a path sink, reuse buffers, cache bind groups</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="local">
+        <h2>Set up locally</h2>
+        <pre><code>git clone https://github.com/KaNaDaAT/vega-webgpu.git
+cd vega-webgpu
+npm install
+npm run build     # UMD, minified and ESM bundles plus type declarations, into build/
+npm run serve     # serve the repo at http://localhost:5500</code></pre>
+        <p>
+          Then open
+          <code>http://localhost:5500/test/?spec=bar&amp;renderer=webgpu&amp;version=dev</code> to run the local build
+          against any spec in <code>test/specs-valid</code>. The page can show canvas and WebGPU side by side and a
+          pixel diff between them.
+        </p>
+        <div class="scroll">
+          <table class="opts">
+            <thead>
+              <tr>
+                <th>Command</th>
+                <th>What it does</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>npm run dev</code></td>
+                <td>Rollup in watch mode</td>
+              </tr>
+              <tr>
+                <td><code>npm test</code></td>
+                <td>Render every spec both ways and compare, from the build</td>
+              </tr>
+              <tr>
+                <td><code>npm run test:report</code></td>
+                <td>Open the last run's HTML report</td>
+              </tr>
+              <tr>
+                <td><code>npm run gallery:record</code></td>
+                <td>Record every case to <code>test/render/output</code></td>
+              </tr>
+              <tr>
+                <td><code>npm run gallery</code></td>
+                <td>Browse the recorded cases, or render them live</td>
+              </tr>
+              <tr>
+                <td><code>npm run typecheck</code></td>
+                <td>Strict TypeScript, no emit</td>
+              </tr>
+              <tr>
+                <td><code>npm run lint</code></td>
+                <td>eslint</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="versions">
+        <h2>Versions</h2>
+        <p>Each build is hosted here and can be loaded straight from a script tag.</p>
+        <div class="scroll">
+          <table class="versions">
+            <thead>
+              <tr>
+                <th>Version</th>
+                <th>Changes</th>
+                <th>Files</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- versions:start -->
+              <tr>
+                <td><a href="./releases/2_0_1/">2.0.1</a></td>
+                <td>A patch for 2.0.0: a stroked rect no longer draws its fill under the outer half of its stroke.</td>
+                <td>
+                  <a href="./releases/2_0_1/vega-webgpu-renderer.js">js</a>
+                  <a href="./releases/2_0_1/vega-webgpu-renderer.min.js">min</a>
+                </td>
+              </tr>
+              <tr>
+                <td><a href="./releases/2_0_0/">2.0.0</a></td>
+                <td>
+                  Built for Vega 6. Every mark type is drawn, most edges are antialiased analytically rather than by
+                  MSAA, and text goes through a glyph atlas.
+                </td>
+                <td>
+                  <a href="./releases/2_0_0/vega-webgpu-renderer.js">js</a>
+                  <a href="./releases/2_0_0/vega-webgpu-renderer.min.js">min</a>
+                </td>
+              </tr>
+              <tr>
+                <td><a href="./releases/1_2_0/">1.2.0</a></td>
+                <td>Performance work on lines, clipping support and a path offset fix. <em>(needs Vega 5)</em></td>
+                <td>
+                  <a href="./releases/1_2_0/vega-webgpu-renderer.js">js</a>
+                  <a href="./releases/1_2_0/vega-webgpu-renderer.min.js">min</a>
+                </td>
+              </tr>
+              <tr>
+                <td><a href="./releases/1_1_1/">1.1.1</a></td>
+                <td>Performance work on paths, plus the renderLock option. <em>(needs Vega 5)</em></td>
+                <td>
+                  <a href="./releases/1_1_1/vega-webgpu-renderer.js">js</a>
+                  <a href="./releases/1_1_1/vega-webgpu-renderer.min.js">min</a>
+                </td>
+              </tr>
+              <tr>
+                <td><a href="./releases/1_1_0/">1.1.0</a></td>
+                <td>Overall improvements to performance, types and structure. <em>(needs Vega 5)</em></td>
+                <td>
+                  <a href="./releases/1_1_0/vega-webgpu-renderer.js">js</a>
+                  <a href="./releases/1_1_0/vega-webgpu-renderer.min.js">min</a>
+                </td>
+              </tr>
+              <tr>
+                <td><a href="./releases/1_0_0/">1.0.0</a></td>
+                <td>First WebGPU implementation. <em>(needs Vega 5)</em></td>
+                <td>
+                  <a href="./releases/1_0_0/vega-webgpu-renderer.js">js</a>
+                  <a href="./releases/1_0_0/vega-webgpu-renderer.min.js">min</a>
+                </td>
+              </tr>
+              <!-- versions:end -->
+            </tbody>
+          </table>
+        </div>
+        <!-- pending:start -->
+        <!-- pending:end -->
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <p>
+          <a href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
+          <a href="./releases/marks.html">Mark playground</a>
+          <a
+            href="./gallery/"
+            title="Every case drawn by both renderers, for each of the last ten runs on main and every release"
+            >Render gallery</a
+          >
+          <a href="./test/">Live demo</a>
+          <a href="https://vega.github.io/vega/">Vega</a>
+          <a href="https://github.com/KaNaDaAT/vega-webgpu/blob/main/ToDo.md">Full roadmap</a>
+          <a href="./releases/impressum.html">Impressum</a>
+        </p>
+        <p class="madewith">
+          Built to show the work and to be useful, with the help of
+          <a href="https://claude.com/claude-code">Claude</a>.
+        </p>
+        <p class="updated">
+          Last updated
+          <!-- updated:start -->2026-10-13<!-- updated:end -->
+        </p>
+      </div>
+    </footer>
+
+    <script type="module">
+      import { SUPPORT, MARKS, FEATURES, CELL_TEXT, CELL_CLASS } from './releases/marks.js';
+
+      const head = document.getElementById('matrixHead');
+      for (const f of FEATURES) {
+        const th = document.createElement('th');
+        th.textContent = f.label;
+        head.append(th);
+      }
+
+      const body = document.getElementById('matrix');
+      for (const mark of MARKS) {
+        const row = document.createElement('tr');
+        const name = document.createElement('td');
+        const link = document.createElement('a');
+        link.href = `./releases/marks.html?mark=${mark}`;
+        link.textContent = mark;
+        link.title = `Try ${mark} in the playground`;
+        name.append(link);
+        row.append(name);
+        for (const f of FEATURES) {
+          const cell = document.createElement('td');
+          cell.className = CELL_CLASS[SUPPORT[mark][f.key]];
+          cell.textContent = CELL_TEXT[SUPPORT[mark][f.key]];
+          row.append(cell);
+        }
+        body.append(row);
+      }
+    </script>
+  </body>
+</html>

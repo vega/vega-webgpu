@@ -1,4 +1,33 @@
-dist/*
-.DS_Store
 node_modules
+build/
+dist/
+*.tsbuildinfo
+
+# Test artifacts
+test-results/
+playwright-report/
+test/render/output/
+test/render/runs/
+
+# OS / editor
+.DS_Store
 pnpm-debug.log
+npm-debug.log*
+
+# Local scratch
+test/penguins_read.py
+
+# local vega builds for A/B testing an upstream change
+test/vendor/
+
+# The staged site, which the pages workflow builds and uploads rather than
+# committing. The same thing locally, to look at before pushing:
+#   git archive HEAD | tar -x -C _site && cp build/*.js _site/build/
+#   node scripts/gallery-history.mjs --out _site/test/render/runs
+/_site/
+/gallery/
+
+# Per-version render gallery snapshots. The site keeps the last ten runs
+# instead, recorded by the pages workflow, so committing about 20MB of pngs per
+# release against a 19MB repository buys nothing. Locally: npm run gallery.
+releases/*/gallery/
