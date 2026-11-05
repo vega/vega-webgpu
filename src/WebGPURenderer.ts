@@ -486,6 +486,10 @@ export default class WebGPURenderer extends Renderer {
 
   private async _frame(scene: GPUVegaScene, markTypes?: string[], settle?: boolean): Promise<void> {
     const tFrameStart = performance.now();
+    // ahead of the device, since configuring the context checks the canvas size too
+    if (this._skipEmptyFrame()) {
+      return;
+    }
     const { device, ctx } = await this._reinit();
 
     this._applySampleCount(ctx);
@@ -577,6 +581,27 @@ export default class WebGPURenderer extends Renderer {
     // animation frame to release it deferred any render arriving inside that
     // window, which is a dragged slider rendering a frame behind.
     this._endFrame(t1, t2);
+  }
+
+  /**
+   * Ends a frame on a canvas with no area, which is what the vega editor's empty
+   * spec gives. Every target a frame draws into is the size of the canvas and a
+   * texture cannot be empty, so each one failed validation and Chrome logged it,
+   * every frame. Canvas draws nothing there and logs nothing. A capture waiting
+   * on the frame gets the empty frame.
+   */
+  private _skipEmptyFrame(): boolean {
+    const width = this._canvas?.width ?? 0;
+    const height = this._canvas?.height ?? 0;
+    if (width > 0 && height > 0) {
+      return false;
+    }
+    this._offFrame = false;
+    const capture = this._capture;
+    this._capture = null;
+    capture?.resolve({ width, height, data: new Uint8Array(0) });
+    this._finishFrame();
+    return true;
   }
 
   private _endFrame(t1: number, t2: number): void {
