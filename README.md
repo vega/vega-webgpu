@@ -1,17 +1,17 @@
 # WebGPU Renderer for [Vega](https://vega.github.io/vega)
 
-[![CI](https://github.com/KaNaDaAT/vega-webgpu/actions/workflows/ci.yml/badge.svg)](https://github.com/KaNaDaAT/vega-webgpu/actions/workflows/ci.yml)
+[![CI](https://github.com/vega/vega-webgpu/actions/workflows/ci.yml/badge.svg)](https://github.com/vega/vega-webgpu/actions/workflows/ci.yml)
 
 A third renderer for Vega, next to canvas and svg, that draws the scenegraph with WebGPU. It registers as `renderer: 'webgpu'`, so a spec needs no changes.
 
 Canvas is the reference. Every spec in the corpus is drawn by both renderers and compared on every commit, and what still differs is documented.
 
-- [Project page](https://kanadaat.github.io/vega-webgpu/): features, known differences from canvas, roadmap and every hosted version
-- [Live demo](https://kanadaat.github.io/vega-webgpu/test/): any spec from the corpus, with canvas beside it and a pixel diff. `benchmark` animates up to 300k points
-- [Mark playground](https://kanadaat.github.io/vega-webgpu/releases/marks.html): one mark at a time, with its properties to switch on and off
-- [Render gallery](https://kanadaat.github.io/vega-webgpu/gallery/): every case with its measured difference, for each of the last ten runs on main and for every release. `?run=<sha>` or `?run=2.0.0` picks one
+- [Project page](https://vega.github.io/vega-webgpu/): features, known differences from canvas, roadmap and every hosted version
+- [Live demo](https://vega.github.io/vega-webgpu/test/): any spec from the corpus, with canvas beside it and a pixel diff. `benchmark` animates up to 300k points
+- [Mark playground](https://vega.github.io/vega-webgpu/releases/marks.html): one mark at a time, with its properties to switch on and off
+- [Render gallery](https://vega.github.io/vega-webgpu/gallery/): every case with its measured difference, for each of the last ten runs on main and for every release. `?run=<sha>` or `?run=2.0.0` picks one
 
-Started by [lsh](https://github.com/lsh) in [vega/vega-webgpu](https://github.com/vega/vega-webgpu), continued by [KaNaDaAT](https://github.com/KaNaDaAT). The goal is to make it an official Vega renderer (see [vega/vega-webgpu#21](https://github.com/vega/vega-webgpu/pull/21)).
+Started by [lsh](https://github.com/lsh) and continued by [KaNaDaAT](https://github.com/KaNaDaAT).
 
 ## Usage
 
@@ -19,7 +19,7 @@ Load it after Vega and it registers itself:
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/vega@6/build/vega.min.js"></script>
-<script src="https://kanadaat.github.io/vega-webgpu/releases/2_0_1/vega-webgpu-renderer.js"></script>
+<script src="https://vega.github.io/vega-webgpu/releases/2_0_1/vega-webgpu-renderer.js"></script>
 <div id="vis"></div>
 <script>
   fetch('https://vega.github.io/vega/examples/bar-chart.vg.json')
@@ -34,7 +34,7 @@ Load it after Vega and it registers itself:
 </script>
 ```
 
-2.0.0 and later need Vega 6. The 1.x builds need Vega 5 and fail next to Vega 6. Every hosted build is listed under [versions](https://kanadaat.github.io/vega-webgpu/#versions).
+2.0.0 and later need Vega 6. The 1.x builds need Vega 5 and fail next to Vega 6. Every hosted build is listed under [versions](https://vega.github.io/vega-webgpu/#versions).
 
 Without `navigator.gpu`, `'webgpu'` draws with the canvas renderer and warns. A browser can also have `navigator.gpu` and no adapter, a blocklisted GPU for instance, and then nothing is drawn. To fall back there too, pick the renderer from the adapter:
 
@@ -64,7 +64,7 @@ view._renderer.wgOptions.debugLog = true;
 
 ## Features and limitations
 
-All twelve Vega mark types are drawn, with gradient fills and strokes, dashes, caps, joins and every blend mode. The [project page](https://kanadaat.github.io/vega-webgpu/#features) has the per-mark table and the known differences from canvas. [ToDo.md](ToDo.md) has the full list, with the measurement behind each item.
+All twelve Vega mark types are drawn, with gradient fills and strokes, dashes, caps, joins and every blend mode. The [project page](https://vega.github.io/vega-webgpu/#features) has the per-mark table and the known differences from canvas. [ToDo.md](ToDo.md) has the full list, with the measurement behind each item.
 
 ## Development
 

@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="./favicon.ico" sizes="any" />
     <link rel="stylesheet" href="./releases/index.css" />
-    <title>vega-webgpu-renderer</title>
+    <title>vega-webgpu</title>
     <meta name="description" content="A WebGPU renderer for Vega. Drop-in alongside the canvas and svg renderers." />
   </head>
   <body>
     <header>
       <div class="wrap">
         <p class="eyebrow">Vega renderer</p>
-        <h1>vega-webgpu-renderer</h1>
+        <h1>vega-webgpu</h1>
         <p class="lede">
           Draws a Vega scenegraph on the GPU. Register it, pass <code>renderer: 'webgpu'</code>, and the rest of the
           spec is unchanged.
@@ -26,7 +26,7 @@
             title="Every case drawn by both renderers, for each of the last ten runs on main and every release"
             >Render gallery</a
           >
-          <a class="btn" href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
+          <a class="btn" href="https://github.com/vega/vega-webgpu">GitHub</a>
           <span class="btn off" aria-disabled="true">npm, not published yet</span>
         </p>
       </div>
@@ -71,7 +71,7 @@
         <h3>Script tag</h3>
         <p>The renderer registers itself when loaded after Vega.</p>
         <pre><code>&lt;script src="https://cdn.jsdelivr.net/npm/vega@6/build/vega.min.js"&gt;&lt;/script&gt;
-&lt;script src="https://kanadaat.github.io/vega-webgpu/releases/<!-- latest:start -->2_0_1<!-- latest:end -->/vega-webgpu-renderer.js"&gt;&lt;/script&gt;
+&lt;script src="https://vega.github.io/vega-webgpu/releases/<!-- latest:start -->2_0_1<!-- latest:end -->/vega-webgpu-renderer.js"&gt;&lt;/script&gt;
 &lt;div id="vis"&gt;&lt;/div&gt;
 &lt;script&gt;
   fetch('https://vega.github.io/vega/examples/bar-chart.vg.json')
@@ -267,15 +267,15 @@ view._renderer.wgOptions.debugLog = true;</code></pre>
         <h2>Roadmap</h2>
         <p>
           Broad strokes. The full list, with the measurement behind each item, is in
-          <a href="https://github.com/KaNaDaAT/vega-webgpu/blob/main/ToDo.md">ToDo.md</a>.
+          <a href="https://github.com/vega/vega-webgpu/blob/main/ToDo.md">ToDo.md</a>.
         </p>
         <div class="cards">
           <div class="card">
             <h3>Next</h3>
-            <p class="cardnote">2.0 is out. What is left is getting it into Vega.</p>
+            <p class="cardnote">2.0 is out and part of the Vega organisation.</p>
             <ul>
               <li>Report the bugs found in the canvas renderer along the way to Vega</li>
-              <li>Propose it to Vega as an official renderer</li>
+              <li>Publish it to npm as <code>vega-webgpu</code></li>
             </ul>
           </div>
           <div class="card">
@@ -298,7 +298,7 @@ view._renderer.wgOptions.debugLog = true;</code></pre>
 
       <section id="local">
         <h2>Set up locally</h2>
-        <pre><code>git clone https://github.com/KaNaDaAT/vega-webgpu.git
+        <pre><code>git clone https://github.com/vega/vega-webgpu.git
 cd vega-webgpu
 npm install
 npm run build     # UMD, minified and ESM bundles plus type declarations, into build/
@@ -428,7 +428,7 @@ npm run serve     # serve the repo at http://localhost:5500</code></pre>
     <footer>
       <div class="wrap">
         <p>
-          <a href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
+          <a href="https://github.com/vega/vega-webgpu">GitHub</a>
           <a href="./releases/marks.html">Mark playground</a>
           <a
             href="./gallery/"
@@ -437,8 +437,7 @@ npm run serve     # serve the repo at http://localhost:5500</code></pre>
           >
           <a href="./test/">Live demo</a>
           <a href="https://vega.github.io/vega/">Vega</a>
-          <a href="https://github.com/KaNaDaAT/vega-webgpu/blob/main/ToDo.md">Full roadmap</a>
-          <a href="./releases/impressum.html">Impressum</a>
+          <a href="https://github.com/vega/vega-webgpu/blob/main/ToDo.md">Full roadmap</a>
         </p>
         <p class="madewith">
           Built to show the work and to be useful, with the help of

@@ -337,7 +337,7 @@ footer .updated {
   display: block;
 }
 
-/* --- mark playground and impressum --- */
+/* --- mark playground and release pages --- */
 
 header.slim {
   padding: 32px 0 24px;
@@ -509,16 +509,6 @@ button.btn {
 .matrix td a:hover {
   color: var(--accent);
   border-bottom-color: var(--accent);
-}
-
-dl.legal dt {
-  font-weight: 600;
-  margin-top: 16px;
-}
-
-dl.legal dd {
-  margin: 4px 0 0;
-  color: var(--muted);
 }
 
 .todo {

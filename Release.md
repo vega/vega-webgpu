@@ -58,7 +58,7 @@ A version with a suffix is treated as a candidate throughout:
 
 - hosted and testable, with its own page and a slot in both version pickers
 - labelled `(prerelease)` on the version table
-- published to npm under `next`, once npm publishing is on, so `npm install` keeps giving people the stable build and `npm install vega-webgpu-renderer@next` opts in
+- published to npm under `next`, once npm publishing is on, so `npm install` keeps giving people the stable build and `npm install vega-webgpu@next` opts in
 - flagged on the GitHub release, so it does not read as the latest
 - skipped by the copy and paste snippet on the front page and in the README, which tracks the newest stable release of the newest major. A major with no stable release yet gets its newest rc, since the snippet loads the newest Vega and an older major fails next to it
 - listed only while it is the newest candidate for its version, and dropped from the table entirely once that version ships

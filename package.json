@@ -1,5 +1,5 @@
 {
-  "name": "vega-webgpu-renderer",
+  "name": "vega-webgpu",
   "version": "2.0.1",
   "type": "module",
   "description": "WebGPU renderer for Vega visualizations.",
@@ -25,13 +25,13 @@
       "url": "http://www.kitware.com/company/team/baumes.html"
     }
   ],
-  "homepage": "https://kanadaat.github.io/vega-webgpu/",
+  "homepage": "https://vega.github.io/vega-webgpu/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/KaNaDaAT/vega-webgpu.git"
+    "url": "git+https://github.com/vega/vega-webgpu.git"
   },
   "bugs": {
-    "url": "https://github.com/KaNaDaAT/vega-webgpu/issues"
+    "url": "https://github.com/vega/vega-webgpu/issues"
   },
   "main": "build/vega-webgpu-renderer.module.js",
   "module": "build/vega-webgpu-renderer.module.js",

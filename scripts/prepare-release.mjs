@@ -213,7 +213,7 @@ if (snippet) {
   page = splice(page, indexPath, 'latest', snippet.replaceAll('.', '_'));
   const readmePath = join(root, 'README.md');
   const readme = readFileSync(readmePath, 'utf8');
-  const hostedScript = /(kanadaat\.github\.io\/vega-webgpu\/releases\/)[\w-]+(\/vega-webgpu-renderer\.js)/;
+  const hostedScript = /(vega\.github\.io\/vega-webgpu\/releases\/)[\w-]+(\/vega-webgpu-renderer\.js)/;
   if (hostedScript.test(readme)) {
     writeFileSync(readmePath, readme.replace(hostedScript, `$1${snippet.replaceAll('.', '_')}$2`));
   } else {
@@ -260,12 +260,12 @@ for (const v of versions) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="../../favicon.ico" sizes="any" />
     <link rel="stylesheet" href="../index.css" />
-    <title>vega-webgpu-renderer ${v}</title>
+    <title>vega-webgpu ${v}</title>
   </head>
   <body>
     <header class="slim">
       <div class="wrap">
-        <p class="eyebrow"><a href="../../">vega-webgpu-renderer</a></p>
+        <p class="eyebrow"><a href="../../">vega-webgpu</a></p>
         <h1>Version ${v}</h1>
         <p class="lede">${notesHtml(e.summary ?? '')}</p>
         <p class="actions">
@@ -286,7 +286,7 @@ for (const v of versions) {
           throws when it registers itself.
         </p>
         <pre><code>&lt;script src="https://cdn.jsdelivr.net/npm/vega@${vegaMajor}/build/vega.min.js"&gt;&lt;/script&gt;
-&lt;script src="https://kanadaat.github.io/vega-webgpu/releases/${dir}/vega-webgpu-renderer.min.js"&gt;&lt;/script&gt;</code></pre>
+&lt;script src="https://vega.github.io/vega-webgpu/releases/${dir}/vega-webgpu-renderer.min.js"&gt;&lt;/script&gt;</code></pre>
       </section>
 
       <section>
@@ -300,8 +300,7 @@ ${body || '        <p class="note">Nothing further was recorded for this release
           <a href="../../">Project page</a>
           <a href="../../#versions">All versions</a>
           <a href="../marks.html?build=${v}">Mark playground</a>
-          <a href="https://github.com/KaNaDaAT/vega-webgpu">GitHub</a>
-          <a href="../impressum.html">Impressum</a>
+          <a href="https://github.com/vega/vega-webgpu">GitHub</a>
         </p>
         <p class="madewith">
           Built to show the work and to be useful, with the help of

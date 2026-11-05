@@ -101,7 +101,7 @@ test('the run summary names a failed case and links it in the gallery', () => {
   expect(text).toContain('**1 over budget**');
   expect(text).toContain(
     '| `line-curves` | bias 2.09, over the 2 allowed | ' +
-      '[open](https://kanadaat.github.io/vega-webgpu/gallery/?run=aaaaaaa#line-curves) |',
+      '[open](https://vega.github.io/vega-webgpu/gallery/?run=aaaaaaa#line-curves) |',
   );
   expect(text).toContain('[the images](https://example.com/images)');
   expect(text).not.toContain('`bar`');

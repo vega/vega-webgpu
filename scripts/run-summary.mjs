@@ -15,7 +15,7 @@ import '../test/measures.js';
 const { failures, describe } = globalThis.RenderMeasures;
 
 /** The deployed gallery, which pages.yml publishes beside the site. */
-const GALLERY = 'https://kanadaat.github.io/vega-webgpu/gallery/';
+const GALLERY = 'https://vega.github.io/vega-webgpu/gallery/';
 
 /**
  * `env` carries the run: RENDER_DPR, the GITHUB_ variables, and REPORT_URL and
