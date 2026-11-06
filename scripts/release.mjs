@@ -178,7 +178,12 @@ say(summary, `${counts[0]} features, ${counts[1]} performance notes, ${counts[2]
 if (skipTests) {
   say('Skipping the suite because you asked.', '');
 } else {
-  say('Running the suite. This takes a few minutes.', '');
+  // The suite loads build/, so without this it tests whatever build is lying
+  // around, or fails everywhere when there is none.
+  say('Building, then running the suite. This takes a few minutes.', '');
+  if (run('npm', ['run', 'build']).status !== 0) {
+    die('The build failed.', ...(bumped ? [`package.json is still on ${version}.`] : []));
+  }
   if (run('npm', ['test']).status !== 0) {
     console.log('');
     if (!(await confirm(`The suite is red. Release ${version} anyway?`))) {
