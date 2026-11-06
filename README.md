@@ -1,6 +1,6 @@
 # WebGPU Renderer for [Vega](https://vega.github.io/vega)
 
-[![CI](https://github.com/vega/vega-webgpu/actions/workflows/ci.yml/badge.svg)](https://github.com/vega/vega-webgpu/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/vega-webgpu.svg)](https://www.npmjs.com/package/vega-webgpu) [![](https://data.jsdelivr.com/v1/package/npm/vega-webgpu/badge?style=rounded)](https://www.jsdelivr.com/package/npm/vega-webgpu) [![CI](https://github.com/vega/vega-webgpu/actions/workflows/ci.yml/badge.svg)](https://github.com/vega/vega-webgpu/actions/workflows/ci.yml)
 
 A third renderer for Vega, next to canvas and svg, that draws the scenegraph with WebGPU. It registers as `renderer: 'webgpu'`, so a spec needs no changes.
 
