@@ -13,7 +13,9 @@ npm run release -- 2.1.0
 npm run release -- 2.1.0-rc1
 ```
 
-The tag is the last thing it does, and only once everything the tag points at is on the remote. Nothing here needs a build: the workflow the tag starts builds the bundles, commits them to `main` for GitHub Pages, deploys the site and creates the GitHub release. It publishes to npm too once an `NPM_TOKEN` secret is set, which it is not yet.
+The tag is the last thing it does, and only once everything the tag points at is on the remote. Nothing here needs a build: the workflow the tag starts builds the bundles, commits them to `main` for GitHub Pages, deploys the site, creates the GitHub release and publishes to npm.
+
+npm publishing uses [trusted publishing](https://docs.npmjs.com/trusted-publishers): the package's settings on npmjs.com name `vega/vega-webgpu` and `release.yml` as its publisher, so the workflow needs no npm token. If the workflow file is renamed, update that setting too, or the publish fails.
 
 ## Options
 
@@ -58,7 +60,7 @@ A version with a suffix is treated as a candidate throughout:
 
 - hosted and testable, with its own page and a slot in both version pickers
 - labelled `(prerelease)` on the version table
-- published to npm under `next`, once npm publishing is on, so `npm install` keeps giving people the stable build and `npm install vega-webgpu@next` opts in
+- published to npm under `next`, so `npm install` keeps giving people the stable build and `npm install vega-webgpu@next` opts in
 - flagged on the GitHub release, so it does not read as the latest
 - skipped by the copy and paste snippet on the front page and in the README, which tracks the newest stable release of the newest major. A major with no stable release yet gets its newest rc, since the snippet loads the newest Vega and an older major fails next to it
 - listed only while it is the newest candidate for its version, and dropped from the table entirely once that version ships

@@ -3,7 +3,7 @@ name: Release
 # Push a tag like v2.0.0 (matching package.json's version) to:
 #  1. build and attach the bundles to a GitHub Release
 #  2. publish the hosted files to releases/<x_y_z>/ on main (GitHub Pages)
-#  3. publish to npm, when the NPM_TOKEN secret is configured
+#  3. publish to npm through trusted publishing, so no npm token is stored
 on:
   push:
     tags:
@@ -103,17 +103,13 @@ jobs:
             build/vega-webgpu-renderer.min.js
             build/vega-webgpu-renderer.module.js
 
-      # The secrets context is not allowed in an if condition, so the token is
-      # checked inside the step. The GitHub Release above always publishes.
+      # npmjs.com trusts this workflow file as the package's publisher, so npm
+      # exchanges the job's OIDC token (id-token: write above) for a one-time
+      # publish token. That needs npm 11.5.1 or later, which Node 24 ships.
       - name: Publish to npm
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           VERSION: ${{ steps.meta.outputs.version }}
         run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "NPM_TOKEN is not configured, skipping the npm publish."
-            exit 0
-          fi
           # An rc under the default tag becomes what `npm install` gives you.
           case "$VERSION" in
             *-*) npm publish --provenance --access public --tag next ;;

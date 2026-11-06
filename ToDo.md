@@ -47,7 +47,7 @@ Eight more specs skip on a run, and none of them is a defect. They are the diagn
 
 ## Open: 2.1.0 and later
 
-- [ ] **Publish to npm.** release.yml publishes once an `NPM_TOKEN` secret is set, an rc under `next`. The README and the project page leave npm out until then.
+- [ ] **Tell people about npm.** vega-webgpu is on npm since 2.0.2, and release.yml publishes every release through trusted publishing, an rc under `next`. The README and the project page still only show the hosted script tag.
 - [ ] PR to widen vega-typings `Renderers` union to include `'webgpu'`, which matters once the package is on npm.
 - [ ] **Every pipeline owns its own bind group layout, which has cost four bugs.** `createRenderPipeline` passes `layout: 'auto'`, so two pipelines built from the same shader and the same uniform block still get layouts that are not interchangeable, and a bind group made from one is rejected on the other. WebGPU throws out the whole command buffer for that, so the symptom is a black frame rather than one wrong mark. It has turned up on the line mark, on the symbol mark's circles, on a group border held back to after its children, and on the curve spans, each time as a cache that kept a bind group across a change of blend. Every one was found by accident. An explicit `GPUPipelineLayout` shared by the marks that share a uniform block would make a bind group interchangeable between them and retire the whole class, rather than leaving it to be caught a fifth time.
 

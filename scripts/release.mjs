@@ -232,7 +232,7 @@ console.log(
     `  ${tag} is pushed.`,
     '',
     '  .github/workflows/release.yml now builds the bundles, hosts them on main,',
-    '  creates the GitHub release, and publishes to npm when NPM_TOKEN is set.',
+    '  creates the GitHub release, and publishes to npm.',
     '',
     '    gh run watch',
     '',

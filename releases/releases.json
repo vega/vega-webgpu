@@ -92,5 +92,14 @@
     "fixes": [
       "A view with a width or height of 0, which is what the Vega editor's empty spec gives, draws nothing and logs nothing, where every frame configured the canvas and made its textures at 0x0 and Chrome logged each one as a WebGPU validation error"
     ]
+  },
+  "2.0.3": {
+    "vega": 6,
+    "summary": "The first release published to npm from the release workflow, with provenance. The renderer is the same as 2.0.2.",
+    "features": [],
+    "performance": [],
+    "fixes": [
+      "The release workflow publishes to npm through trusted publishing, where it skipped npm because it waited for an NPM_TOKEN secret that was never set"
+    ]
   }
 }
