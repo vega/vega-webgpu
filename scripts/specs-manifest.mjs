@@ -27,7 +27,9 @@ export function specNames() {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const names = specNames();
   const next = JSON.stringify(names, null, 2) + '\n';
-  const current = existsSync(manifest) ? readFileSync(manifest, 'utf8') : '';
+  // .gitattributes checks text out with CRLF, so compare without it or every
+  // build rewrites an unchanged list and leaves the tree dirty.
+  const current = existsSync(manifest) ? readFileSync(manifest, 'utf8').replace(/\r\n/g, '\n') : '';
   if (next === current) {
     console.log(`test/specs-valid.json already lists all ${names.length} specs`);
   } else {
