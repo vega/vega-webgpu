@@ -101,5 +101,16 @@
     "fixes": [
       "The release workflow publishes to npm through trusted publishing, where it skipped npm because it waited for an NPM_TOKEN secret that was never set"
     ]
+  },
+  "2.0.4": {
+    "vega": 6,
+    "summary": "A packaging patch for 2.0.3: nothing the package installs is commonjs any more. The renderer is the same as 2.0.3.",
+    "features": [],
+    "performance": [],
+    "fixes": [
+      "The esm build bundles adaptive-bezier-curve, simplify-path, triangulate-contours and extrude-polyline, where it left them as bare imports: they are commonjs, so a consumer serving the build as untransformed esm could not resolve them and had to pre-bundle them by name",
+      "The four helpers move to devDependencies, where installing the package pulled them in as runtime dependencies although both builds already bundle them",
+      "d3-shape moves to devDependencies too, where it was declared a runtime dependency although both builds bundle it. An install still has it, because vega-scenegraph depends on it"
+    ]
   }
 }
