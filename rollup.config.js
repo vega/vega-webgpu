@@ -119,17 +119,11 @@ export default [
     ],
     plugins: plugins(),
   },
-  // ESM build for bundlers: all dependencies stay external.
+  // ESM build for bundlers: the esm dependencies stay external, the commonjs
+  // geometry helpers are bundled, so nothing here imports commonjs.
   {
     input: 'index.ts',
-    external: [
-      ...vegaExternals,
-      'd3-color',
-      'extrude-polyline',
-      'adaptive-bezier-curve',
-      'simplify-path',
-      'triangulate-contours',
-    ],
+    external: [...vegaExternals, 'd3-color'],
     output: {
       file: 'build/vega-webgpu-renderer.module.js',
       format: 'esm',
