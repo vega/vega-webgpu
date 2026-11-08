@@ -19,7 +19,7 @@ Load it after Vega and it registers itself:
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/vega@6/build/vega.min.js"></script>
-<script src="https://vega.github.io/vega-webgpu/releases/2_0_3/vega-webgpu-renderer.js"></script>
+<script src="https://vega.github.io/vega-webgpu/releases/2_0_4/vega-webgpu-renderer.js"></script>
 <div id="vis"></div>
 <script>
   fetch('https://vega.github.io/vega/examples/bar-chart.vg.json')
