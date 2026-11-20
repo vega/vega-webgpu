@@ -26,8 +26,8 @@ const HELP = `
   <version>        2.1.0 or 2.1.0-rc1. Defaults to the version in package.json.
                    An explicit one that differs is written to package.json.
 
-  --check          Stop before writing or committing anything. Everything
-                   else still runs.
+  --check          Stop before writing the site or committing anything.
+                   Everything else still runs.
   --skip-tests     Do not run the suite.
   --yes            Answer the "the suite is red, continue?" prompt with yes.
   --help           This.
@@ -202,11 +202,19 @@ if (checkOnly) {
 if (run('node', ['scripts/prepare-release.mjs', version]).status !== 0) {
   die('Writing the version into the site failed.', 'Nothing was committed or tagged.');
 }
-const page = `site/${version.replaceAll('.', '_')}/index.html`;
 
 // 5. commit and push what changed, so the tag lands on a commit the remote has.
-// A run after a failed tag push finds all of it committed already.
-const written = ['package.json', 'package-lock.json', 'index.html', 'site/releases.json', 'site/versions.js', page];
+// A run after a failed tag push finds all of it committed already. Every page
+// goes in, not only the new one: a new rc takes the gallery button off the one
+// before it, and a notes fix for an older version rewrites that version's page.
+const written = [
+  'package.json',
+  'package-lock.json',
+  'index.html',
+  'site/releases.json',
+  'site/versions.js',
+  ':(glob)site/*/index.html',
+];
 if (run('git', ['add', ...written]).status !== 0) {
   die('Staging the release files failed.', 'Nothing was committed or tagged.');
 }

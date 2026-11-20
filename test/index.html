@@ -9,7 +9,10 @@
     <link rel="icon" href="../favicon.ico" sizes="any" />
     <script src="../site/versions.js"></script>
     <script>
-      /** Loads the first source that answers, so a list is fallbacks in order. */
+      /**
+       * Loads the first source that answers, so a list is fallbacks in order.
+       * The callback gets the url that loaded.
+       */
       function loadScript(src, callback) {
         const urls = Array.isArray(src) ? src.slice() : [src];
         const tried = [];
@@ -23,7 +26,7 @@
           const script = document.createElement('script');
           script.type = 'text/javascript';
           script.src = url;
-          script.onload = callback;
+          script.onload = () => callback?.(url);
           script.onerror = next;
           document.head.appendChild(script);
         })();
@@ -56,9 +59,15 @@
       window.__rendererVersion = version;
       console.log(`Vega WebGPU Renderer ${version}`);
 
-      const rendererUrl = isDev
-        ? '../build/vega-webgpu-renderer.js'
-        : `https://cdn.jsdelivr.net/npm/vega-webgpu@${version}/build/vega-webgpu-renderer.js`;
+      const cdn = v => `https://cdn.jsdelivr.net/npm/vega-webgpu@${v}/build/vega-webgpu-renderer.js`;
+      const rendererUrl = isDev ? '../build/vega-webgpu-renderer.js' : cdn(version);
+      // A version is listed from its release commit on, which reaches the site
+      // a few minutes before npm has the package, and an old link can name one
+      // npm never had. The other published builds stand in rather than leaving
+      // the page blank.
+      const rendererUrls = isDev
+        ? [rendererUrl]
+        : [rendererUrl].concat(releasedVersions.filter(v => v !== version).map(cdn));
 
       // ?vega=<name> loads a local build from test/vendor/vega-<name>.js, for
       // comparing an upstream change against the released one. Not committed.
@@ -73,7 +82,12 @@
           : ['../node_modules/vega/build/vega.min.js', 'https://cdn.jsdelivr.net/npm/vega@6.2.0/build/vega.min.js'];
 
       loadScript(vegaUrl, function () {
-        loadScript(rendererUrl, function () {
+        loadScript(rendererUrls, function (loaded) {
+          if (loaded !== rendererUrl) {
+            const used = releasedVersions.find(v => cdn(v) === loaded);
+            console.warn(`[vega-webgpu] ${version} could not be loaded, using ${used} instead.`);
+            window.__rendererVersion = used;
+          }
           loadScript('./index.js');
         });
       });

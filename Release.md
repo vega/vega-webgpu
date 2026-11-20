@@ -22,7 +22,7 @@ npm publishing uses [trusted publishing](https://docs.npmjs.com/trusted-publishe
 | Option | What it does |
 | --- | --- |
 | `--help` | The same summary, from the command itself. |
-| `--check` | Runs every check and stops before writing or committing anything. |
+| `--check` | Runs every check and stops before writing the site or committing anything. |
 | `--skip-tests` | Does not run the suite. |
 | `--yes` | Answers the "the suite is red, continue?" prompt with yes. |
 
@@ -65,7 +65,7 @@ A version with a suffix is treated as a candidate throughout:
 - never what the copy and paste snippet on the front page and in the README loads. That loads `vega-webgpu@2` from jsDelivr, and a version range leaves prereleases out
 - listed only while it is the newest candidate for its version, and dropped from the table entirely once that version ships
 
-The snippet names a major on purpose, so a release does not have to touch it. A new major has to move it by hand, to `vega-webgpu@3` and whichever Vega that major targets.
+The snippet names a major on purpose, so a release does not have to touch it. A new major has to move it by hand, to `vega-webgpu@3` and whichever Vega that major targets. The demo page and the playground load Vega 6.2.0 for every build they offer, so they need the same change, and a way to pick the Vega per build once both majors are offered.
 
 ## Looking at what the renderer drew
 
@@ -108,4 +108,4 @@ git tag -d v2.1.0
 
 Deleting the tag does not delete the GitHub release or an npm publish. Remove the release from the GitHub UI. An npm version can never be reused, so the fix there is to publish the next patch.
 
-A tag pushed by hand rather than through the script still builds, creates the GitHub release and publishes, but the site does not list the version. `node scripts/prepare-release.mjs <version>` writes what the script would have, for a commit to `main`.
+A tag pushed by hand rather than through the script still builds, creates the GitHub release and publishes, but the site does not list the version. `node scripts/prepare-release.mjs <version>` writes what the script would have, as long as `package.json` is on that version. It can rewrite more than the new version's page, so commit `index.html` and all of `site/`.
