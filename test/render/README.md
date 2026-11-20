@@ -100,7 +100,7 @@ An override says "the two renderers legitimately differ here". It is not for a c
 
 A case we know is wrong is skipped with its reason, in `skippedScenes`, and listed here. Two of them. A skip is loud, an inflated budget is silent.
 
-A skip is still drawn, still recorded and still shown. Its three pngs go to `output/` like any other case and its row is in the gallery, badged with the release it is queued for and carrying a banner that says the numbers below it are not held to anything. The test report gets the same milestone as an annotation, and [ToDo.md](../../ToDo.md) lists them under "Skipped in the render suite". So a skip costs its coverage and nothing else: the difference it names is on screen beside the cases that pass, rather than missing from the run.
+A skip is still drawn, still recorded and still shown. Its three pngs go to `output/` like any other case and its row is in the gallery, badged with the release it is queued for and carrying a banner that says the numbers below it are not held to anything. The test report gets the same milestone as an annotation, and each skip has an issue. So a skip costs its coverage and nothing else: the difference it names is on screen beside the cases that pass, rather than missing from the run.
 
 `upstream` is the milestone for the one skip that is not ours to fix, where canvas is the side that is wrong and matching it would mean copying the defect.
 
@@ -112,15 +112,17 @@ Measured on this fixture, a `destination-in` rect inside a rounded blob: 7.330% 
 
 The clip is applied by the mark that fills the layer, so the layer alpha already carries the coverage, and having the composite apply it again would square it on every blended mark. Confining an erasing operator properly means moving the clip off the mark and onto the composite for the layer route as a whole, which is a change to how every evaluated blend mode is drawn rather than a patch to this one case. A path clip with no blend on it is exact, and so is an erasing operator inside a box clip, which `blend-operators` covers.
 
+Tracked in [#33](https://github.com/vega/vega-webgpu/issues/33).
+
 ### `gradient-diagonal`, upstream
 
-`util/canvas/gradient.js` builds a canvas gradient only when the ramp is horizontal, vertical, or the item's bounds are square. Anything else it renders into an image the size of the bounds and hands to `createPattern(image, 'no-repeat')`, which is vega #2365. A pattern is placed at the origin of the coordinate space the fill happens in, and `drawPath` fills after the item translate has been undone, so it lands at the enclosing group's origin rather than at the mark. A mark further out than the bounds are wide is then filled with nothing at all.
+`util/canvas/gradient.js` builds a canvas gradient only when the ramp is horizontal, vertical, or the item's bounds are square. Anything else it renders into an image the size of the bounds and hands to `createPattern(image, 'no-repeat')`, which is how vega fixed [vega/vega#2365](https://github.com/vega/vega/issues/2365). A pattern is placed at the origin of the coordinate space the fill happens in, and `drawPath` fills after the item translate has been undone, so it lands at the enclosing group's origin rather than at the mark. A mark further out than the bounds are wide is then filled with nothing at all.
 
 Measured on this fixture: of the three non-square diagonal rects canvas draws one, partly, and leaves the other two blank. This renderer spans the ramp over the item's bounds wherever the mark is, for 23.057% of pixels differing, a 100% worst tile and a signed mean of 76.52. The square box and the horizontal ramp in the same fixture are the controls and match.
 
-Matching this means deliberately not drawing marks, so it is a decision rather than a fix, and it wants reporting upstream first. A `symbol` reads differently again, drawn everywhere with a ramp that advances with x, which this has not pinned down.
+Matching this means deliberately not drawing marks, so it is a decision rather than a fix, and it went upstream instead. A `symbol` reads differently again, drawn everywhere with a ramp that advances with x, which this has not pinned down.
 
-Not ours to fix. The upstream report is the open item in ToDo.md.
+Not ours to fix. It is [vega/vega#3972](https://github.com/vega/vega/issues/3972), with a fix in [vega/vega#4375](https://github.com/vega/vega/pull/4375), and [#32](https://github.com/vega/vega-webgpu/issues/32) tracks it here.
 
 ## Known differences that are gated rather than skipped
 
