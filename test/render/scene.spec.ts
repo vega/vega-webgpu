@@ -58,7 +58,7 @@ function valuesInFixtures(props: string[]): Record<string, Set<string>> {
 
 /**
  * Coverage of the values vega itself says a property takes, from the same
- * schema `releases/vega-enums.js` is generated out of. A mark property that
+ * schema `site/vega-enums.js` is generated out of. A mark property that
  * only one of its values is ever drawn with is a property where four fifths of
  * the parsing can break silently, and a vega release that adds a blend mode
  * should show up here rather than in a bug report.

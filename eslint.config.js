@@ -5,7 +5,7 @@ export default tseslint.config(
   {
     ignores: [
       'build/',
-      'releases/',
+      'site/',
       // the staged site the pages workflow uploads, which is a copy of files
       // that are linted where they live
       '_site/',
