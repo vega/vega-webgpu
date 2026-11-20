@@ -6,9 +6,9 @@ A third renderer for Vega, next to canvas and svg, that draws the scenegraph wit
 
 Canvas is the reference. Every spec in the corpus is drawn by both renderers and compared on every commit, and what still differs is documented.
 
-- [Project page](https://vega.github.io/vega-webgpu/): features, known differences from canvas, roadmap and every hosted version
+- [Project page](https://vega.github.io/vega-webgpu/): features, known differences from canvas, roadmap and every release
 - [Live demo](https://vega.github.io/vega-webgpu/test/): any spec from the corpus, with canvas beside it and a pixel diff. `benchmark` animates up to 300k points
-- [Mark playground](https://vega.github.io/vega-webgpu/releases/marks.html): one mark at a time, with its properties to switch on and off
+- [Mark playground](https://vega.github.io/vega-webgpu/site/marks.html): one mark at a time, with its properties to switch on and off
 - [Render gallery](https://vega.github.io/vega-webgpu/gallery/): every case with its measured difference, for each of the last ten runs on main and for every release. `?run=<sha>` or `?run=2.0.0` picks one
 
 Started by [lsh](https://github.com/lsh) and continued by [KaNaDaAT](https://github.com/KaNaDaAT).
@@ -19,7 +19,7 @@ Load it after Vega and it registers itself:
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/vega@6/build/vega.min.js"></script>
-<script src="https://vega.github.io/vega-webgpu/releases/2_0_4/vega-webgpu-renderer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-webgpu@2/build/vega-webgpu-renderer.js"></script>
 <div id="vis"></div>
 <script>
   fetch('https://vega.github.io/vega/examples/bar-chart.vg.json')
@@ -34,7 +34,20 @@ Load it after Vega and it registers itself:
 </script>
 ```
 
-2.0.0 and later need Vega 6. The 1.x builds need Vega 5 and fail next to Vega 6. Every hosted build is listed under [versions](https://vega.github.io/vega-webgpu/#versions).
+`vega-webgpu@2` is the newest 2.x release. To stay on one, pin its exact version, for example `vega-webgpu@2.0.4`. Every release is listed under [versions](https://vega.github.io/vega-webgpu/#versions).
+
+Or install it from npm. Importing the package registers the renderer, the same as the script tag does:
+
+```bash
+npm install vega vega-webgpu
+```
+
+```js
+import * as vega from 'vega';
+import 'vega-webgpu';
+```
+
+2.0.0 and later need Vega 6. The 1.x builds need Vega 5 and fail next to Vega 6.
 
 Without `navigator.gpu`, `'webgpu'` draws with the canvas renderer and warns. A browser can also have `navigator.gpu` and no adapter, a blocklisted GPU for instance, and then nothing is drawn. To fall back there too, pick the renderer from the adapter:
 
@@ -101,7 +114,7 @@ If Playwright's Chromium does not run on your machine, set `PLAYWRIGHT_BROWSER_P
 
 ## Releasing
 
-`npm run release -- <version>` bumps the version, runs the checks, commits, tags and pushes. The tag starts the workflow that hosts the build and creates the GitHub release. See [Release.md](Release.md).
+`npm run release -- <version>` bumps the version, runs the checks, commits, tags and pushes. The tag starts the workflow that creates the GitHub release and publishes to npm. See [Release.md](Release.md).
 
 ## Contributing
 

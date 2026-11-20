@@ -66,7 +66,7 @@ if (!manifest) {
   process.exit(1);
 }
 
-const dest = outArg ? resolve(root, outArg) : join(root, 'releases', version.replaceAll('.', '_'), 'gallery');
+const dest = outArg ? resolve(root, outArg) : join(root, 'site', version.replaceAll('.', '_'), 'gallery');
 
 /** Worst first, so the order holds whether or not anything is narrowed. */
 const ranked = [...manifest.cases].sort((a, b) => b.mean - a.mean || b.quad - a.quad);
@@ -137,7 +137,7 @@ const total = readdirSync(join(dest, 'output')).length;
 console.log(
   [
     '',
-    `  ${outArg ?? `releases/${version.replaceAll('.', '_')}/gallery`}`,
+    `  ${outArg ?? `site/${version.replaceAll('.', '_')}/gallery`}`,
     `    ${kept.length} of ${manifest.cases.length} cases${kept.length < manifest.cases.length ? ` over ${MEAN} mean channel error` : ', the whole corpus'}`,
     `    ${total} files, ${(bytes / 1e6).toFixed(1)}MB of pngs`,
     `    worst kept ${kept[0].name} at mean ${kept[0].mean.toFixed(2)}, lightest ${kept[kept.length - 1].name} at ${kept[kept.length - 1].mean.toFixed(2)}`,

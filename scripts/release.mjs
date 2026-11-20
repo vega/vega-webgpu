@@ -19,22 +19,22 @@ const HELP = `
   npm run release [-- <version>] [options]
 
   Cuts a release: bumps package.json, checks the notes, runs the suite,
-  commits and pushes what changed, then tags and pushes the tag. The workflow
-  the tag starts builds the bundles, hosts them and publishes.
+  writes the version's page and table row, commits and pushes what changed,
+  then tags and pushes the tag. The workflow the tag starts builds the bundles,
+  creates the GitHub release and publishes to npm.
 
   <version>        2.1.0 or 2.1.0-rc1. Defaults to the version in package.json.
                    An explicit one that differs is written to package.json.
 
-  --check          Stop before committing anything. Everything else still runs.
-  --host           Build and commit the hosted files from here, instead of
-                   leaving that to the workflow.
+  --check          Stop before writing or committing anything. Everything
+                   else still runs.
   --skip-tests     Do not run the suite.
   --yes            Answer the "the suite is red, continue?" prompt with yes.
   --help           This.
 
-  A prerelease (2.1.0-rc1) is hosted and installable as @next, is labelled on
-  the version table, and does not become the build the front page tells people
-  to paste.
+  A prerelease (2.1.0-rc1) is installable as @next and is labelled on the
+  version table. The front page snippet loads vega-webgpu@2, which never
+  resolves to one.
 `;
 
 if (has('--help') || has('-h')) {
@@ -43,12 +43,11 @@ if (has('--help') || has('-h')) {
 }
 
 const checkOnly = has('--check');
-const host = has('--host');
 const assumeYes = has('--yes');
 const skipTests = has('--skip-tests');
 
 const pkgPath = join(root, 'package.json');
-const releasesJsonPath = join(root, 'releases', 'releases.json');
+const releasesJsonPath = join(root, 'site', 'releases.json');
 const packageVersion = JSON.parse(readFileSync(pkgPath, 'utf8')).version;
 const asked = args.find(a => !a.startsWith('-'));
 const version = (asked ?? packageVersion).replace(/^v/, '');
@@ -88,7 +87,7 @@ async function confirm(question) {
 }
 
 /** The files this script is allowed to have dirty, because it commits them. */
-const OWNED = ['package.json', 'package-lock.json', 'releases/releases.json'];
+const OWNED = ['package.json', 'package-lock.json', 'site/releases.json'];
 // Not git(): porcelain puts the status in the first two columns, so trimming
 // the output eats the leading space of the first line and shifts the path.
 const dirty = () =>
@@ -138,7 +137,7 @@ const raw = releases[version] ?? releases[base];
 const entry = typeof raw === 'string' ? { summary: raw } : raw;
 if (!entry) {
   die(
-    `releases/releases.json has nothing for ${base}, so there is nothing to release yet.`,
+    `site/releases.json has nothing for ${base}, so there is nothing to release yet.`,
     ...(isPrerelease ? [`${version} is a candidate for ${base} and reads its notes.`] : []),
     'The version table, the release page and the GitHub release all read from it.',
     '',
@@ -193,28 +192,27 @@ if (skipTests) {
   }
 }
 
-// 4. optionally host from here rather than leaving it to the workflow
-if (host) {
-  say('Building and staging the hosted files.', '');
-  if (run('npm', ['run', 'build']).status !== 0) {
-    die('The build failed.');
-  }
-  if (run('node', ['scripts/prepare-release.mjs', version]).status !== 0) {
-    die('Preparing the site failed.');
-  }
-}
-
 if (checkOnly) {
   say(`Everything checks out. Drop --check to commit, tag ${tag} and push.`, '');
   process.exit(0);
 }
 
-// 5. commit and push what changed, so the tag lands on a commit the remote has
-const pending = dirty();
-const untracked = gitRaw('status', '--porcelain').split('\n').filter(Boolean);
-if (pending.length || (host && untracked.length)) {
-  say('Committing:', ...pending.map(f => `    ${f}`), '');
-  run('git', ['add', 'package.json', 'package-lock.json', 'releases', 'index.html', 'README.md']);
+// 4. the version's page, its table row and its slot in the pickers. They go out
+// in the same commit as the tag, so the site lists a version from its release on.
+if (run('node', ['scripts/prepare-release.mjs', version]).status !== 0) {
+  die('Writing the version into the site failed.', 'Nothing was committed or tagged.');
+}
+const page = `site/${version.replaceAll('.', '_')}/index.html`;
+
+// 5. commit and push what changed, so the tag lands on a commit the remote has.
+// A run after a failed tag push finds all of it committed already.
+const written = ['package.json', 'package-lock.json', 'index.html', 'site/releases.json', 'site/versions.js', page];
+if (run('git', ['add', ...written]).status !== 0) {
+  die('Staging the release files failed.', 'Nothing was committed or tagged.');
+}
+const staged = git('diff', '--cached', '--name-only').split('\n').filter(Boolean);
+if (staged.length) {
+  say('Committing:', ...staged.map(f => `    ${f}`), '');
   if (run('git', ['commit', '-m', `release: ${version}`]).status !== 0) {
     die('The commit failed.');
   }
@@ -236,8 +234,8 @@ console.log(
     '',
     `  ${tag} is pushed.`,
     '',
-    '  .github/workflows/release.yml now builds the bundles, hosts them on main,',
-    '  creates the GitHub release, and publishes to npm.',
+    '  .github/workflows/release.yml now builds the bundles, creates the GitHub',
+    '  release, and publishes to npm.',
     '',
     '    gh run watch',
     '',

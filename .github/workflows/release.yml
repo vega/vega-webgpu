@@ -2,8 +2,10 @@ name: Release
 
 # Push a tag like v2.0.0 (matching package.json's version) to:
 #  1. build and attach the bundles to a GitHub Release
-#  2. publish the hosted files to releases/<x_y_z>/ on main (GitHub Pages)
-#  3. publish to npm through trusted publishing, so no npm token is stored
+#  2. publish to npm through trusted publishing, so no npm token is stored
+#
+# The site's page and table row for the version come with the tagged commit,
+# written by npm run release, so nothing here pushes to main.
 on:
   push:
     tags:
@@ -15,8 +17,6 @@ jobs:
     permissions:
       contents: write
       id-token: write
-      # to start the site deploy, see the step after hosting
-      actions: write
     steps:
       - uses: actions/checkout@v7
         with:
@@ -51,42 +51,6 @@ jobs:
       - run: npm run typecheck
 
       - run: npm run build
-
-      # npm run release does this before the tag is cut, so normally there is
-      # nothing left to do. This is the safety net for a tag pushed without it.
-      # No --notes: releases.json is the source for the notes, not the tag.
-      #
-      # main gets its own worktree, so the steps after this one still release
-      # the tag's tree, and a main that has moved on to another version since
-      # is no reason to stop.
-      - name: Host the build, if main does not already have it
-        env:
-          VERSION: ${{ steps.meta.outputs.version }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          HOST="$RUNNER_TEMP/main"
-          git worktree add --detach "$HOST" origin/main
-          cp -r build "$HOST/"
-          ln -s "$GITHUB_WORKSPACE/node_modules" "$HOST/node_modules"
-          cd "$HOST"
-          node scripts/prepare-release.mjs "$VERSION" --no-version-check
-          if git diff --quiet && git diff --cached --quiet; then
-            echo "main already hosts $VERSION, nothing to commit."
-          else
-            git add releases index.html README.md
-            git commit -m "release: host $VERSION"
-            git push origin HEAD:main
-          fi
-
-      # A push made with this token starts no workflow, so without this the site
-      # stays whatever the last deploy built, which is the tree before the
-      # hosted files. A dispatch is the one event the token may start.
-      - name: Deploy the site with the hosted build
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run pages.yml --ref main
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

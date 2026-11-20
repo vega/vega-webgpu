@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="../../favicon.ico" sizes="any" />
+    <link rel="stylesheet" href="../index.css" />
+    <title>vega-webgpu 2.0.1</title>
+  </head>
+  <body>
+    <header class="slim">
+      <div class="wrap">
+        <p class="eyebrow"><a href="../../">vega-webgpu</a></p>
+        <h1>Version 2.0.1</h1>
+        <p class="lede">
+          A patch for 2.0.0: a stroked rect no longer draws its fill under the outer half of its stroke.
+        </p>
+        <p class="actions">
+          <a class="btn" href="https://github.com/vega/vega-webgpu/releases/tag/v2.0.1">GitHub release</a>
+          <a class="btn" href="../../gallery/?run=2.0.1">Render gallery</a>
+        </p>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section>
+        <h2>Get it</h2>
+        <p>
+          This build targets <strong>Vega 6</strong>. It came out before vega-webgpu was published to npm, so there is
+          no package for it. The bundles are attached to its
+          <a href="https://github.com/vega/vega-webgpu/releases/tag/v2.0.1">GitHub release</a>.
+        </p>
+      </section>
+
+      <section>
+        <h2>Fixes</h2>
+        <ul>
+          <li>
+            A rect or group with square corners and a stroke stops its fill at its own edge, where the fill reached
+            under the outer half of the stroke: the antialiased edge came out darker, and a translucent stroke showed
+            the fill through it
+          </li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <p>
+          <a href="../../">Project page</a>
+          <a href="../../#versions">All versions</a>
+          <a href="../marks.html">Mark playground</a>
+          <a href="https://github.com/vega/vega-webgpu">GitHub</a>
+        </p>
+        <p class="madewith">
+          Built to show the work and to be useful, with the help of
+          <a href="https://claude.com/claude-code">Claude</a>.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>

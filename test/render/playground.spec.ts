@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 // @ts-expect-error the playground's table is plain js, and is the thing under test
-import { FEATURES, SUPPORT } from '../../releases/marks.js';
+import { FEATURES, SUPPORT } from '../../site/marks.js';
 import { collectPageErrors, type Capture } from './drive.js';
 
 /**
@@ -62,7 +62,7 @@ const PAIRS: [mark: string, a: string, b: string][] = Object.entries(SUPPORT as 
 test('the playground matches what its table claims', async ({ page }) => {
   test.setTimeout(300_000);
   const errors = collectPageErrors(page);
-  await page.goto('/releases/marks.html?build=dev&view=both&mark=symbol&offscreen=1');
+  await page.goto('/site/marks.html?build=dev&view=both&mark=symbol&offscreen=1');
   await page.waitForFunction(() => (window as unknown as { __views?: unknown[] }).__views?.length === 2, undefined, {
     timeout: 60_000,
   });
