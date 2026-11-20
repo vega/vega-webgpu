@@ -64,7 +64,7 @@ view._renderer.wgOptions.debugLog = true;
 
 ## Features and limitations
 
-All twelve Vega mark types are drawn, with gradient fills and strokes, dashes, caps, joins and every blend mode. The [project page](https://vega.github.io/vega-webgpu/#features) has the per-mark table and the known differences from canvas. [ToDo.md](ToDo.md) has the full list, with the measurement behind each item.
+All twelve Vega mark types are drawn, with gradient fills and strokes, dashes, caps, joins and every blend mode. The [project page](https://vega.github.io/vega-webgpu/#features) has the per-mark table and the known differences from canvas. Open work is in the [issues](https://github.com/vega/vega-webgpu/issues).
 
 ## Development
 

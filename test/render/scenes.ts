@@ -106,13 +106,13 @@ export const ciQuadDeltaOverrides: Record<string, number> = {
  * is wrong is skipped here rather than passing on a number chosen to let it
  * through.
  *
- * A skip carries the release it is queued for, so it reaches the gallery, the
- * test report and the roadmap as work with a date on it rather than as a
- * silent gap. `upstream` is the one that is not ours: canvas is the side that
- * is wrong and matching it would mean copying the defect.
+ * A skip carries the release it is queued for and names its issue, so it
+ * reaches the gallery and the test report as work with a date on it rather
+ * than as a silent gap. `upstream` is the one that is not ours: canvas is the
+ * side that is wrong and matching it would mean copying the defect.
  */
 export interface SkippedScene {
-  /** The release this is queued for, as ToDo.md groups it. */
+  /** The release this is queued for. */
   milestone: '2.0.0' | '2.1.0' | 'upstream';
   /** One line, which is what a list of skips shows. */
   summary: string;
@@ -131,7 +131,7 @@ export const skippedScenes: Record<string, SkippedScene> = {
       'reads 7.330% of pixels, a 69.9% worst tile, a signed mean of 22.08 and a worst block of ' +
       '180.3 against this. Confining it wants the clip applied by the composite rather than by ' +
       'the mark that fills the layer, since the layer alpha already carries the coverage and ' +
-      'applying it twice squares it. See README.md.',
+      'applying it twice squares it. Tracked in vega/vega-webgpu#33, see README.md.',
   },
   'gradient-diagonal': {
     milestone: 'upstream',
@@ -142,7 +142,7 @@ export const skippedScenes: Record<string, SkippedScene> = {
       'mark away from it is drawn with part of the ramp or with none of it at all. This renderer ' +
       'spans the ramp over the bounds wherever the mark is, which reads 23.057% of pixels, a 100% ' +
       'worst tile and a signed mean of 76.52 against canvas. We are the correct side of this one, ' +
-      'so matching it would mean deliberately not drawing marks. It wants an upstream report ' +
-      'rather than a fix here. See README.md.',
+      'so matching it would mean deliberately not drawing marks. It is vega/vega#3972 upstream, ' +
+      'see README.md.',
   },
 };
