@@ -1,4 +1,3 @@
-import { color as parseColor } from 'd3-color';
 import type { SceneColor, SceneGradient } from '../types/scene.js';
 import { warnOnce } from './warn.js';
 
@@ -14,32 +13,49 @@ export function isGradient(value: SceneColor | null | undefined): value is Scene
 
 /** Parses a CSS color string to premultiplication-ready normalized RGBA. */
 function parse(value: string): RGBA {
-  const c = parseColor(value);
+  const c = cssColor(value);
   if (c === null) {
     warnOnce('color', `[vega-webgpu] Could not parse color '${value}'.`);
     return TRANSPARENT;
   }
-  const rgb = c.rgb();
-  // d3 gives a fully transparent colour NaN channels, whatever was written, and
-  // those reach a clear value and a vertex buffer exactly as they are: a spec
-  // with a transparent background failed the frame outright.
-  return [channel(rgb.r), channel(rgb.g), channel(rgb.b), Number.isFinite(rgb.opacity) ? rgb.opacity : 0];
-}
-
-function channel(value: number): number {
-  return Number.isFinite(value) ? value / 255 : 0;
+  return [c[0] / 255, c[1] / 255, c[2] / 255, c[3]];
 }
 
 /** Channels 0 to 255, alpha 0 to 1. */
 export type CssColor = [r: number, g: number, b: number, a: number];
 
-let probe: CanvasRenderingContext2D | null | undefined;
+type Probe = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+
+let probe: Probe | null | undefined;
 const cssCache = new Map<string, CssColor | null>();
 
 /**
- * A colour as canvas parses it, or null when it does not. d3-color sets the
- * channels of a colour at zero alpha to NaN, and a gradient interpolates
- * through them, so a stop like rgba(255,0,0,0) fades from red on canvas.
+ * A 2D context to parse colours with. A worker has no document, but it can
+ * have an OffscreenCanvas. Where there is neither, the renderer has no canvas
+ * to draw into either, so nothing is lost by having no parser there.
+ */
+function probeContext(): Probe | null {
+  if (probe !== undefined) {
+    return probe;
+  }
+  const options: CanvasRenderingContext2DSettings = { willReadFrequently: true };
+  let ctx: Probe | null = null;
+  if (typeof document !== 'undefined') {
+    ctx = document.createElement('canvas').getContext('2d', options);
+  } else if (typeof OffscreenCanvas !== 'undefined') {
+    ctx = new OffscreenCanvas(1, 1).getContext('2d', options) as OffscreenCanvasRenderingContext2D | null;
+  } else {
+    warnOnce('colorProbe', '[vega-webgpu] Colours need a 2D canvas to be parsed, and there is none here.');
+  }
+  probe = ctx;
+  return ctx;
+}
+
+/**
+ * A colour as canvas parses it, or null when it does not. Setting fillStyle and
+ * reading it back is the parser the canvas renderer draws with, so the two
+ * cannot disagree about a colour. That includes the channels of a colour at zero
+ * alpha, which a gradient interpolates through: rgba(255,0,0,0) fades from red.
  */
 export function cssColor(value: string): CssColor | null {
   let parsed = cssCache.get(value);
@@ -50,25 +66,48 @@ export function cssColor(value: string): CssColor | null {
   return parsed;
 }
 
+/**
+ * The forms vega's scales write a colour in. Canvas reads these as exactly the
+ * numbers written, so they skip the round trip, which costs three times what
+ * d3-color did on a colour seen for the first time.
+ */
+const PLAIN = /^(?:#[0-9a-f]{6}|rgb\(\d{1,3}, ?\d{1,3}, ?\d{1,3}\))$/i;
+
 function parseCss(value: string): CssColor | null {
-  probe ??= typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
-  if (probe) {
-    // an invalid colour leaves fillStyle as it was, so two starting points differ
-    probe.fillStyle = '#000000';
-    probe.fillStyle = value;
-    const read = String(probe.fillStyle);
-    probe.fillStyle = '#ffffff';
-    probe.fillStyle = value;
-    if (String(probe.fillStyle) !== read) {
-      return null;
-    }
-    const css = readCss(read);
-    if (css) {
-      return css;
+  if (PLAIN.test(value)) {
+    const plain = readCss(value);
+    // canvas clamps a channel past 255, so only an in-range one is the same either way
+    if (plain && plain[0] <= 255 && plain[1] <= 255 && plain[2] <= 255) {
+      return plain;
     }
   }
-  const c = parseColor(value)?.rgb();
-  return c ? [c.r, c.g, c.b, c.opacity] : null;
+  const ctx = probeContext();
+  if (!ctx) {
+    return null;
+  }
+  // an invalid colour leaves fillStyle as it was, so two starting points differ
+  ctx.fillStyle = '#000000';
+  ctx.fillStyle = value;
+  const read = String(ctx.fillStyle);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = value;
+  if (String(ctx.fillStyle) !== read) {
+    return null;
+  }
+  return readCss(read) ?? readPixel(ctx, read);
+}
+
+/**
+ * A colour canvas serializes in another form than the two sRGB ones, such as
+ * one written in a wider gamut, drawn and read back as the sRGB pixel canvas
+ * would put on screen.
+ */
+function readPixel(ctx: Probe, value: string): CssColor {
+  ctx.clearRect(0, 0, 1, 1);
+  ctx.fillStyle = value;
+  ctx.fillRect(0, 0, 1, 1);
+  const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+  return [r, g, b, a / 255];
 }
 
 /** The two forms canvas serializes an sRGB colour in. */
