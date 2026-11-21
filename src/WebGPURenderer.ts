@@ -9,7 +9,7 @@ import { RenderQueue, type FrameTargets } from './util/renderQueue.js';
 import resize, { pixelRatio } from './util/resize.js';
 import { bufferPool } from './util/bufferManager.js';
 import { LruMap } from './util/lru.js';
-import { defaultSampleCount, normalizeSampleCount, preferredColorFormat, viewOf } from './util/webgpu.js';
+import { adapterOptions, defaultSampleCount, normalizeSampleCount, preferredColorFormat, viewOf } from './util/webgpu.js';
 
 const viewBounds = (origin: readonly [number, number], width: number, height: number) =>
   new Bounds().set(0, 0, width, height).translate(-origin[0], -origin[1]);
@@ -308,7 +308,7 @@ export default class WebGPURenderer extends Renderer {
       if (typeof navigator === 'undefined' || !navigator.gpu) {
         throw new Error('[vega-webgpu] WebGPU is not supported in this environment.');
       }
-      const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+      const adapter = await navigator.gpu.requestAdapter(adapterOptions());
       if (!adapter) {
         throw new Error('[vega-webgpu] No suitable GPU adapter found.');
       }
