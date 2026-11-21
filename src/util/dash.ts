@@ -45,6 +45,27 @@ export function prepareDash(pattern: number[], offset = 0, bridge = 0): Dash | n
   return { dashes, index, remaining, on };
 }
 
+/** How far along its contour canvas measures each point of it to be, where that is not the polyline's own length. */
+const measures = new WeakMap<readonly Point[], Float64Array>();
+
+/**
+ * Gives a contour the distance along it that a dash is measured in, one value
+ * per point. The walk cuts by these, and between two points it moves along the
+ * polyline in proportion, so the points can follow the curve closely while the
+ * pattern lands where canvas measures it to.
+ */
+export function setMeasures(points: readonly Point[], along: Float64Array): void {
+  measures.set(points, along);
+}
+
+/** The measures of `from`, carried to a copy of it moved without being scaled. */
+export function carryMeasures(from: readonly Point[], to: readonly Point[]): void {
+  const along = measures.get(from);
+  if (along) {
+    measures.set(to, along);
+  }
+}
+
 /**
  * Splits a polyline into the drawn runs of a dash, one polyline per run, so
  * callers can render them as ordinary line segments.
@@ -57,11 +78,12 @@ export function dashPolyline(points: readonly Point[], dash: Dash): Point[][] {
   let { index, remaining, on } = dash;
   const runs: Point[][] = [];
   let current: Point[] = on ? [points[0]] : [];
+  const along = measures.get(points);
 
   for (let i = 0; i < points.length - 1; i++) {
     const [x1, y1] = points[i];
     const [x2, y2] = points[i + 1];
-    let length = Math.hypot(x2 - x1, y2 - y1);
+    let length = along ? along[i + 1] - along[i] : Math.hypot(x2 - x1, y2 - y1);
     if (length === 0) {
       continue;
     }
