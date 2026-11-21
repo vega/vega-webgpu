@@ -113,13 +113,12 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const outlineTarget = targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer);
 
   const run = new DrawRun<SceneRule>(ctx._opaqueBackdrop, (rules, blend) => {
-    const pipeline = res.pipelineFor(blend);
     const instanceBuffer = res.bufferManager.createInstanceBuffer(createAttributes(rules));
     ctx._renderQueue.enqueue({
-      pipeline,
+      pipeline: res.pipelineFor(blend),
       drawCounts: [6, rules.length],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
-      bindGroups: [uniformBindGroup(ctx, device, drawName, pipeline, uniformBuffer)],
+      bindGroups: [uniformBindGroup(ctx, device, drawName, uniformBuffer)],
       clip: ctx._clip,
     });
   });

@@ -16,8 +16,8 @@ import {
 } from '../util/join.js';
 import { VertexBufferManager } from '../util/vertexManager.js';
 import { REPLACE, blendState, buildBlend } from '../util/blend.js';
-import { shaderModule, type ShaderKey } from '../shaders/index.js';
-import { bindGroupLayout, createRenderPipeline, preferredColorFormat, viewOf } from '../util/webgpu.js';
+import { bindingShape, shaderModule, type ShaderKey } from '../shaders/index.js';
+import { createRenderPipeline, groupLayout, preferredColorFormat, viewOf } from '../util/webgpu.js';
 import type { ClipRadii, ClipRect, GPUVegaCanvasContext, GPUVegaScene } from '../types/context.js';
 import type { DrawCounts, QueueElement } from '../util/renderQueue.js';
 import type { SceneGroupExt, SceneRectExt, SceneItem } from '../types/scene.js';
@@ -128,15 +128,17 @@ export function clipMaskView(ctx: GPUVegaCanvasContext, device: GPUDevice): GPUT
   return ctx._clipMask ?? ctx._renderer.clipMaskPlaceholderView(device);
 }
 
-/** A mark's group 0 bind group, with the clip mask in force. */
+/**
+ * A mark's group 0 bind group, with the clip mask in force. Every mark
+ * pipeline shares the layout, so it fits whichever one the draw uses.
+ */
 export function uniformBindGroup(
   ctx: GPUVegaCanvasContext,
   device: GPUDevice,
   label: string,
-  pipeline: GPURenderPipeline,
   uniforms: GPUBuffer,
 ): GPUBindGroup {
-  return createUniformBindGroup(label, device, pipeline, uniforms, clipMaskView(ctx, device));
+  return createUniformBindGroup(label, device, uniforms, clipMaskView(ctx, device));
 }
 
 /**
@@ -385,9 +387,9 @@ export function enqueueDraw(
 ): void {
   const { ctx, device } = target;
   const pipeline = ramp ? target.gradientPipelineFor(blend) : target.pipelineFor(blend);
-  const bindGroups = [uniformBindGroup(ctx, device, target.name, pipeline, target.uniformBuffer)];
+  const bindGroups = [uniformBindGroup(ctx, device, target.name, target.uniformBuffer)];
   if (ramp) {
-    bindGroups.push(createGradientBindGroup(getGradientResources(device, ctx), pipeline, ramp.gradient, ramp.bounds));
+    bindGroups.push(createGradientBindGroup(getGradientResources(device, ctx), ramp.gradient, ramp.bounds));
   }
   ctx._renderQueue.enqueue({ pipeline, drawCounts, vertexBuffers, bindGroups, clip: ctx._clip });
 }
@@ -395,7 +397,8 @@ export function enqueueDraw(
 /**
  * Builds a mark pipeline. The colour format and sample count must match the
  * frame's attachments, and getting either wrong silently breaks MSAA, so they
- * are filled in here rather than repeated at every call site.
+ * are filled in here rather than repeated at every call site. So is the
+ * pipeline layout, which follows from the shader.
  */
 export function markPipeline(
   ctx: GPUVegaCanvasContext,
@@ -419,6 +422,7 @@ export function markPipeline(
     label,
     device,
     shaderModule(ctx, device, shaderKey, built.blend),
+    bindingShape(shaderKey, fragmentEntryPoint),
     preferredColorFormat(),
     ctx._sampleCount,
     vertexManager.getBuffers(),
@@ -627,7 +631,7 @@ export function drawClipMask(
     pipeline: res.pipeline,
     drawCounts: [fillData.length / GEOMETRY_STRIDE],
     vertexBuffers: [res.bufferManager.createGeometryBuffer(fillData)],
-    bindGroups: [uniformBindGroup(ctx, device, 'ClipMask', res.pipeline, uniformBuffer)],
+    bindGroups: [uniformBindGroup(ctx, device, 'ClipMask', uniformBuffer)],
     pass: 'mask',
     maskView: target.attachment,
     maskResolve: target.resolve,
@@ -660,6 +664,7 @@ function maskPipeline(
     label,
     device,
     shaderModule(ctx, device, shaderKey, 'normal'),
+    bindingShape(shaderKey, 'main_fragment_mask'),
     MASK_FORMAT,
     sampleCount,
     vertexManager.getBuffers(),
@@ -706,6 +711,7 @@ function getBlendResources(device: GPUDevice, ctx: GPUVegaCanvasContext): BlendR
         `Blend Composite ${blend}`,
         device,
         shaderModule(ctx, device, 'BlendComposite', blend),
+        'composite',
         preferredColorFormat(),
         ctx._sampleCount,
         [],
@@ -739,7 +745,7 @@ export function blendCompositeElement(
     bindGroups: [
       device.createBindGroup({
         label: 'Blend Composite Bind Group',
-        layout: bindGroupLayout(pipeline, 0),
+        layout: groupLayout(device, 'composite'),
         entries: [
           { binding: 0, resource: viewOf(targets.resolve) },
           { binding: 1, resource: viewOf(targets.backdrop) },
@@ -797,11 +803,12 @@ export function enqueueMaskedOutline(
 ): void {
   const { ctx, device } = target;
   const res = getMaskResources(device, ctx);
+  const uniforms = uniformBindGroup(ctx, device, `${target.name}Mask`, target.uniformBuffer);
   ctx._renderQueue.enqueue({
     pipeline: res.strokePipeline,
     drawCounts: [6, data.length / SEGMENT_STRIDE],
     vertexBuffers: [target.bufferManager.createInstanceBuffer(data)],
-    bindGroups: [uniformBindGroup(ctx, device, `${target.name}Mask`, res.strokePipeline, target.uniformBuffer)],
+    bindGroups: [uniforms],
     clip: ctx._clip,
     pass: 'mask',
   });
@@ -818,10 +825,11 @@ export function enqueueMaskedOutline(
     drawCounts: [6],
     vertexBuffers: [],
     bindGroups: [
-      uniformBindGroup(ctx, device, `${target.name}Composite`, pipeline, target.uniformBuffer),
+      // the same layout as the mask pass, so the same group
+      uniforms,
       device.createBindGroup({
         label: `${target.name} Mask Bind Group`,
-        layout: bindGroupLayout(pipeline, 1),
+        layout: groupLayout(device, 'mask'),
         entries: [
           { binding: 0, resource: viewOf(ctx._renderer.maskTexture(device)) },
           { binding: 1, resource: { buffer: params } },

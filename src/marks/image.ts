@@ -13,7 +13,7 @@ const drawName = 'Image';
 
 interface TextureEntry {
   texture: GPUTexture;
-  /** Keyed by sampler and blend, since each blend pipeline owns its layout. */
+  /** Keyed by sampler. Every blend pipeline shares the layout, so the blend is not in the key. */
   bindGroups: Map<string, GPUBindGroup>;
 }
 
@@ -183,25 +183,18 @@ function writeMipChain(
   }
 }
 
-function getBindGroup(
-  res: ImageResources,
-  image: SceneImageSource,
-  smooth: boolean,
-  pipeline: GPURenderPipeline,
-  blend: string,
-): GPUBindGroup {
+function getBindGroup(res: ImageResources, image: SceneImageSource, smooth: boolean): GPUBindGroup {
   let entry = res.textures.get(image as object);
   if (!entry) {
     entry = { texture: uploadTexture(res.device, image), bindGroups: new Map() };
     res.textures.set(image as object, entry);
   }
-  const key = `${smooth ? 'smooth' : 'pixelated'}|${blend}`;
+  const key = smooth ? 'smooth' : 'pixelated';
   let bindGroup = entry.bindGroups.get(key);
   if (!bindGroup) {
     bindGroup = textureBindGroup(
       res.device,
       `Image Texture Bind Group (${key})`,
-      pipeline,
       smooth ? res.smoothSampler : res.pixelatedSampler,
       viewOf(entry.texture),
     );
@@ -225,6 +218,8 @@ function draw(
   const res = getResources(device, ctx, vb);
 
   const uniformBuffer = res.bufferManager.createUniformBuffer();
+  // every image pipeline shares the layout, so one group serves every blend
+  let uniforms: GPUBindGroup | undefined;
 
   for (const item of items) {
     const image = getImage(item, this);
@@ -259,19 +254,12 @@ function draw(
     }
 
     const instanceBuffer = res.bufferManager.createInstanceBuffer(Float32Array.from([x, y, w, h, item.opacity ?? 1]));
-    // a pipeline with a default layout owns its bind group layout, so the
-    // groups have to come from the blend variant this draw uses
-    const blend = blendKey(item.blend);
-    const imagePipeline = res.pipelineFor(blend);
-
+    uniforms ??= uniformBindGroup(ctx, device, drawName, uniformBuffer);
     ctx._renderQueue.enqueue({
-      pipeline: imagePipeline,
+      pipeline: res.pipelineFor(blendKey(item.blend)),
       drawCounts: [6, 1],
       vertexBuffers: [res.geometryBuffer, instanceBuffer],
-      bindGroups: [
-        uniformBindGroup(ctx, device, drawName, imagePipeline, uniformBuffer),
-        getBindGroup(res, image, item.smooth !== false, imagePipeline, blend),
-      ],
+      bindGroups: [uniforms, getBindGroup(res, image, item.smooth !== false)],
       clip: ctx._clip,
     });
   }

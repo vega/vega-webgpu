@@ -33,15 +33,15 @@ const drawName = 'Line';
 /**
  * A group 0 bind group kept across draws, with everything it was built from.
  *
- * The clip mask belongs in there as much as the buffer and the pipeline do.
- * The uniform block only says whether a mask is bound, so two marks in one
- * group that each carry a clip path of their own share a uniform buffer, and
- * the second was drawn cut by the first one's coverage.
+ * The clip mask belongs in there as much as the buffer does. The uniform block
+ * only says whether a mask is bound, so two marks in one group that each carry
+ * a clip path of their own share a uniform buffer, and the second was drawn cut
+ * by the first one's coverage. The pipeline does not belong in there: every
+ * mark pipeline shares the layout, so one group fits each blend and each curve.
  */
 interface HeldBindGroup {
   group: GPUBindGroup;
   buffer: GPUBuffer;
-  pipeline: GPURenderPipeline;
   mask: GPUTextureView;
 }
 
@@ -50,10 +50,10 @@ interface LineResources {
   bufferManager: BufferManager;
   /** Pipelines for a segment stroke, which is what a plain line is drawn as. */
   outline: OutlinePipelines;
-  segmentBindGroup: HeldBindGroup | null;
+  /** What segments and curve spans both draw with. */
+  uniforms: HeldBindGroup | null;
   /** basis and bezier share this layout and differ only in the shader. */
   spanVertexManager: VertexBufferManager;
-  spanBindGroups: Map<string, HeldBindGroup>;
 }
 
 /**
@@ -78,19 +78,31 @@ function getResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds):
     );
     return {
       spanVertexManager,
-      spanBindGroups: new Map(),
       device,
       bufferManager,
       outline,
-      segmentBindGroup: null,
+      uniforms: null,
     };
   });
 }
 
 /**
- * Queues segment instances into the shared batch. The batch only merges draws
+ * The group 0 bind group for the uniforms in force. The batch only merges draws
  * whose bind groups are the same object, so it is held rather than rebuilt.
  */
+function heldUniforms(device: GPUDevice, ctx: GPUVegaCanvasContext, res: LineResources): GPUBindGroup {
+  const buffer = res.bufferManager.sharedUniformBuffer();
+  const mask = clipMaskView(ctx, device);
+  const held = res.uniforms;
+  if (held !== null && held.buffer === buffer && held.mask === mask) {
+    return held.group;
+  }
+  const group = createUniformBindGroup(drawName, device, buffer, mask);
+  res.uniforms = { group, buffer, mask };
+  return group;
+}
+
+/** Queues segment instances into the shared batch. */
 function queueSegments(
   device: GPUDevice,
   ctx: GPUVegaCanvasContext,
@@ -98,31 +110,12 @@ function queueSegments(
   rows: Float32Array,
   blend = 'normal',
 ): void {
-  const pipeline = res.outline.pipelineFor(blend);
-  const buffer = res.bufferManager.sharedUniformBuffer();
-  // Keyed by the pipeline as well as the buffer. A bind group belongs to the
-  // layout it was made from, so holding one across a change of blend set a
-  // group from the normal pipeline on the blended one, which invalidates the
-  // whole command buffer: a scene mixing a blended line with an unblended one
-  // came out empty, every mark of it.
-  const mask = clipMaskView(ctx, device);
-  const held = res.segmentBindGroup;
-  const entry =
-    held !== null && held.buffer === buffer && held.pipeline === pipeline && held.mask === mask
-      ? held
-      : {
-          group: createUniformBindGroup(drawName, device, pipeline, buffer, mask),
-          buffer,
-          pipeline,
-          mask,
-        };
-  res.segmentBindGroup = entry;
   ctx._renderQueue.setupBatch({
     device,
     vertexManager: res.outline.vertexManager,
-    pipeline,
+    pipeline: res.outline.pipelineFor(blend),
     clip: ctx._clip,
-    bindGroups: [entry.group],
+    bindGroups: [heldUniforms(device, ctx, res)],
   });
   ctx._renderQueue.queueBatchInstance(rows);
 }
@@ -453,29 +446,13 @@ function drawCurve(
     undefined,
     blend,
   );
-  // The batch only merges draws whose bind groups are the same object, so this
-  // is held rather than rebuilt per curve. Keyed by the pipeline as well, since
-  // a bind group belongs to the layout it was made from.
-  const buffer = res.bufferManager.sharedUniformBuffer();
-  const cacheKey = `${kind}|${blend}`;
-  const mask = clipMaskView(ctx, device);
-  let held = res.spanBindGroups.get(cacheKey);
-  if (!held || held.buffer !== buffer || held.pipeline !== pipeline || held.mask !== mask) {
-    held = {
-      group: createUniformBindGroup(`${drawName} ${kind}`, device, pipeline, buffer, mask),
-      buffer,
-      pipeline,
-      mask,
-    };
-    res.spanBindGroups.set(cacheKey, held);
-  }
   ctx._renderQueue.setupBatch({
     device,
     vertexManager: res.spanVertexManager,
     pipeline,
     clip: ctx._clip,
     vertexCount: 6 * CURVE_SUBDIVISIONS,
-    bindGroups: [held.group],
+    bindGroups: [heldUniforms(device, ctx, res)],
   });
   ctx._renderQueue.queueBatchInstance(rows);
 

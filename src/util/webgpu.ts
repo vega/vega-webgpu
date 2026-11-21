@@ -25,10 +25,111 @@ export function preferredColorFormat(): GPUTextureFormat {
   return typeof navigator !== 'undefined' && navigator.gpu ? navigator.gpu.getPreferredCanvasFormat() : 'bgra8unorm';
 }
 
+/**
+ * The bind groups a shader can declare. `uniforms` is the block every mark
+ * shader has at group 0, the others are what a shader adds at group 1, and
+ * `composite` is the blend composite's pair of textures, its only group.
+ */
+export type GroupName = 'uniforms' | 'gradient' | 'texture' | 'mask' | 'composite';
+
+/** The groups of each pipeline layout, in group order. */
+const PIPELINE_GROUPS = {
+  mark: ['uniforms'],
+  gradient: ['uniforms', 'gradient'],
+  texture: ['uniforms', 'texture'],
+  mask: ['uniforms', 'mask'],
+  composite: ['composite'],
+} as const satisfies Record<string, readonly GroupName[]>;
+
+/** Which pipeline layout a shader is built with, by the groups it declares. */
+export type BindingShape = keyof typeof PIPELINE_GROUPS;
+
+function groupEntries(name: GroupName): GPUBindGroupLayoutEntry[] {
+  // read lazily, since a browser without WebGPU has no GPUShaderStage
+  const visibility = GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT;
+  const uniform = (binding: number): GPUBindGroupLayoutEntry => ({ binding, visibility, buffer: { type: 'uniform' } });
+  // a texture read with textureLoad takes any float format, one that is sampled needs a filterable one
+  const loaded = (binding: number): GPUBindGroupLayoutEntry => ({
+    binding,
+    visibility,
+    texture: { sampleType: 'unfilterable-float' },
+  });
+  const sampled = (binding: number): GPUBindGroupLayoutEntry => ({
+    binding,
+    visibility,
+    texture: { sampleType: 'float' },
+  });
+  const sampler: GPUBindGroupLayoutEntry = { binding: 0, visibility, sampler: { type: 'filtering' } };
+  switch (name) {
+    case 'uniforms':
+      return [uniform(0), loaded(1)];
+    case 'gradient':
+      return [sampler, sampled(1), uniform(2)];
+    case 'texture':
+      return [sampler, sampled(1)];
+    case 'mask':
+      return [loaded(0), uniform(1)];
+    case 'composite':
+      return [loaded(0), loaded(1)];
+  }
+}
+
+interface SharedLayouts {
+  groups: Map<GroupName, GPUBindGroupLayout>;
+  pipelines: Map<BindingShape, GPUPipelineLayout>;
+}
+
+const sharedLayouts = new WeakMap<GPUDevice, SharedLayouts>();
+
+function layoutsOf(device: GPUDevice): SharedLayouts {
+  let held = sharedLayouts.get(device);
+  if (!held) {
+    held = { groups: new Map(), pipelines: new Map() };
+    sharedLayouts.set(device, held);
+  }
+  return held;
+}
+
+/**
+ * One bind group layout per group and device, which every bind group for that
+ * group is made from.
+ *
+ * A pipeline built with `layout: 'auto'` owns the layouts it derives, so a bind
+ * group made for one pipeline was rejected on another built from the same
+ * shader with another blend. WebGPU then throws away the whole command buffer,
+ * and the frame came out empty, not just the mark. Explicit layouts with the
+ * same entries are interchangeable, so a bind group fits every pipeline that
+ * declares its group.
+ */
+export function groupLayout(device: GPUDevice, name: GroupName): GPUBindGroupLayout {
+  const held = layoutsOf(device);
+  let layout = held.groups.get(name);
+  if (!layout) {
+    layout = device.createBindGroupLayout({ label: `${name} Bind Group Layout`, entries: groupEntries(name) });
+    held.groups.set(name, layout);
+  }
+  return layout;
+}
+
+/** The pipeline layout for a shape, shared by every pipeline built with it. */
+export function pipelineLayout(device: GPUDevice, shape: BindingShape): GPUPipelineLayout {
+  const held = layoutsOf(device);
+  let layout = held.pipelines.get(shape);
+  if (!layout) {
+    layout = device.createPipelineLayout({
+      label: `${shape} Pipeline Layout`,
+      bindGroupLayouts: PIPELINE_GROUPS[shape].map(name => groupLayout(device, name)),
+    });
+    held.pipelines.set(shape, layout);
+  }
+  return layout;
+}
+
 export function createRenderPipeline(
   name: string,
   device: GPUDevice,
   shader: GPUShaderModule,
+  shape: BindingShape,
   format: GPUTextureFormat,
   sampleCount: number,
   buffers: GPUVertexBufferLayout[],
@@ -37,7 +138,7 @@ export function createRenderPipeline(
 ): GPURenderPipeline {
   return device.createRenderPipeline({
     label: `${name} Render Pipeline`,
-    layout: 'auto',
+    layout: pipelineLayout(device, shape),
     vertex: {
       module: shader,
       entryPoint: 'main_vertex',
@@ -55,21 +156,6 @@ export function createRenderPipeline(
       count: sampleCount,
     },
   });
-}
-
-const layouts = new WeakMap<GPURenderPipeline, GPUBindGroupLayout[]>();
-
-/**
- * A pipeline's bind group layout at `index`. Every bind group made for the
- * pipeline needs it, and asking the pipeline makes a new one each time.
- */
-export function bindGroupLayout(pipeline: GPURenderPipeline, index: number): GPUBindGroupLayout {
-  let held = layouts.get(pipeline);
-  if (!held) {
-    held = [];
-    layouts.set(pipeline, held);
-  }
-  return (held[index] ??= pipeline.getBindGroupLayout(index));
 }
 
 const views = new WeakMap<GPUTexture, GPUTextureView>();
@@ -98,13 +184,12 @@ export function viewOf(texture: GPUTexture): GPUTextureView {
 export function createUniformBindGroup(
   name: string,
   device: GPUDevice,
-  pipeline: GPURenderPipeline,
   uniforms: GPUBuffer,
   clipMask: GPUTextureView,
 ): GPUBindGroup {
   return device.createBindGroup({
     label: `${name} Uniform Bind Group`,
-    layout: bindGroupLayout(pipeline, 0),
+    layout: groupLayout(device, 'uniforms'),
     entries: [
       {
         binding: 0,
@@ -139,13 +224,12 @@ export function linearSampler(device: GPUDevice): GPUSampler {
 export function textureBindGroup(
   device: GPUDevice,
   label: string,
-  pipeline: GPURenderPipeline,
   sampler: GPUSampler,
   view: GPUTextureView,
 ): GPUBindGroup {
   return device.createBindGroup({
     label,
-    layout: bindGroupLayout(pipeline, 1),
+    layout: groupLayout(device, 'texture'),
     entries: [
       { binding: 0, resource: sampler },
       { binding: 1, resource: view },

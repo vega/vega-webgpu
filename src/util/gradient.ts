@@ -3,7 +3,7 @@ import type { SceneGradient } from '../types/scene.js';
 import { getMarkResources } from '../marks/util.js';
 import { uploadBuffer } from './bufferManager.js';
 import { cssColor } from './color.js';
-import { bindGroupLayout, linearSampler, viewOf } from './webgpu.js';
+import { groupLayout, linearSampler, viewOf } from './webgpu.js';
 
 /** Texels in a baked gradient stop ramp. */
 const RAMP_SIZE = 256;
@@ -104,7 +104,6 @@ function gradientParams(
 /** Creates the per-draw gradient bind group (params + ramp + sampler). */
 export function createGradientBindGroup(
   res: GradientResources,
-  pipeline: GPURenderPipeline,
   gradient: SceneGradient,
   bounds: [x: number, y: number, w: number, h: number],
 ): GPUBindGroup {
@@ -118,7 +117,7 @@ export function createGradientBindGroup(
 
   return res.device.createBindGroup({
     label: 'Gradient Bind Group',
-    layout: bindGroupLayout(pipeline, 1),
+    layout: groupLayout(res.device, 'gradient'),
     entries: [
       { binding: 0, resource: linearSampler(res.device) },
       { binding: 1, resource: viewOf(getStopRamp(res, gradient)) },

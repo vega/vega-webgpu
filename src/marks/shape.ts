@@ -186,12 +186,11 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   if (segments > 0) {
     const buffer = outlineBuffer(device, state, outlines, heldOutline);
     for (const run of outlineRuns) {
-      const pipeline = res.outline.pipelineFor(run.blend);
       ctx._renderQueue.enqueue({
-        pipeline,
+        pipeline: res.outline.pipelineFor(run.blend),
         drawCounts: [6, run.count, 0, run.start],
         vertexBuffers: [buffer],
-        bindGroups: [uniformBindGroup(ctx, device, `${drawName}Stroke`, pipeline, uniformBuffer)],
+        bindGroups: [uniformBindGroup(ctx, device, `${drawName}Stroke`, uniformBuffer)],
         clip: ctx._clip,
       });
     }
