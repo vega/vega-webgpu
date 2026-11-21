@@ -468,8 +468,9 @@ export default class WebGPURenderer extends Renderer {
 
   /**
    * Applies a changed wgOptions.sampleCount. Pipelines bake the sample count,
-   * so the per-mark GPU resources are rebuilt, and the multisampled targets go
-   * rather than outliving a drop to one sample.
+   * and every one is built through markPipeline, which keys on it, so the next
+   * frame finds the ones for the new count. The multisampled targets go rather
+   * than outliving a drop to one sample.
    */
   private _applySampleCount(ctx: GPUVegaCanvasContext): void {
     const requested = normalizeSampleCount(this.wgOptions.sampleCount);
@@ -477,7 +478,6 @@ export default class WebGPURenderer extends Renderer {
       return;
     }
     ctx._sampleCount = requested;
-    ctx._markCache = {};
     for (const slot of [this._msaa, this._layer]) {
       slot.texture?.destroy();
       slot.texture = null;

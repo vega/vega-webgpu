@@ -395,10 +395,70 @@ export function enqueueDraw(
 }
 
 /**
- * Builds a mark pipeline. The colour format and sample count must match the
- * frame's attachments, and getting either wrong silently breaks MSAA, so they
- * are filled in here rather than repeated at every call site. So is the
- * pipeline layout, which follows from the shader.
+ * What a pipeline draws into.
+ *
+ * - `frame`: a mark, into the frame or into a layer made like it.
+ * - `clip-mask`: a clip path's coverage, into a mask of its own at the frame's
+ *   sample count.
+ * - `stroke-mask`: a stroke's coverage, into the single sampled mask.
+ * - `composite`: a layer folded back into the frame, with the blend already
+ *   evaluated in the shader.
+ */
+export type PipelineTarget = 'frame' | 'clip-mask' | 'stroke-mask' | 'composite';
+
+/** How a pipeline for `target` is built, given the blend it was asked for. */
+function targetState(
+  ctx: GPUVegaCanvasContext,
+  target: PipelineTarget,
+  blend: string,
+): {
+  format: GPUTextureFormat;
+  samples: number;
+  state: GPUBlendState;
+  shaderBlend: string;
+  record: (pipeline: GPURenderPipeline) => void;
+} {
+  const none = () => {};
+  switch (target) {
+    case 'frame': {
+      const built = buildBlend(blend, ctx._opaqueBackdrop);
+      return {
+        format: preferredColorFormat(),
+        samples: ctx._sampleCount,
+        state: blendState(built.blend),
+        shaderBlend: built.blend,
+        record: built.record,
+      };
+    }
+    case 'clip-mask':
+      return {
+        format: MASK_FORMAT,
+        samples: ctx._sampleCount,
+        state: MAX_COVERAGE,
+        shaderBlend: 'normal',
+        record: none,
+      };
+    case 'stroke-mask':
+      return { format: MASK_FORMAT, samples: 1, state: MAX_COVERAGE, shaderBlend: 'normal', record: none };
+    case 'composite':
+      return {
+        format: preferredColorFormat(),
+        samples: ctx._sampleCount,
+        state: REPLACE,
+        shaderBlend: blend,
+        record: none,
+      };
+  }
+}
+
+/**
+ * Builds a pipeline, or hands back the one already built for the same key.
+ * Every pipeline goes through here, so `_pipelineCache` holds all of them.
+ *
+ * The colour format and sample count must match the target's attachments, and
+ * getting either wrong silently breaks MSAA, so they are filled in here rather
+ * than repeated at every call site. So is the pipeline layout, which follows
+ * from the shader.
  */
 export function markPipeline(
   ctx: GPUVegaCanvasContext,
@@ -408,28 +468,30 @@ export function markPipeline(
   vertexManager: VertexBufferManager,
   fragmentEntryPoint?: string,
   blend = 'normal',
+  target: PipelineTarget = 'frame',
 ): GPURenderPipeline {
-  // The backdrop decides how a blend is drawn and it can change between frames,
-  // so it belongs in the key: a pipeline built for one is wrong for the other.
-  const opaque = ctx._opaqueBackdrop;
-  const key = `${shaderKey}|${fragmentEntryPoint ?? ''}|${ctx._sampleCount}|${blend}|${opaque}|${vertexManager.layoutKey}`;
+  // The backdrop decides how a blend is drawn into the frame and it can change
+  // between frames, so it belongs in the key: a pipeline built for one is wrong
+  // for the other. Nothing else that draws depends on it.
+  const opaque = target === 'frame' ? ctx._opaqueBackdrop : '';
+  const key = `${shaderKey}|${fragmentEntryPoint ?? ''}|${ctx._sampleCount}|${blend}|${opaque}|${target}|${vertexManager.layoutKey}`;
   const cached = ctx._pipelineCache[key];
   if (cached) {
     return cached;
   }
-  const built = buildBlend(blend, opaque);
+  const { format, samples, state, shaderBlend, record } = targetState(ctx, target, blend);
   const pipeline = createRenderPipeline(
     label,
     device,
-    shaderModule(ctx, device, shaderKey, built.blend),
+    shaderModule(ctx, device, shaderKey, shaderBlend),
     bindingShape(shaderKey, fragmentEntryPoint),
-    preferredColorFormat(),
-    ctx._sampleCount,
+    format,
+    samples,
     vertexManager.getBuffers(),
-    blendState(built.blend),
+    state,
     fragmentEntryPoint,
   );
-  built.record(pipeline);
+  record(pipeline);
   ctx._pipelineCache[key] = pipeline;
   return pipeline;
 }
@@ -520,9 +582,9 @@ export function outlinePipelines(ctx: GPUVegaCanvasContext, device: GPUDevice, n
  *
  * A blend is baked into the pipeline state, so a mark needs one of these for
  * every mode its items ask for. `markPipeline` keys its cache on a string built
- * per call, and only the blend and the backdrop vary here, so the pipelines are
- * held by blend and dropped when the backdrop flips. A sample count change
- * rebuilds the mark resources this lives in.
+ * per call, and only the blend, the backdrop and the sample count vary here, so
+ * the pipelines are held by blend and dropped when either of the other two
+ * changes.
  */
 export function blendPipelines(
   ctx: GPUVegaCanvasContext,
@@ -531,17 +593,20 @@ export function blendPipelines(
   shader: ShaderKey,
   vertexManager: VertexBufferManager,
   fragmentEntryPoint?: string,
+  target: PipelineTarget = 'frame',
 ): (blend: string) => GPURenderPipeline {
   const held = new Map<string, GPURenderPipeline>();
   let opaque = ctx._opaqueBackdrop;
+  let samples = ctx._sampleCount;
   return blend => {
-    if (opaque !== ctx._opaqueBackdrop) {
+    if (opaque !== ctx._opaqueBackdrop || samples !== ctx._sampleCount) {
       held.clear();
       opaque = ctx._opaqueBackdrop;
+      samples = ctx._sampleCount;
     }
     let pipeline = held.get(blend);
     if (!pipeline) {
-      pipeline = markPipeline(ctx, device, name, shader, vertexManager, fragmentEntryPoint, blend);
+      pipeline = markPipeline(ctx, device, name, shader, vertexManager, fragmentEntryPoint, blend, target);
       held.set(blend, pipeline);
     }
     return pipeline;
@@ -571,16 +636,18 @@ export function enqueueOutline(target: DrawTarget, data: Float32Array, ramp: Ram
 interface ClipMaskResources {
   device: GPUDevice;
   bufferManager: BufferManager;
-  pipeline: GPURenderPipeline;
+  /** SolidFill writing coverage into the clip's own mask. */
+  pipeline: () => GPURenderPipeline;
 }
 
 function getClipMaskResources(device: GPUDevice, ctx: GPUVegaCanvasContext, vb: Bounds): ClipMaskResources {
   return getMarkResources(ctx, '__clipMask', device, vb, () => {
     const vertexManager = new VertexBufferManager(['float32x2', 'float32x4']);
+    const coverage = maskPipelines(ctx, device, 'Clip Mask', 'SolidFill', vertexManager, 'clip-mask');
     return {
       device,
       bufferManager: new BufferManager(device, 'ClipMask'),
-      pipeline: maskPipeline(ctx, device, 'Clip Mask', 'SolidFill', ctx._sampleCount, vertexManager),
+      pipeline: () => coverage('normal'),
     };
   });
 }
@@ -628,7 +695,7 @@ export function drawClipMask(
   }
   const uniformBuffer = res.bufferManager.createUniformBuffer();
   ctx._renderQueue.enqueue({
-    pipeline: res.pipeline,
+    pipeline: res.pipeline(),
     drawCounts: [fillData.length / GEOMETRY_STRIDE],
     vertexBuffers: [res.bufferManager.createGeometryBuffer(fillData)],
     bindGroups: [uniformBindGroup(ctx, device, 'ClipMask', uniformBuffer)],
@@ -651,33 +718,26 @@ const MAX_COVERAGE: GPUBlendState = {
   alpha: { srcFactor: 'one', dstFactor: 'one', operation: 'max' },
 };
 
-/** A pipeline that draws coverage into a mask, through the shader's mask entry. */
-function maskPipeline(
+/**
+ * The pipelines that draw coverage into a mask, through the shader's mask
+ * entry. A mask has no blend, so only the one for 'normal' is ever asked for.
+ */
+function maskPipelines(
   ctx: GPUVegaCanvasContext,
   device: GPUDevice,
   label: string,
   shaderKey: ShaderKey,
-  sampleCount: number,
   vertexManager: VertexBufferManager,
-): GPURenderPipeline {
-  return createRenderPipeline(
-    label,
-    device,
-    shaderModule(ctx, device, shaderKey, 'normal'),
-    bindingShape(shaderKey, 'main_fragment_mask'),
-    MASK_FORMAT,
-    sampleCount,
-    vertexManager.getBuffers(),
-    MAX_COVERAGE,
-    'main_fragment_mask',
-  );
+  target: 'clip-mask' | 'stroke-mask',
+): (blend: string) => GPURenderPipeline {
+  return blendPipelines(ctx, device, label, shaderKey, vertexManager, 'main_fragment_mask', target);
 }
 
 /** What compositing a stroke through a coverage mask needs. */
 interface MaskResources {
   device: GPUDevice;
   /** SLine writing coverage into the mask, where the largest value wins. */
-  strokePipeline: GPURenderPipeline;
+  strokePipeline: () => GPURenderPipeline;
   /** Paints a colour through a finished mask, one pipeline per blend mode. */
   compositeFor: (blend: string) => GPURenderPipeline;
 }
@@ -685,11 +745,11 @@ interface MaskResources {
 function getMaskResources(device: GPUDevice, ctx: GPUVegaCanvasContext): MaskResources {
   return getMarkResources(ctx, '__mask', device, undefined, () => {
     const vertexManager = new VertexBufferManager([], SEGMENT_LAYOUT);
-    const strokePipeline = maskPipeline(ctx, device, 'Coverage Mask', 'SLine', 1, vertexManager);
+    const coverage = maskPipelines(ctx, device, 'Coverage Mask', 'SLine', vertexManager, 'stroke-mask');
     // a mark pipeline in all but its shader, so a mode the blend state cannot
     // express paints the mask into a layer and is folded in from there
     const compositeFor = blendPipelines(ctx, device, 'Mask Composite', 'MaskComposite', new VertexBufferManager());
-    return { device, strokePipeline, compositeFor };
+    return { device, strokePipeline: () => coverage('normal'), compositeFor };
   });
 }
 
@@ -700,28 +760,18 @@ interface BlendResources {
 }
 
 function getBlendResources(device: GPUDevice, ctx: GPUVegaCanvasContext): BlendResources {
-  return getMarkResources(ctx, '__blend', device, undefined, () => {
-    const composites = new Map<string, GPURenderPipeline>();
-    const compositeFor = (blend: string): GPURenderPipeline => {
-      const held = composites.get(blend);
-      if (held) {
-        return held;
-      }
-      const pipeline = createRenderPipeline(
-        `Blend Composite ${blend}`,
-        device,
-        shaderModule(ctx, device, 'BlendComposite', blend),
-        'composite',
-        preferredColorFormat(),
-        ctx._sampleCount,
-        [],
-        REPLACE,
-      );
-      composites.set(blend, pipeline);
-      return pipeline;
-    };
-    return { device, compositeFor };
-  });
+  return getMarkResources(ctx, '__blend', device, undefined, () => ({
+    device,
+    compositeFor: blendPipelines(
+      ctx,
+      device,
+      'Blend Composite',
+      'BlendComposite',
+      new VertexBufferManager(),
+      undefined,
+      'composite',
+    ),
+  }));
 }
 
 /**
@@ -805,7 +855,7 @@ export function enqueueMaskedOutline(
   const res = getMaskResources(device, ctx);
   const uniforms = uniformBindGroup(ctx, device, `${target.name}Mask`, target.uniformBuffer);
   ctx._renderQueue.enqueue({
-    pipeline: res.strokePipeline,
+    pipeline: res.strokePipeline(),
     drawCounts: [6, data.length / SEGMENT_STRIDE],
     vertexBuffers: [target.bufferManager.createInstanceBuffer(data)],
     bindGroups: [uniforms],

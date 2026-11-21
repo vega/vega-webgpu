@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { maxChannelDelta, renderInHarness, type RenderResult } from './compare.js';
 import { harnessUrl } from './drive.js';
+import { shotToPng, type Shot } from './snapshot.js';
 
 /**
  * The two renderer options the harness can set. Nothing else in the suite
@@ -56,6 +57,32 @@ test('a changed sample count reaches the pipelines', async ({ page }) => {
     maxChannelDelta(msaa.png, single.png),
     'sampleCount=1 drew the same edges as the multisampled default',
   ).toBeGreaterThan(0);
+});
+
+/**
+ * The same change on a renderer that has already drawn. Every pipeline is keyed
+ * by the sample count, so the next frame has to find the ones for the new count
+ * while the marks keep what they hold, and draw what a renderer set to it from
+ * the start draws.
+ */
+test('a sample count changed between frames draws like one set from the start', async ({ page }) => {
+  test.setTimeout(120_000);
+  const single = await render(page, specUrl('stacked-area', '&sampleCount=1'));
+  const msaa = await render(page, specUrl('stacked-area', ''));
+  const switched = await page.evaluate(async () => {
+    const w = window as unknown as {
+      view: { _renderer: { wgOptions: { sampleCount: number }; _ctx: { _sampleCount: number } } };
+      __snapshot: () => Promise<unknown>;
+    };
+    w.view._renderer.wgOptions.sampleCount = 1;
+    const shot = await w.__snapshot();
+    return { shot, samples: w.view._renderer._ctx._sampleCount };
+  });
+  const png = shotToPng(switched.shot as Shot);
+
+  expect(switched.samples, 'the change reached the context').toBe(1);
+  expect(maxChannelDelta(msaa.png, png), 'the next frame still drew multisampled').toBeGreaterThan(0);
+  expect(maxChannelDelta(single.png, png), 'it drew differently from a renderer set to one sample').toBe(0);
 });
 
 /** The cache is geometry reuse, so it must be reachable and must not change the picture. */
