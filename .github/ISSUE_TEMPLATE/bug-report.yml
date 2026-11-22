@@ -1,0 +1,54 @@
+name: Bug report
+description: The WebGPU renderer draws something wrong, differently from canvas, or throws.
+type: Bug
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Canvas is the reference, so a bug here usually shows as a difference from it. A spec and a screenshot of both renderers help most. The [live demo](https://vega.github.io/vega-webgpu/test/) shows any spec with canvas beside it.
+
+        If canvas draws it wrong as well, it is most likely a bug in [Vega](https://github.com/vega/vega/issues) itself.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: What the WebGPU renderer draws or throws, and what canvas draws instead.
+    validations:
+      required: true
+  - type: textarea
+    id: spec
+    attributes:
+      label: Spec
+      description: The smallest Vega or Vega-Lite spec that shows it, or a link to it in the Vega editor.
+      render: json
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: vega-webgpu and Vega.
+      placeholder: vega-webgpu 2.0.4, vega 6.2.0
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      placeholder: Chrome 156
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: OS and GPU
+      description: chrome://gpu lists the GPU and the driver.
+      placeholder: Windows 11, NVIDIA RTX 3060
+    validations:
+      required: true
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: Screenshots, console errors, whether it happens with every spec or only this one.
