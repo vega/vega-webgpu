@@ -118,7 +118,7 @@ If Playwright's Chromium does not run on your machine, set `PLAYWRIGHT_BROWSER_P
 
 ## Contributing
 
-Contributions are welcome. Please make sure `npm run typecheck`, `npm run lint` and `npm test` pass.
+Contributions are welcome. Please make sure `npm run typecheck`, `npm run lint` and `npm test` pass. PRs are squash merged, so the PR title becomes the commit and has to be a [conventional commit](https://www.conventionalcommits.org/), like `fix: ...` or `feat: ...`.
 
 ## License
 
