@@ -27,6 +27,7 @@ import {
   targetOf,
 } from './util.js';
 import { DrawRun } from '../util/drawRun.js';
+import { joinChunks } from '../util/geometryBatch.js';
 
 const drawName = 'Rule';
 
@@ -123,6 +124,15 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       clip: ctx._clip,
     });
   });
+  // Diagonal and dashed rules share one segment draw the same way, and each run
+  // closes the other, so the paint order holds. A network drawn with rules has
+  // one diagonal rule per link.
+  const outlines = new DrawRun<Float32Array>(ctx._opaqueBackdrop, (chunks, blend) => {
+    const data = joinChunks(chunks);
+    if (data) {
+      enqueueOutline(outlineTarget, data, null, blend);
+    }
+  });
 
   for (const item of items) {
     const blend = blendKey(item.blend);
@@ -138,6 +148,7 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
       continue;
     }
     if (!pattern && !isDiagonal(item) && !strokeRamp && !shaped) {
+      outlines.flush();
       run.add(item, blend);
       continue;
     }
@@ -147,9 +158,15 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     if (!data) {
       continue; // a zero length rule, or a dash that left nothing drawn
     }
-    enqueueOutline(outlineTarget, data, strokeRamp, blend);
+    if (strokeRamp) {
+      outlines.flush();
+      enqueueOutline(outlineTarget, data, strokeRamp, blend);
+    } else {
+      outlines.add(data, blend);
+    }
   }
   run.flush();
+  outlines.flush();
 }
 
 /** Floats per rule instance: corner, size, colour, and the offset a half stroke takes. */

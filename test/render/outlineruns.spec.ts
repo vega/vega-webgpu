@@ -48,3 +48,16 @@ test('consecutive path outlines share one draw', async ({ page }) => {
   expect(items).toBe(35);
   expect(draws, 'one draw per outline is what this replaced').toBeLessThan(items / 2);
 });
+
+/**
+ * The same for diagonal rules, which are the other way to draw a link. The
+ * flat rules in the fixture are rects and close the run, and the dashed flat
+ * one is segments and joins the diagonals around it, which makes 7 draws of its
+ * 26 rules.
+ */
+test('consecutive diagonal rules share one draw', async ({ page }) => {
+  const { draws, items } = await drawsPerFrame(page, 'rule-outline-runs');
+  console.log(`rule-outline-runs: ${items} items, ${draws} draws`);
+  expect(items).toBe(26);
+  expect(draws, 'one draw per diagonal rule is what this replaced').toBeLessThan(items / 2);
+});
