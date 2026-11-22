@@ -1,0 +1,334 @@
+{
+  "description": "Stroke-only paths, which is what the links of a network are, crossing each other and the filled shapes between them. Consecutive outlines share one draw, so the order inside that draw has to be the one canvas paints them in, and a fill, a gradient stroke or a change of blend has to close the run exactly where it stands.",
+  "width": 260,
+  "height": 260,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "path",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 20,
+                "y": 20,
+                "path": "M0,0L220,180",
+                "stroke": "#e45756",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 20,
+                "y": 32,
+                "path": "M0,0L220,156",
+                "stroke": "#4c78a8",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 20,
+                "y": 44,
+                "path": "M0,0L220,132",
+                "stroke": "#e45756",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 20,
+                "y": 56,
+                "path": "M0,0L220,108",
+                "stroke": "#4c78a8",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 20,
+                "y": 68,
+                "path": "M0,0L220,84",
+                "stroke": "#e45756",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 20,
+                "y": 80,
+                "path": "M0,0L220,60",
+                "stroke": "#4c78a8",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 20,
+                "y": 92,
+                "path": "M0,0L220,36",
+                "stroke": "#e45756",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 20,
+                "y": 104,
+                "path": "M0,0L220,12",
+                "stroke": "#4c78a8",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 20,
+                "y": 116,
+                "path": "M0,0L220,-12",
+                "stroke": "#e45756",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 20,
+                "y": 128,
+                "path": "M0,0L220,-36",
+                "stroke": "#4c78a8",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 20,
+                "y": 140,
+                "path": "M0,0L220,-60",
+                "stroke": "#e45756",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 20,
+                "y": 152,
+                "path": "M0,0L220,-84",
+                "stroke": "#4c78a8",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 20,
+                "y": 164,
+                "path": "M0,0L220,-108",
+                "stroke": "#e45756",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 20,
+                "y": 176,
+                "path": "M0,0L220,-132",
+                "stroke": "#4c78a8",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 20,
+                "y": 188,
+                "path": "M0,0L220,-156",
+                "stroke": "#e45756",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 20,
+                "y": 200,
+                "path": "M0,0L220,-180",
+                "stroke": "#4c78a8",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 90,
+                "y": 60,
+                "path": "M0,90L50,0L100,90Z",
+                "fill": "#9ecae9",
+                "fillOpacity": 0.75,
+                "stroke": "#2b5d8a",
+                "strokeOpacity": 0.8,
+                "strokeWidth": 4
+              },
+              {
+                "x": 70,
+                "y": 40,
+                "path": "M0,0L30,140",
+                "stroke": "#4c78a8",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 82,
+                "y": 40,
+                "path": "M0,0L26,140",
+                "stroke": "#e45756",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 94,
+                "y": 40,
+                "path": "M0,0L22,140",
+                "stroke": "#4c78a8",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 106,
+                "y": 40,
+                "path": "M0,0L18,140",
+                "stroke": "#e45756",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 118,
+                "y": 40,
+                "path": "M0,0L14,140",
+                "stroke": "#4c78a8",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 130,
+                "y": 40,
+                "path": "M0,0L10,140",
+                "stroke": "#e45756",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 142,
+                "y": 40,
+                "path": "M0,0L6,140",
+                "stroke": "#4c78a8",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 154,
+                "y": 40,
+                "path": "M0,0L2,140",
+                "stroke": "#e45756",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 20,
+                "y": 210,
+                "path": "M0,0L220,-60",
+                "stroke": {
+                  "gradient": "linear",
+                  "x1": 0,
+                  "y1": 0,
+                  "x2": 1,
+                  "y2": 0,
+                  "stops": [
+                    {
+                      "offset": 0,
+                      "color": "#54a24b"
+                    },
+                    {
+                      "offset": 1,
+                      "color": "#f58518"
+                    }
+                  ]
+                },
+                "strokeOpacity": 1,
+                "strokeWidth": 6
+              },
+              {
+                "x": 40,
+                "y": 230,
+                "path": "M0,0L20,-70",
+                "stroke": "#e45756",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 80,
+                "y": 230,
+                "path": "M0,0L20,-70",
+                "stroke": "#4c78a8",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3,
+                "strokeDash": [
+                  6,
+                  4
+                ]
+              },
+              {
+                "x": 120,
+                "y": 230,
+                "path": "M0,0L20,-70",
+                "stroke": "#e45756",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 160,
+                "y": 230,
+                "path": "M0,0L20,-70",
+                "stroke": "#4c78a8",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              },
+              {
+                "x": 150,
+                "y": 170,
+                "path": "M0,0L50,0L50,50L0,50Z",
+                "fill": "#bab0ac",
+                "fillOpacity": 0.7
+              },
+              {
+                "x": 140,
+                "y": 180,
+                "path": "M0,0L80,10",
+                "stroke": "#b279a2",
+                "strokeOpacity": 1,
+                "strokeWidth": 3,
+                "blend": "multiply"
+              },
+              {
+                "x": 140,
+                "y": 194,
+                "path": "M0,0L80,10",
+                "stroke": "#b279a2",
+                "strokeOpacity": 1,
+                "strokeWidth": 3,
+                "blend": "multiply"
+              },
+              {
+                "x": 140,
+                "y": 208,
+                "path": "M0,0L80,10",
+                "stroke": "#b279a2",
+                "strokeOpacity": 1,
+                "strokeWidth": 3,
+                "blend": "multiply"
+              },
+              {
+                "x": 170,
+                "y": 165,
+                "path": "M0,0L20,70",
+                "stroke": "#4c78a8",
+                "strokeOpacity": 0.7,
+                "strokeWidth": 3
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
