@@ -85,8 +85,9 @@ jobs:
       # the site as deployed, and each png is stored once, so ten runs of an
       # unchanged renderer weigh what one does.
       #
-      # A run at a release's tagged commit is kept past the ten. The release
-      # script pushes the tag seconds after the commit, so it is there by now.
+      # A run at a release's tagged commit is kept past the ten. The tag comes
+      # once the release pull request is merged, so it is usually there by now,
+      # and when it is not, release.yml starts this workflow again.
       - name: Add this run to the gallery history
         id: history
         run: |

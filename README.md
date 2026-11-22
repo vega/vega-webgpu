@@ -114,7 +114,7 @@ If Playwright's Chromium does not run on your machine, set `PLAYWRIGHT_BROWSER_P
 
 ## Releasing
 
-`npm run release -- <version>` bumps the version, runs the checks, commits, tags and pushes. The tag starts the workflow that creates the GitHub release and publishes to npm. See [Release.md](Release.md).
+`npm run release -- <version>` bumps the version, runs the checks and puts the release up as a pull request. Once that is merged, `npm run release:tag` tags it, and the tag starts the workflow that creates the GitHub release and publishes to npm. See [Release.md](Release.md).
 
 ## Contributing
 
