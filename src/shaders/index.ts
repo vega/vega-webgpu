@@ -1,4 +1,5 @@
 import type { GPUVegaCanvasContext } from '../types/context.js';
+import type { BindingShape } from '../util/webgpu.js';
 import type { ShaderBuilder } from './common.js';
 import { blendCompositeShader } from './blendComposite.js';
 import { curveShader } from './curve.js';
@@ -33,6 +34,40 @@ const BUILDERS = {
 
 /** A builder name, optionally followed by a sub-variant after a colon. */
 export type ShaderKey = keyof typeof BUILDERS | `${keyof typeof BUILDERS}:${string}`;
+
+/**
+ * The pipeline layout each shader is built with, which has to match the groups
+ * its source declares. Every builder is listed, so a new shader does not
+ * compile until it names one.
+ */
+const SHAPES: Record<keyof typeof BUILDERS, BindingShape> = {
+  BlendComposite: 'composite',
+  Curve: 'mark',
+  GradientFill: 'gradient',
+  Image: 'texture',
+  MaskComposite: 'mask',
+  Rect: 'mark',
+  Rule: 'mark',
+  SLine: 'mark',
+  SolidFill: 'mark',
+  Symbol: 'mark',
+  SymbolSdf: 'mark',
+  SymbolShape: 'mark',
+  Text: 'texture',
+};
+
+/**
+ * The pipeline layout a shader variant is built with. A fragment entry that
+ * samples a ramp is the only one that reaches group 1 in a shader whose other
+ * entries do not, which is how the segment and rect shaders draw a gradient.
+ */
+export function bindingShape(key: ShaderKey, fragmentEntryPoint?: string): BindingShape {
+  if (fragmentEntryPoint === 'main_fragment_gradient') {
+    return 'gradient';
+  }
+  const sep = key.indexOf(':');
+  return SHAPES[(sep < 0 ? key : key.slice(0, sep)) as keyof typeof BUILDERS];
+}
 
 /**
  * The compiled module for one shader variant, built on first use and cached on

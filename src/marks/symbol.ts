@@ -132,7 +132,9 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const res = getResources(device, ctx, vb);
   const uniformBuffer = res.bufferManager.createUniformBuffer();
 
-  let circleBindGroup: { group: GPUBindGroup; pipeline: GPURenderPipeline } | null = null;
+  // every symbol pipeline shares the layout, so one group serves each shape and blend
+  let held: GPUBindGroup | null = null;
+  const uniforms = () => (held ??= uniformBindGroup(ctx, device, drawName, uniformBuffer));
   // Built for the first dashed or gradient symbol, and kept for the rest.
   let outline: DrawTarget | null = null;
   let gradient: DrawTarget | null = null;
@@ -158,21 +160,12 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
   const run = new DrawRun<SceneSymbolExt>(ctx._opaqueBackdrop, (symbols, runBlend) => {
     const shape = symbolShape(symbols[0]);
     if (shape === 'circle') {
-      const circlePipeline = res.circlePipelineFor(runBlend);
-      // A bind group belongs to the layout it was made from, so a mark whose
-      // items carry different blends cannot hold one across the change.
-      if (circleBindGroup === null || circleBindGroup.pipeline !== circlePipeline) {
-        circleBindGroup = {
-          group: uniformBindGroup(ctx, device, drawName, circlePipeline, uniformBuffer),
-          pipeline: circlePipeline,
-        };
-      }
       const instanceBuffer = res.bufferManager.createInstanceBuffer(quadInstances(symbols, true));
       ctx._renderQueue.enqueue({
-        pipeline: circlePipeline,
+        pipeline: res.circlePipelineFor(runBlend),
         drawCounts: [6, symbols.length],
         vertexBuffers: [res.quadGeometry, instanceBuffer],
-        bindGroups: [circleBindGroup.group],
+        bindGroups: [uniforms()],
         clip: ctx._clip,
       });
     } else if (hasSdf(shape)) {
@@ -190,11 +183,11 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
         pipeline,
         drawCounts: [6, symbols.length],
         vertexBuffers: [res.quadGeometry, instanceBuffer],
-        bindGroups: [uniformBindGroup(ctx, device, `${drawName}Sdf`, pipeline, uniformBuffer)],
+        bindGroups: [uniforms()],
         clip: ctx._clip,
       });
     } else {
-      drawShapeGroup(device, ctx, res, uniformBuffer, runBlend, symbols);
+      drawShapeGroup(ctx, res, uniforms(), runBlend, symbols);
     }
   });
 
@@ -286,10 +279,9 @@ function drawSymbolOutline(
 }
 
 function drawShapeGroup(
-  device: GPUDevice,
   ctx: GPUVegaCanvasContext,
   res: SymbolResources,
-  uniformBuffer: GPUBuffer,
+  bindGroup: GPUBindGroup,
   blend: string,
   group: SceneSymbolExt[],
 ): void {
@@ -300,7 +292,6 @@ function drawShapeGroup(
   // A shape with no distance function is triangulated, and this used to draw it
   // through the one pipeline whatever the item asked for, so it never blended.
   const pipeline = res.shapePipelineFor(blend);
-  const bindGroup = uniformBindGroup(ctx, device, `${drawName}Shape`, pipeline, uniformBuffer);
   const geom = getShapeGeometry(res, ctx, key, shape, size, first.strokeWidth ?? 1);
 
   if (geom.fill && geom.fillCount > 0) {

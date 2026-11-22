@@ -323,26 +323,20 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     packed[i + 7] /= size;
   }
 
-  const uniformBuffer = res.bufferManager.sharedUniformBuffer();
-  // a pipeline with a default layout owns its bind group layout, so both groups
-  // come from the blend variant a draw uses, and the atlas ones are held per blend
-  const atlasGroups = new Map<string, GPUBindGroup[]>();
-  const bindGroups = (pipeline: GPURenderPipeline, texture: GPUTexture): GPUBindGroup[] => [
-    uniformBindGroup(ctx, device, drawName, pipeline, uniformBuffer),
-    textureBindGroup(device, 'Text Texture Bind Group', pipeline, linearSampler(device), viewOf(texture)),
-  ];
+  if (packed.length === 0 && oversized.length === 0) {
+    return;
+  }
+  // every text pipeline shares the layouts, so one pair serves every blend
+  const uniforms = uniformBindGroup(ctx, device, drawName, res.bufferManager.sharedUniformBuffer());
+  const textureGroup = (texture: GPUTexture): GPUBindGroup =>
+    textureBindGroup(device, 'Text Texture Bind Group', linearSampler(device), viewOf(texture));
 
   if (packed.length > 0) {
     const buffer = res.bufferManager.createInstanceBuffer(Float32Array.from(packed));
+    const groups = [uniforms, textureGroup(res.atlas.texture)];
     for (const { blend, first, count } of runs) {
-      const pipeline = res.pipelineFor(blend);
-      let groups = atlasGroups.get(blend);
-      if (!groups) {
-        groups = bindGroups(pipeline, res.atlas.texture);
-        atlasGroups.set(blend, groups);
-      }
       ctx._renderQueue.enqueue({
-        pipeline,
+        pipeline: res.pipelineFor(blend),
         drawCounts: [6, count, 0, first],
         vertexBuffers: [buffer],
         bindGroups: groups,
@@ -351,12 +345,11 @@ function draw(device: GPUDevice, ctx: GPUVegaCanvasContext, scene: GPUVegaScene,
     }
   }
   for (const extra of oversized) {
-    const pipeline = res.pipelineFor(extra.blend);
     ctx._renderQueue.enqueue({
-      pipeline,
+      pipeline: res.pipelineFor(extra.blend),
       drawCounts: [6, 1],
       vertexBuffers: [res.bufferManager.createInstanceBuffer(extra.data)],
-      bindGroups: bindGroups(pipeline, extra.texture),
+      bindGroups: [uniforms, textureGroup(extra.texture)],
       clip: ctx._clip,
     });
   }
