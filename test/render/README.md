@@ -128,9 +128,8 @@ Not ours to fix. It is [vega/vega#3972](https://github.com/vega/vega/issues/3972
 
 These are real and measured, and the case still earns its place because the rest of what it covers is exact.
 
-Two fixtures, both in `scenes.ts` with their measurement beside them.
+One fixture, in `scenes.ts` with its measurement beside it.
 
-- `group-variants` carries a `diff` of 0.4% against a default of 0.2%, and measures 0.230% at dpr 1 and 0.019% at dpr 2. Six dashed and capped borders on a corner radius, which is where the dash phase around a curve differs. `group-corner-dash` holds the same cause.
 - `rule-diagonals` carries a `mean` of 26 against a default of 10, and measures 12.64 at dpr 1 and 6.99 at dpr 2. Both renderers approximate a slanted edge and neither is the reference for the other.
 
 The spec lists are in `specs.ts`, each entry carrying its reading at both pixel ratios. `bias` has fifteen, the polygon seam model and the sparse specs whose ink is nearly all edge. `mean` has six: four geographic, one curve construction and one of many small labels. `diff` has five: `label` and `label-drift` are held tighter than the default rather than looser, and three are over it only because the case sits inside the default with no room left, `choropleth` measuring 0.770% against a default of 0.800%.

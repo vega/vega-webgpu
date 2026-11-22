@@ -4,6 +4,7 @@ import triangulate from 'triangulate-contours';
 import { pathParse, pathRender } from 'vega-scenegraph';
 import type { GPUVegaCanvasContext } from '../types/context.js';
 import type { PathGeometry, Point } from '../types/geometry.js';
+import { setMeasures } from '../util/dash.js';
 import { setVariant } from '../util/lru.js';
 import { warnOnce } from '../util/warn.js';
 
@@ -117,6 +118,218 @@ function pushPoint(points: Point[], x: number, y: number): void {
   }
 }
 
+/**
+ * Skia's measuring tolerance at a scale of one, in the max norm: how far a
+ * cubic's inner control points may sit from its chord's third points before
+ * SkContourMeasure halves it.
+ */
+const MEASURE_TOLERANCE = 0.5;
+
+/** Points a measured chord is drawn with, so the dash follows the curve rather than the chord. */
+const CHORD_SAMPLES = 4;
+
+/** Skia's limit on halving, in its fixed point t: past this depth a piece is taken as it is. */
+const MAX_T = 0x3fffffff;
+
+/**
+ * A path as contours to be dashed, each point carrying how far along its
+ * contour canvas measures it to be.
+ *
+ * Canvas does not dash along the curve. Skia measures a contour as the chords
+ * of its own subdivision (SkContourMeasure), halving a cubic while either inner
+ * control point sits further than MEASURE_TOLERANCE over the device scale from
+ * the chord's third points, and a dash lands where those chords add up to. The
+ * chords are a little shorter than the curve, so measured along the curve the
+ * pattern ran ahead of canvas, a little more after every curve it passed. A
+ * straight run measures the same either way.
+ *
+ * The points still follow the curve, CHORD_SAMPLES to a chord and spaced as
+ * Skia spaces a distance within one, so only where the pattern falls is taken
+ * from the chords and the stroke itself is not drawn faceted.
+ */
+function measuredContoursOf(path: string, tolerance: number, scaleX: number, scaleY: number): Point[][] {
+  const out: Point[][] = [];
+  let points: Point[] = [];
+  let along: number[] = [];
+  let m = 0;
+  let px = 0;
+  let py = 0;
+  let sx = 0;
+  let sy = 0;
+
+  const flush = (): void => {
+    if (points.length > 1) {
+      out.push(points);
+      setMeasures(points, Float64Array.from(along));
+    }
+    points = [];
+    along = [];
+    m = 0;
+  };
+  const push = (x: number, y: number): void => {
+    const last = points[points.length - 1];
+    if (!last || last[0] !== x || last[1] !== y) {
+      points.push([x, y]);
+      along.push(m);
+    }
+  };
+  const line = (x: number, y: number): void => {
+    push(px, py);
+    m += Math.hypot(x - px, y - py);
+    push(x, y);
+    px = x;
+    py = y;
+  };
+  // a chord of the subdivision: its length goes into the measure, and its piece of the curve is drawn
+  const chord = (c: readonly number[]): void => {
+    const start = m;
+    const length = Math.hypot(c[6] - c[0], c[7] - c[1]);
+    for (let i = 1; i <= CHORD_SAMPLES; i++) {
+      const t = i / CHORD_SAMPLES;
+      m = start + length * t;
+      const [x, y] = cubicAt(c, t);
+      push(x, y);
+    }
+  };
+  // a quadratic piece raised to the cubic it is, to be drawn the same way
+  const quadChord = (q: readonly number[]): void =>
+    chord([
+      q[0],
+      q[1],
+      q[0] + (2 / 3) * (q[2] - q[0]),
+      q[1] + (2 / 3) * (q[3] - q[1]),
+      q[4] + (2 / 3) * (q[2] - q[4]),
+      q[5] + (2 / 3) * (q[3] - q[5]),
+      q[4],
+      q[5],
+    ]);
+
+  let commands;
+  try {
+    commands = pathParse(path);
+  } catch {
+    warnOnce('path', '[vega-webgpu] An svg path could not be parsed and is not drawn.');
+    return out;
+  }
+  pathRender(
+    {
+      moveTo(x, y) {
+        flush();
+        px = sx = x;
+        py = sy = y;
+      },
+      lineTo: line,
+      bezierCurveTo(x1, y1, x2, y2, x, y) {
+        push(px, py);
+        measureCubic([px, py, x1, y1, x2, y2, x, y], tolerance, 0, MAX_T, chord);
+        px = x;
+        py = y;
+      },
+      quadraticCurveTo(cx, cy, x, y) {
+        push(px, py);
+        measureQuad([px, py, cx, cy, x, y], tolerance, 0, MAX_T, quadChord);
+        px = x;
+        py = y;
+      },
+      closePath() {
+        line(sx, sy);
+      },
+    },
+    commands,
+    0,
+    0,
+    scaleX,
+    scaleY,
+  );
+  flush();
+  return out;
+}
+
+/** Halves a cubic the way SkContourMeasure does, handing each piece it keeps to `take`. */
+function measureCubic(
+  c: readonly number[],
+  tolerance: number,
+  mint: number,
+  maxt: number,
+  take: (piece: readonly number[]) => void,
+): void {
+  const [x0, y0, x1, y1, x2, y2, x3, y3] = c;
+  const far = (x: number, y: number, t: number): boolean =>
+    Math.max(Math.abs(x0 + (x3 - x0) * t - x), Math.abs(y0 + (y3 - y0) * t - y)) > tolerance;
+  if ((maxt - mint) >> 10 === 0 || !(far(x1, y1, 1 / 3) || far(x2, y2, 2 / 3))) {
+    take(c);
+    return;
+  }
+  const abx = (x0 + x1) / 2;
+  const aby = (y0 + y1) / 2;
+  const bcx = (x1 + x2) / 2;
+  const bcy = (y1 + y2) / 2;
+  const cdx = (x2 + x3) / 2;
+  const cdy = (y2 + y3) / 2;
+  const abcx = (abx + bcx) / 2;
+  const abcy = (aby + bcy) / 2;
+  const bcdx = (bcx + cdx) / 2;
+  const bcdy = (bcy + cdy) / 2;
+  const mx = (abcx + bcdx) / 2;
+  const my = (abcy + bcdy) / 2;
+  const half = (mint + maxt) >> 1;
+  measureCubic([x0, y0, abx, aby, abcx, abcy, mx, my], tolerance, mint, half, take);
+  measureCubic([mx, my, bcdx, bcdy, cdx, cdy, x3, y3], tolerance, half, maxt, take);
+}
+
+/** The same for a quadratic, which Skia tests by how far its control point bows the chord. */
+function measureQuad(
+  q: readonly number[],
+  tolerance: number,
+  mint: number,
+  maxt: number,
+  take: (piece: readonly number[]) => void,
+): void {
+  const [x0, y0, x1, y1, x2, y2] = q;
+  const bow = Math.max(Math.abs(x1 / 2 - (x0 + x2) / 4), Math.abs(y1 / 2 - (y0 + y2) / 4));
+  if ((maxt - mint) >> 10 === 0 || bow <= tolerance) {
+    take(q);
+    return;
+  }
+  const ax = (x0 + x1) / 2;
+  const ay = (y0 + y1) / 2;
+  const bx = (x1 + x2) / 2;
+  const by = (y1 + y2) / 2;
+  const mx = (ax + bx) / 2;
+  const my = (ay + by) / 2;
+  const half = (mint + maxt) >> 1;
+  measureQuad([x0, y0, ax, ay, mx, my], tolerance, mint, half, take);
+  measureQuad([mx, my, bx, by, x2, y2], tolerance, half, maxt, take);
+}
+
+function cubicAt(c: readonly number[], t: number): [number, number] {
+  const u = 1 - t;
+  const a = u * u * u;
+  const b = 3 * u * u * t;
+  const d = 3 * u * t * t;
+  const e = t * t * t;
+  return [a * c[0] + b * c[2] + d * c[4] + e * c[6], a * c[1] + b * c[3] + d * c[5] + e * c[7]];
+}
+
+/** Contours to be dashed, held like any other trace of the path. */
+function measuredGeometry(
+  context: GPUVegaCanvasContext,
+  path: string,
+  tolerance: number,
+  scaleX: number,
+  scaleY: number,
+): PathGeometry {
+  const variant = `measured|${tolerance}|${scaleX}|${scaleY}`;
+  const cached = context._pathCache.get(path)?.get(variant);
+  if (cached !== undefined) {
+    return cached;
+  }
+  // only ever stroked, so there is nothing to triangulate
+  const geom: PathGeometry = { lines: measuredContoursOf(path, tolerance, scaleX, scaleY), triangles: [] };
+  setVariant(context._pathCache, path, variant, geom);
+  return geom;
+}
+
 /** Triangulates contours, or null when tess2 cannot. */
 function tessellate(lines: Point[][]): ReturnType<typeof triangulate> | null {
   try {
@@ -130,7 +343,10 @@ function tessellate(lines: Point[][]): ReturnType<typeof triangulate> | null {
 // for even-odd, which leaves the middle of a self-intersecting path hollow.
 const WINDING_NONZERO = 1;
 
-/** What a contour about to be dashed is flattened at. See geometryForPath. */
+/**
+ * Asks geometryForPath for contours to be dashed, measured the way canvas
+ * measures them rather than flattened at a flatness. See measuredContoursOf.
+ */
 export const DASH_FLATNESS = 1;
 
 const CURVE_FLATNESS = 4;
@@ -151,11 +367,9 @@ const CURVE_TOLERANCE = 0.1;
  * near-collinear joints that one of them loses a pixel, which took `line-shapes`
  * at dpr 2 from worst channel 71 to 134 while its pixel count did not move.
  *
- * A dash is the exception and takes DASH_FLATNESS instead. Its runs are
- * measured along this polyline, so its length has to be the one canvas measures
- * rather than the curve's, and canvas is not measuring the curve: at the
- * default here `mark-dashes` goes 0.037% to 0.055% and worst channel 115 to
- * 206, and a dashed rounded border 0.010% to 0.034%.
+ * A dash is the exception and takes DASH_FLATNESS instead, which hands back
+ * contours that carry the distance canvas measures along them, see
+ * measuredContoursOf.
  */
 export default function geometryForPath(
   context: GPUVegaCanvasContext,
@@ -169,10 +383,12 @@ export default function geometryForPath(
   }
 
   // A chord's error is bounded in path units, so the same contour sits twice as
-  // far from its own curve on a grid twice as fine. The flatness follows the
-  // ratio, and a dash does not: it keeps the coarse contour whatever the ratio,
-  // since it is measured along the polyline rather than drawn on it.
+  // far from its own curve on a grid twice as fine, and the flatness follows
+  // the ratio. So does Skia's measuring tolerance, which is in device pixels.
   const dpi = context._uniforms.dpi || 1;
+  if (scale === DASH_FLATNESS) {
+    return measuredGeometry(context, path, MEASURE_TOLERANCE / dpi, scaleX, scaleY);
+  }
   const flatness = scale ?? CURVE_FLATNESS * dpi;
 
   const variant = `${flatness}|${scaleX}|${scaleY}`;

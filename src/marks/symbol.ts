@@ -270,8 +270,8 @@ function drawSymbolOutline(
   if (!item.stroke) {
     return;
   }
-  // A dash is measured along the contour, so it takes the coarse one whatever
-  // the ratio. A solid outline is only drawn on it and takes the fine one.
+  // A dash takes the contour canvas measures it along. A solid outline is only
+  // drawn on its contour and takes the fine one.
   const geom = symbolShapeGeometry(ctx, symbolShape(item), symbolSize(item), pattern ? DASH_FLATNESS : undefined);
   const data = segmentInstances(
     strokeRuns(geom.lines, item, { dx: item.x || 0, dy: item.y || 0, angle: itemTurn(item) }),

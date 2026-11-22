@@ -3,7 +3,7 @@ import geometryForPath, { DASH_FLATNESS } from '../path/geometryForPath.js';
 import geometryForItem, { type ItemTransform } from '../path/geometryForItem.js';
 import { BufferManager, uploadBuffer } from '../util/bufferManager.js';
 import type { PathGeometry, Point } from '../types/geometry.js';
-import { dashPolyline, prepareDash } from '../util/dash.js';
+import { carryMeasures, dashPolyline, prepareDash } from '../util/dash.js';
 import {
   KIND_CAP_MEET,
   KIND_ROUND_CAP,
@@ -869,13 +869,19 @@ function placeContours(
   }
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
-  return lines.map(line =>
-    line.map(([px, py]): Point => {
+  // turning and moving keep a contour's length, scaling does not
+  const rigid = scaleX === 1 && scaleY === 1;
+  return lines.map(line => {
+    const placed = line.map(([px, py]): Point => {
       const x = px * scaleX;
       const y = py * scaleY;
       return [x * cos - y * sin + dx, x * sin + y * cos + dy];
-    }),
-  );
+    });
+    if (rigid) {
+      carryMeasures(line, placed);
+    }
+    return placed;
+  });
 }
 
 /**
