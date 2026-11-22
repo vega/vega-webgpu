@@ -7,9 +7,12 @@
     <link rel="stylesheet" href="./compare-ui.css" />
     <link rel="stylesheet" href="./index.css" />
     <link rel="icon" href="../favicon.ico" sizes="any" />
-    <script src="../releases/versions.js"></script>
+    <script src="../site/versions.js"></script>
     <script>
-      /** Loads the first source that answers, so a list is fallbacks in order. */
+      /**
+       * Loads the first source that answers, so a list is fallbacks in order.
+       * The callback gets the url that loaded.
+       */
       function loadScript(src, callback) {
         const urls = Array.isArray(src) ? src.slice() : [src];
         const tried = [];
@@ -23,7 +26,7 @@
           const script = document.createElement('script');
           script.type = 'text/javascript';
           script.src = url;
-          script.onload = callback;
+          script.onload = () => callback?.(url);
           script.onerror = next;
           document.head.appendChild(script);
         })();
@@ -39,7 +42,14 @@
       // explicit ?version=dev falls back rather than 404ing.
       const devAvailable = ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
       const newest = releasedVersions[0];
-      let version = getQueryParam('version') || (devAvailable || !newest ? 'dev' : newest);
+      const fallback = devAvailable || !newest ? 'dev' : newest;
+      let version = getQueryParam('version') || fallback;
+      // The version goes into a cdn url, so anything but a version number could
+      // point it at another package's code.
+      if (version !== 'dev' && !/^\d+\.\d+\.\d+(-[\w.]+)?$/.test(version)) {
+        console.warn(`[vega-webgpu] ${version} is not a version, using ${fallback} instead.`);
+        version = fallback;
+      }
       if (version === 'dev' && !devAvailable && newest) {
         console.warn(`[vega-webgpu] The dev bundle is only served locally, using ${newest} instead.`);
         version = newest;
@@ -47,16 +57,18 @@
       const isDev = version === 'dev';
       window.__devAvailable = devAvailable;
       window.__rendererVersion = version;
-      const major = isDev ? Infinity : parseInt(version.split(/[._]/)[0], 10);
       console.log(`Vega WebGPU Renderer ${version}`);
 
-      const rendererUrl = isDev
-        ? '../build/vega-webgpu-renderer.js'
-        : `../releases/${version.replaceAll('.', '_')}/vega-webgpu-renderer.js`;
+      const cdn = v => `https://cdn.jsdelivr.net/npm/vega-webgpu@${v}/build/vega-webgpu-renderer.js`;
+      const rendererUrl = isDev ? '../build/vega-webgpu-renderer.js' : cdn(version);
+      // A version is listed from its release commit on, which reaches the site
+      // a few minutes before npm has the package, and an old link can name one
+      // npm never had. The other published builds stand in rather than leaving
+      // the page blank.
+      const rendererUrls = isDev
+        ? [rendererUrl]
+        : [rendererUrl].concat(releasedVersions.filter(v => v !== version).map(cdn));
 
-      // Renderer versions before 2.0 were built for Vega 5 and require d3 globals.
-      // Pinned to 5.19.1: later 5.x turned Renderer into a class, which the old
-      // bundles cannot subclass (they call Renderer.call(this)).
       // ?vega=<name> loads a local build from test/vendor/vega-<name>.js, for
       // comparing an upstream change against the released one. Not committed.
       // The installed copy comes first, so a local run matches the render
@@ -67,23 +79,18 @@
       const vegaUrl =
         vegaBuild && /^[a-z-]+$/.test(vegaBuild)
           ? [`./vendor/vega-${vegaBuild}.js`]
-          : major >= 2
-            ? ['../node_modules/vega/build/vega.min.js', 'https://cdn.jsdelivr.net/npm/vega@6.2.0/build/vega.min.js']
-            : ['https://cdn.jsdelivr.net/npm/vega@5.19.1/build/vega.min.js'];
+          : ['../node_modules/vega/build/vega.min.js', 'https://cdn.jsdelivr.net/npm/vega@6.2.0/build/vega.min.js'];
 
-      function boot() {
-        loadScript(vegaUrl, function () {
-          loadScript(rendererUrl, function () {
-            loadScript('./index.js');
-          });
+      loadScript(vegaUrl, function () {
+        loadScript(rendererUrls, function (loaded) {
+          if (loaded !== rendererUrl) {
+            const used = releasedVersions.find(v => cdn(v) === loaded);
+            console.warn(`[vega-webgpu] ${version} could not be loaded, using ${used} instead.`);
+            window.__rendererVersion = used;
+          }
+          loadScript('./index.js');
         });
-      }
-
-      if (major >= 2) {
-        boot();
-      } else {
-        loadScript('https://d3js.org/d3.v4.min.js', boot);
-      }
+      });
     </script>
   </head>
 
@@ -226,7 +233,7 @@
       <footer id="pagefoot" class="foot">
         <span class="who">vega-webgpu, a WebGPU renderer for Vega</span>
         <a href="../">Project page</a>
-        <a href="../releases/marks.html">Mark playground</a>
+        <a href="../site/marks.html">Mark playground</a>
         <a href="https://github.com/vega/vega-webgpu">GitHub</a>
       </footer>
     </main>

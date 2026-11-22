@@ -5,6 +5,3 @@
 # Binary assets must never be line-ending converted.
 *.png binary
 *.arrow binary
-
-releases/* linguist-vendored
-releases/** linguist-vendored

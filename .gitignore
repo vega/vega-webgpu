@@ -30,4 +30,4 @@ test/vendor/
 # Per-version render gallery snapshots. The site keeps the last ten runs
 # instead, recorded by the pages workflow, so committing about 20MB of pngs per
 # release against a 19MB repository buys nothing. Locally: npm run gallery.
-releases/*/gallery/
+site/*/gallery/

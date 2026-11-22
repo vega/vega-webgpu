@@ -1,5 +1,5 @@
 /**
- * Regenerates releases/vega-enums.js, the value lists the mark playground fills
+ * Regenerates site/vega-enums.js, the value lists the mark playground fills
  * its pickers from. They come out of the installed vega's own schema rather
  * than a copy kept here, so a vega release that adds a stroke cap or a blend
  * mode shows up on the page as soon as the dependency moves.
@@ -10,7 +10,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { root } from './paths.mjs';
-const out = join(root, 'releases', 'vega-enums.js');
+const out = join(root, 'site', 'vega-enums.js');
 const require = createRequire(import.meta.url);
 
 /** The enum a `<prop>Value` definition allows as a literal value. */
@@ -91,7 +91,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   // prettier reshapes the JSON and keeps the working tree on crlf, so a raw
   // comparison would report a rewrite on every run. npx is a .cmd shim on
   // Windows, so it needs a shell.
-  execFileSync('npx', ['prettier', '--write', '--log-level', 'warn', 'releases/vega-enums.js'], {
+  execFileSync('npx', ['prettier', '--write', '--log-level', 'warn', 'site/vega-enums.js'], {
     cwd: root,
     stdio: 'inherit',
     shell: process.platform === 'win32',
@@ -101,8 +101,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     .join(', ');
   console.log(
     readFileSync(out, 'utf8') === before
-      ? `releases/vega-enums.js is already current: ${counts}`
-      : `releases/vega-enums.js rewritten: ${counts}`,
+      ? `site/vega-enums.js is already current: ${counts}`
+      : `site/vega-enums.js rewritten: ${counts}`,
   );
 }
 
