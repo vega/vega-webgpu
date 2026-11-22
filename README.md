@@ -92,6 +92,8 @@ npm run lint
 
 Then open `http://localhost:5500/test/?spec=bar&renderer=webgpu&version=dev` to run the local build against any spec in `test/specs-valid`.
 
+`npm install` also sets up a pre-commit hook. It runs `eslint --fix` and prettier on the staged files that `npm run lint` and `npm run format` cover.
+
 To add a spec, drop a `.vg.json` into `test/specs-valid` and build, which regenerates the list the demo page and the suite read. A test fails if that list falls behind the directory. Name a spec in an optional `test/specs-ignore.json` to keep it out of the demo page's picker.
 
 To add a scenegraph fixture, drop a JSON file into `test/render/scenes`: `{ "description", "width", "height", "origin", "scene" }`, where `scene` is what `vega.sceneToJSON` produces. A fixture skips the View, the dataflow and the layout, so a failure there is in the mark code.
