@@ -72,7 +72,20 @@
     "gallery": "http-server -p 5500 -c-1 -o /test/render/gallery.html .",
     "gallery:record": "cross-env RENDER_ARTIFACTS=1 playwright test render.spec.ts scene.spec.ts",
     "gallery:snapshot": "node scripts/gallery-snapshot.mjs",
-    "test:report": "playwright show-report"
+    "test:report": "playwright show-report",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "{src,scripts,test}/**/*.{ts,js,mjs}": [
+      "eslint --fix --no-warn-ignored",
+      "prettier --write"
+    ],
+    "{src,scripts,test}/**/*.{css,html}": "prettier --write",
+    "./*.{ts,js}": [
+      "eslint --fix --no-warn-ignored",
+      "prettier --write"
+    ],
+    "./*.{json,md}": "prettier --write"
   },
   "dependencies": {
     "d3-color": "^3.1.0",
@@ -96,6 +109,8 @@
     "eslint": "^9.39.5",
     "extrude-polyline": "^1.0.6",
     "http-server": "^14.1.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.2",
     "pixelmatch": "^7.2.0",
     "pngjs": "^7.0.0",
     "prettier": "^3.9.5",
@@ -109,6 +124,6 @@
     "vega-typings": "^2.1.0"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   }
 }

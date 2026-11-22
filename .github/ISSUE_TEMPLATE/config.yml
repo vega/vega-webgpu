@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question or help
+    url: https://bit.ly/join-vega-slack-2020
+    about: Ask in the Vega Slack.
+  - name: A bug that canvas has too
+    url: https://github.com/vega/vega/issues
+    about: If canvas draws it wrong as well, the bug is most likely in Vega itself.
