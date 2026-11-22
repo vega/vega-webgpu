@@ -109,6 +109,6 @@
     "vega-typings": "^2.1.0"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   }
 }
