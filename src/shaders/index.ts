@@ -36,15 +36,23 @@ const BUILDERS = {
 export type ShaderKey = keyof typeof BUILDERS | `${keyof typeof BUILDERS}:${string}`;
 
 /**
- * The shaders that bind more than the uniform block at group 0. A shader left
- * out of here is built with the uniform block alone, and one that declares
- * another group anyway fails at pipeline creation, on its first frame.
+ * The pipeline layout each shader is built with, which has to match the groups
+ * its source declares. Every builder is listed, so a new shader does not
+ * compile until it names one.
  */
-const SHAPES: Partial<Record<keyof typeof BUILDERS, BindingShape>> = {
+const SHAPES: Record<keyof typeof BUILDERS, BindingShape> = {
   BlendComposite: 'composite',
+  Curve: 'mark',
   GradientFill: 'gradient',
   Image: 'texture',
   MaskComposite: 'mask',
+  Rect: 'mark',
+  Rule: 'mark',
+  SLine: 'mark',
+  SolidFill: 'mark',
+  Symbol: 'mark',
+  SymbolSdf: 'mark',
+  SymbolShape: 'mark',
   Text: 'texture',
 };
 
@@ -58,7 +66,7 @@ export function bindingShape(key: ShaderKey, fragmentEntryPoint?: string): Bindi
     return 'gradient';
   }
   const sep = key.indexOf(':');
-  return SHAPES[(sep < 0 ? key : key.slice(0, sep)) as keyof typeof BUILDERS] ?? 'mark';
+  return SHAPES[(sep < 0 ? key : key.slice(0, sep)) as keyof typeof BUILDERS];
 }
 
 /**
