@@ -21,6 +21,18 @@ export function normalizeSampleCount(value: number): number {
   return defaultSampleCount;
 }
 
+/**
+ * What the adapter is asked for. Chrome on Windows ignores `powerPreference`
+ * and warns about it on every request (crbug.com/369219127), so it is left out
+ * there. Elsewhere it still matters: Chrome on a Mac with two GPUs takes the
+ * integrated one on battery without it. `userAgentData` exists only in
+ * Chromium, so Firefox on Windows keeps the option.
+ */
+export function adapterOptions(): GPURequestAdapterOptions {
+  const ua = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData;
+  return ua?.platform === 'Windows' ? {} : { powerPreference: 'high-performance' };
+}
+
 export function preferredColorFormat(): GPUTextureFormat {
   return typeof navigator !== 'undefined' && navigator.gpu ? navigator.gpu.getPreferredCanvasFormat() : 'bgra8unorm';
 }

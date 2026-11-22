@@ -29,9 +29,6 @@ const SPEC = {
   ],
 };
 
-/** Chrome on Windows says it ignores this on every adapter request, crbug.com/369219127. */
-const IGNORED = /powerPreference/;
-
 interface Step {
   step: string;
   width: number;
@@ -63,7 +60,7 @@ function listen(page: Page): string[] {
   const seen: string[] = [];
   page.on('pageerror', e => seen.push(String(e)));
   page.on('console', m => {
-    if ((m.type() === 'error' || m.type() === 'warning') && !IGNORED.test(m.text())) {
+    if (m.type() === 'error' || m.type() === 'warning') {
       seen.push(m.text());
     }
   });
