@@ -34,9 +34,12 @@ struct VertexInput {
 struct VertexOutput {
     @builtin(position) pos: vec4<f32>,
     @location(0) fill: vec4<f32>,
-    // segment ends and half width in device pixels, for analytic coverage
-    @location(1) a_dev: vec2<f32>,
-    @location(2) b_dev: vec2<f32>,
+    // Segment ends and half width in device pixels, for analytic coverage. The
+    // ends are flat: two segments decide a pixel on their shared bisector by
+    // reading the same distance with opposite signs, and an interpolated end is
+    // a few bits off in each, so both kept the pixel or both dropped it.
+    @location(1) @interpolate(flat) a_dev: vec2<f32>,
+    @location(2) @interpolate(flat) b_dev: vec2<f32>,
     @location(3) half_dev: f32,
     // per instance, and the kind inside is matched exactly, which barycentric
     // rounding of a smooth varying does not survive
