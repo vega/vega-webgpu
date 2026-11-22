@@ -1,19 +1,25 @@
 # Releasing
 
-One command does it:
-
-```bash
-npm run release
-```
-
-That releases the version already in `package.json`. To release a different one, name it and the script writes it into `package.json` for you:
+A release is a pull request like any other change, then a tag. From an up to date `main`:
 
 ```bash
 npm run release -- 2.1.0
+```
+
+That puts the release up as a pull request titled `chore: release v2.1.0`. Leave the version out to release the one already in `package.json`, or name an rc:
+
+```bash
+npm run release
 npm run release -- 2.1.0-rc1
 ```
 
-The tag is the last thing it does, and only once everything the tag points at is on the remote. Nothing here needs a build: the workflow the tag starts builds the bundles, creates the GitHub release and publishes to npm. The site gets the version's page and its row in the version table from the commit the script tags, and the push to `main` deploys them. The bundles themselves are not committed anywhere: jsDelivr serves them from npm.
+Once the pull request is reviewed and merged, tag it:
+
+```bash
+npm run release:tag
+```
+
+The tag is the last thing that happens, and it goes on the merged commit on `main`. Nothing here needs a build: the workflow the tag starts builds the bundles, creates the GitHub release and publishes to npm. The site gets the version's page and its row in the version table from the release commit, and the merge deploys them. The bundles themselves are not committed anywhere: jsDelivr serves them from npm.
 
 npm publishing uses [trusted publishing](https://docs.npmjs.com/trusted-publishers): the package's settings on npmjs.com name `vega/vega-webgpu` and `release.yml` as its publisher, so the workflow needs no npm token. If the workflow file is renamed, update that setting too, or the publish fails.
 
@@ -22,19 +28,28 @@ npm publishing uses [trusted publishing](https://docs.npmjs.com/trusted-publishe
 | Option | What it does |
 | --- | --- |
 | `--help` | The same summary, from the command itself. |
-| `--check` | Runs every check and stops before writing the site or committing anything. |
+| `--check` | Runs every check and stops before writing the site or committing anything. Works from any branch. |
 | `--skip-tests` | Does not run the suite. |
 | `--yes` | Answers the "the suite is red, continue?" prompt with yes. |
+| `--tag` | What `npm run release:tag` runs. Takes a version too, for when `main` has moved on to another one. |
 
 ## What it does, in order
 
-1. **Refuses to start on unrelated uncommitted work.** It owns `package.json`, `package-lock.json` and `site/releases.json` and will commit those. Anything else dirty has to be committed or stashed first, or the tag would point at a tree that was never the one under test.
+`npm run release`:
+
+1. **Refuses to start on unrelated uncommitted work, or anywhere but `origin/main`.** It owns `package.json`, `package-lock.json` and `site/releases.json` and will commit those. Anything else dirty has to be committed or stashed first, and the release pull request carries nothing but the release commit.
 2. **Bumps `package.json`** when you named a version that differs. It says so, and commits it later itself. The release workflow refuses a tag that disagrees with `package.json`, so this is the check that used to fail last.
 3. **Checks `site/releases.json` describes the version.** If there is no entry it prints the shape to paste and stops. A blank summary fails. A final release listing no features, performance notes or fixes fails; a prerelease only warns, since an rc may go out thin.
 4. **Runs the suite.** If it is red you get the output and a yes or no question rather than a silent pass.
 5. **Writes the version into the site:** its page at `site/<x_y_z>/index.html`, its row in the version table on the front page, and its slot in `site/versions.js`, which both version pickers read.
-6. **Commits and pushes** whatever it changed, as `release: <version>`.
-7. **Tags and pushes the tag.** If that push fails the tag is deleted again, so running the command a second time is safe.
+6. **Commits it to `release-v<version>` and pushes that branch** as `chore: release v<version>`, switches back to where you were and prints the link that opens the pull request.
+
+`npm run release:tag`:
+
+1. **Finds the merged `chore: release v<version>` commit on `origin/main`** and checks `package.json` there is on that version. The version defaults to the one on `main`.
+2. **Tags that commit and pushes the tag**, with the version's summary as the tag message. If the push fails the tag is deleted again, so running it a second time is safe.
+
+Tag right after merging. The pages run the merge starts keeps its gallery as the release's when it finds the tag, and `release.yml` starts another one as a fallback. That one records `main`, so if something else was merged in between, the release's gallery is only kept while it is one of the last ten runs.
 
 ## Writing the notes
 
@@ -108,4 +123,6 @@ git tag -d v2.1.0
 
 Deleting the tag does not delete the GitHub release or an npm publish. Remove the release from the GitHub UI. An npm version can never be reused, so the fix there is to publish the next patch.
 
-A tag pushed by hand rather than through the script still builds, creates the GitHub release and publishes, but the site does not list the version. `node scripts/prepare-release.mjs <version>` writes what the script would have, as long as `package.json` is on that version. It can rewrite more than the new version's page, so commit `index.html` and all of `site/`.
+A release pull request that should not go out: close it and delete its branch. Nothing is tagged or published before `npm run release:tag`.
+
+A tag pushed by hand rather than through the script still builds, creates the GitHub release and publishes, but the site does not list the version. `node scripts/prepare-release.mjs <version>` writes what the script would have, as long as `package.json` is on that version. It can rewrite more than the new version's page, so put `index.html` and all of `site/` up as a pull request.

@@ -60,6 +60,7 @@
     "pages": "node scripts/prepare-release.mjs --pages",
     "release": "node scripts/release.mjs",
     "release:check": "node scripts/release.mjs --check",
+    "release:tag": "node scripts/release.mjs --tag",
     "dev": "rollup -c --watch",
     "serve": "http-server -p 5500 -c-1 .",
     "typecheck": "tsc -p tsconfig.json --noEmit",

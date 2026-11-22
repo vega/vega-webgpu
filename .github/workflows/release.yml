@@ -4,8 +4,9 @@ name: Release
 #  1. build and attach the bundles to a GitHub Release
 #  2. publish to npm through trusted publishing, so no npm token is stored
 #
-# The site's page and table row for the version come with the tagged commit,
-# written by npm run release, so nothing here pushes to main.
+# The site's page and table row for the version come with the release pull
+# request that npm run release opens, so nothing here pushes to main. The tag
+# comes from npm run release:tag once that pull request is merged.
 on:
   push:
     tags:
@@ -17,6 +18,8 @@ jobs:
     permissions:
       contents: write
       id-token: write
+      # to start pages.yml, see the last step
+      actions: write
     steps:
       - uses: actions/checkout@v7
         with:
@@ -79,3 +82,12 @@ jobs:
             *-*) npm publish --provenance --access public --tag next ;;
             *) npm publish --provenance --access public ;;
           esac
+
+      # The pages run the merge started only keeps its gallery as the release's
+      # if the tag was there before it finished. When the tag came later, this
+      # run records main again, and if main is still the tagged commit, keeps it.
+      - name: Keep the gallery for this release
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main
