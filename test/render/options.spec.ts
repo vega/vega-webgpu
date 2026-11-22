@@ -37,6 +37,7 @@ async function render(page: Page, url: string): Promise<Applied> {
 }
 
 const specUrl = (spec: string, extra: string) => harnessUrl('spec', spec, 'webgpu', extra);
+const sceneUrl = (scene: string, samples: number) => harnessUrl('scene', scene, 'webgpu', `&sampleCount=${samples}`);
 
 /** Pipelines bake the sample count, so a change has to reach them and redraw. */
 test('a changed sample count reaches the pipelines', async ({ page }) => {
@@ -84,6 +85,42 @@ test('a sample count changed between frames draws like one set from the start', 
   expect(maxChannelDelta(msaa.png, png), 'the next frame still drew multisampled').toBeGreaterThan(0);
   expect(maxChannelDelta(single.png, png), 'it drew differently from a renderer set to one sample').toBe(0);
 });
+
+/**
+ * The same switch on scenes that draw through the clip mask, the trail's stroke
+ * mask and its composite, and the blend composite. `stacked-area` builds none
+ * of them. One of those left at the old count fails validation and the frame
+ * comes out blank, and only a fresh renderer to compare with shows that. The
+ * switch leaves blend-readback's pixels as they were, so there is no check that
+ * the picture changed.
+ */
+for (const scene of ['group-mark-clip-path', 'trail-overlap', 'blend-readback']) {
+  for (const [from, to] of [
+    [4, 1],
+    [1, 4],
+  ]) {
+    test(`${scene} switched from ${from} to ${to} samples draws like one set to ${to}`, async ({ page }) => {
+      test.setTimeout(120_000);
+      const fresh = await renderInHarness(page, sceneUrl(scene, to), 'webgpu');
+      await renderInHarness(page, sceneUrl(scene, from), 'webgpu');
+      const switched = await page.evaluate(async n => {
+        const w = window as unknown as {
+          renderer: { wgOptions: { sampleCount: number }; _ctx: { _sampleCount: number } };
+          __snapshot: () => Promise<unknown>;
+        };
+        w.renderer.wgOptions.sampleCount = n;
+        const shot = await w.__snapshot();
+        return { shot, samples: w.renderer._ctx._sampleCount };
+      }, to);
+
+      expect(switched.samples, 'the change reached the context').toBe(to);
+      expect(
+        maxChannelDelta(fresh.png, shotToPng(switched.shot as Shot)),
+        `it drew differently from a renderer set to ${to} samples`,
+      ).toBe(0);
+    });
+  }
+}
 
 /** The cache is geometry reuse, so it must be reachable and must not change the picture. */
 test('the shape cache can be turned off and does not change the picture', async ({ page }) => {
