@@ -1,0 +1,216 @@
+{
+  "description": "Gantt task bars: a clipped, rounded, stroked group at a fractional offset and height, holding a rect at the full group height with only its left corners rounded. A scissor rect that floors the clip's offset and extent separately drops the last device row or column the group covers whenever an edge is fractional, and the fill stops short of the bottom and right edges. The first row sits on whole pixels and is the control.",
+  "width": 280,
+  "height": 170,
+  "origin": [
+    0,
+    0
+  ],
+  "scene": {
+    "marktype": "group",
+    "name": "root",
+    "role": "frame",
+    "interactive": true,
+    "clip": false,
+    "items": [
+      {
+        "items": [
+          {
+            "marktype": "group",
+            "role": "mark",
+            "interactive": true,
+            "clip": false,
+            "items": [
+              {
+                "x": 20,
+                "y": 10,
+                "width": 240,
+                "height": 18,
+                "cornerRadius": 5,
+                "clip": true,
+                "fill": "#c6dbef",
+                "stroke": "#3182bd",
+                "strokeWidth": 1,
+                "items": [
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": false,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 0,
+                        "y": 0,
+                        "width": 108,
+                        "height": 18,
+                        "fill": "#3182bd",
+                        "strokeWidth": 0,
+                        "cornerRadiusTopLeft": 5,
+                        "cornerRadiusBottomLeft": 5
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "x": 20.3,
+                "y": 36.4,
+                "width": 239.4,
+                "height": 17.6,
+                "cornerRadius": 5,
+                "clip": true,
+                "fill": "#c7e9c0",
+                "stroke": "#31a354",
+                "strokeWidth": 1,
+                "items": [
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": false,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 0,
+                        "y": 0,
+                        "width": 143.64000000000001,
+                        "height": 17.6,
+                        "fill": "#31a354",
+                        "strokeWidth": 0,
+                        "cornerRadiusTopLeft": 5,
+                        "cornerRadiusBottomLeft": 5
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "x": 20.5,
+                "y": 62.75,
+                "width": 240.2,
+                "height": 17.5,
+                "cornerRadius": 5,
+                "clip": true,
+                "fill": "#fdd0a2",
+                "stroke": "#e6550d",
+                "strokeWidth": 1,
+                "items": [
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": false,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 0,
+                        "y": 0,
+                        "width": 72.05999999999999,
+                        "height": 17.5,
+                        "fill": "#e6550d",
+                        "strokeWidth": 0,
+                        "cornerRadiusTopLeft": 5,
+                        "cornerRadiusBottomLeft": 5
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "x": 19.85,
+                "y": 88.15,
+                "width": 240.6,
+                "height": 18.3,
+                "cornerRadius": 5,
+                "clip": true,
+                "fill": "#dadaeb",
+                "stroke": "#756bb1",
+                "strokeWidth": 1,
+                "items": [
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": false,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 0,
+                        "y": 0,
+                        "width": 240.60000000000002,
+                        "height": 18.3,
+                        "fill": "#756bb1",
+                        "strokeWidth": 0,
+                        "cornerRadiusTopLeft": 5,
+                        "cornerRadiusBottomLeft": 5
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "x": 20.25,
+                "y": 114.6,
+                "width": 239.9,
+                "height": 17.7,
+                "cornerRadius": 5,
+                "clip": true,
+                "fill": "#c6dbef",
+                "stroke": "#3182bd",
+                "strokeWidth": 1,
+                "items": [
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": false,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 0,
+                        "y": 0,
+                        "width": 179.925,
+                        "height": 17.7,
+                        "fill": "#3182bd",
+                        "strokeWidth": 0,
+                        "cornerRadiusTopLeft": 5,
+                        "cornerRadiusBottomLeft": 5
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "x": 20.7,
+                "y": 140.9,
+                "width": 239.55,
+                "height": 17.45,
+                "cornerRadius": 5,
+                "clip": true,
+                "fill": "#fdd0a2",
+                "stroke": "#e6550d",
+                "strokeWidth": 1,
+                "items": [
+                  {
+                    "marktype": "rect",
+                    "role": "mark",
+                    "interactive": false,
+                    "clip": false,
+                    "items": [
+                      {
+                        "x": 0,
+                        "y": 0,
+                        "width": 239.55,
+                        "height": 17.45,
+                        "fill": "#e6550d",
+                        "strokeWidth": 0,
+                        "cornerRadiusTopLeft": 5,
+                        "cornerRadiusBottomLeft": 5
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
