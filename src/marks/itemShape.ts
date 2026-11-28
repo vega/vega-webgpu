@@ -82,12 +82,21 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
     const fillTarget = targetOf(ctx, device, name, res, res.bufferManager, uniformBuffer);
     const outlineTarget = targetOf(ctx, device, res.outline.name, res.outline, res.bufferManager, uniformBuffer);
 
-    // Solid fills share one draw in paint order, and a gradient fill or an
-    // outline closes the run.
-    const run = new DrawRun<Float32Array>(ctx._opaqueBackdrop, (chunks, blend) => {
+    // Solid fills share one draw in paint order, and so do solid outlines. A
+    // fill closes the outline run and an outline the fill run, which keeps each
+    // item's fill under its own stroke and over the strokes before it. The links
+    // of a network are paths with no fill, and as a draw each they were a
+    // buffer, a bind group and a draw call per link and frame.
+    const fills = new DrawRun<Float32Array>(ctx._opaqueBackdrop, (chunks, blend) => {
       const data = joinChunks(chunks);
       if (data) {
         enqueueFill(fillTarget, data, null, blend);
+      }
+    });
+    const outlines = new DrawRun<Float32Array>(ctx._opaqueBackdrop, (chunks, blend) => {
+      const data = joinChunks(chunks);
+      if (data) {
+        enqueueOutline(outlineTarget, data, null, blend);
       }
     });
 
@@ -112,11 +121,14 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
       };
       const fillData = cached ? cachedGeometryData(res.cache, itemKey(item), item, fill.colour, build) : build();
 
-      if (fillData.length > 0 && fill.ramp) {
-        run.flush();
-        enqueueFill(fillTarget, fillData, fill.ramp, blend);
-      } else {
-        run.add(fillData, blend);
+      if (fillData.length > 0) {
+        outlines.flush();
+        if (fill.ramp) {
+          fills.flush();
+          enqueueFill(fillTarget, fillData, fill.ramp, blend);
+        } else {
+          fills.add(fillData, blend);
+        }
       }
       // After the fill, which is the order canvas paints them in. Enqueued
       // ahead of it the fill covers the inner half of every dash.
@@ -129,12 +141,19 @@ export function itemShapeMark<T extends SceneItem & FillStyle & StrokeStyle>({
           strokeEnds(item),
         );
         if (data) {
-          run.flush();
-          enqueueOutline(outlineTarget, data, stroke.ramp, blend);
+          fills.flush();
+          if (stroke.ramp) {
+            outlines.flush();
+            enqueueOutline(outlineTarget, data, stroke.ramp, blend);
+          } else {
+            outlines.add(data, blend);
+          }
         }
       }
     }
-    run.flush();
+    // at most one of the two holds anything, since each add flushed the other
+    fills.flush();
+    outlines.flush();
   }
 
   return { draw } satisfies MarkModule;
