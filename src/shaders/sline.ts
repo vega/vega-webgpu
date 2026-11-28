@@ -112,11 +112,12 @@ fn main_vertex(in: VertexInput, @builtin(vertex_index) vertexIndex: u32) -> Vert
 /**
  * What one end leaves of the pixel.
  *
- * A flat cut and the outer limit of a corner both take a half pixel falloff,
- * since those are real edges of the stroke. The bisector a join is cut against
- * is not: it runs through the middle of the joined outline and the segment on
- * the other side of it draws the rest, so a falloff there would show as a pale
- * seam where the two meet. It is a hard cut, with the tie given to one side.
+ * A flat cut takes a half pixel falloff, since it is a real edge of the stroke.
+ * So does the outer limit of a bevel, which bevelLimit gives apart. The
+ * bisector a join is cut against is not an edge: it runs through the middle of
+ * the joined outline and the segment on the other side of it draws the rest, so
+ * a falloff there would show as a pale seam where the two meet. It is a hard
+ * cut, with the tie given to one side.
  *
  * The reach is how far the neighbour runs from the vertex before it stops,
  * which the cut only holds up to. A dash ending within a half width of a
@@ -149,15 +150,13 @@ fn endFactor(v: vec2<f32>, outward: vec2<f32>, join: vec4<f32>, half_w: f32, rea
         }
         return select(1.0, 0.0, length(v - m * (join.z * 2.0)) < half_w - 0.5);
     }
-    // a bevel stops at its own limit along the bisector
-    let outer = select(1.0, clamp(0.5 + join.z - dot(v, m), 0.0, 1.0), kind == END_BEVEL);
     if dot(v, outward) <= 0.0 {
         // The neighbour's own axis, since it and this one keep equal angles to
         // the bisector. Past where that neighbour stops, nothing else draws
         // this, so the cut gives way.
         let other = outward - 2.0 * dot(outward, m) * m;
         if dot(v, other) > reach {
-            return outer;
+            return 1.0;
         }
     }
     var n = vec2<f32>(-m.y, m.x);
@@ -176,7 +175,24 @@ fn endFactor(v: vec2<f32>, outward: vec2<f32>, join: vec4<f32>, half_w: f32, rea
     if select(side > 0.0, side >= 0.0, flipped) {
         return 0.0;
     }
-    return outer;
+    return 1.0;
+}
+
+/**
+ * How much of the pixel a bevel's flat outer limit leaves, and all of it at any
+ * other end.
+ *
+ * The limit and the side of the stroke are two edges of one outline. Where the
+ * vertex barely turns they run on top of each other along the whole segment, so
+ * multiplying their falloffs halved the edge a second time: a curve walked as
+ * short segments, a rounded corner with a dash for one, drew its outer edge at
+ * half the coverage canvas gives it. The fragment takes the smaller of the two.
+ */
+fn bevelLimit(v: vec2<f32>, join: vec4<f32>) -> f32 {
+    if join.w != END_BEVEL {
+        return 1.0;
+    }
+    return clamp(0.5 + join.z - dot(v, join.xy), 0.0, 1.0);
 }
 
 /**
@@ -207,9 +223,10 @@ fn fragmentColor(in: VertexOutput) -> vec4<f32> {
     // its real width rather than the 0.6 the near edge alone would give
     let dist = length(v - e * clamp(along, lo, hi));
     let cover = clamp(in.half_dev - dist + 0.5, 0.0, 1.0) - clamp(-in.half_dev - dist + 0.5, 0.0, 1.0);
+    let edge = min(cover, min(bevelLimit(v, in.join_start), bevelLimit(in.pos.xy - in.b_dev, in.join_end)));
     let behind = endFactor(v, -e, in.join_start, in.half_dev, in.reach.x);
     let ahead = endFactor(in.pos.xy - in.b_dev, e, in.join_end, in.half_dev, in.reach.y);
-    return vec4<f32>(in.fill.rgb, in.fill.a * cover * behind * ahead);
+    return vec4<f32>(in.fill.rgb, in.fill.a * edge * behind * ahead);
 }
 
 /**
