@@ -366,12 +366,26 @@ function sameClip(a: ClipRect | undefined, b: ClipRect | undefined): boolean {
   return a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
 }
 
-/** Returns the clamped rect, or null when it collapses to nothing. */
+/**
+ * The clip as whole device pixels, clamped to the attachment, or null when it
+ * collapses to nothing.
+ *
+ * Every pixel the clip touches is kept, the way canvas keeps a partly covered
+ * pixel at a clip edge. The far edge is rounded from the near one plus the
+ * extent, since flooring the extent on its own drops the last row of a group
+ * at a fractional offset, and a child filling the group shows it as a gap.
+ */
 function clampClip(clip: ClipRect, size: [number, number]): ClipRect | null {
+  // an empty intersection would otherwise round up to a pixel
+  if (clip[2] <= 0 || clip[3] <= 0) {
+    return null;
+  }
   const x = Math.min(Math.max(Math.floor(clip[0]), 0), size[0]);
   const y = Math.min(Math.max(Math.floor(clip[1]), 0), size[1]);
-  const w = Math.min(Math.max(Math.floor(clip[2]), 0), size[0] - x);
-  const h = Math.min(Math.max(Math.floor(clip[3]), 0), size[1] - y);
+  const x2 = Math.min(Math.max(Math.ceil(clip[0] + clip[2]), x), size[0]);
+  const y2 = Math.min(Math.max(Math.ceil(clip[1] + clip[3]), y), size[1]);
+  const w = x2 - x;
+  const h = y2 - y;
   if (w <= 0 || h <= 0) {
     return null;
   }
